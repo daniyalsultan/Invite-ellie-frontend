@@ -1,4 +1,4 @@
-import React from 'react';
+// import React from 'react';
 import narrativeImage from '../assets/narrative-image.svg';
 
 export function Narrative(): JSX.Element {

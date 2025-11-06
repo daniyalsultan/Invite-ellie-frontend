@@ -1,4 +1,4 @@
-import React from 'react';
+// import React from 'react';
 import googleMeetIcon from '../assets/integration-google-meet.svg';
 import zoomIcon from '../assets/integration-zoom.svg';
 import microsoftTeamsIcon from '../assets/integration-microsoft-teams.svg';

@@ -1,4 +1,4 @@
-import React from 'react';
+// import React from 'react';
 import integrationsRow from '../assets/integrations-row.svg';
 
 export function Integrations(): JSX.Element {

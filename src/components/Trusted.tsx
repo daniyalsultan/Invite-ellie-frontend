@@ -1,4 +1,4 @@
-import React from 'react';
+// import React from 'react';
 import trustedLogos from '../assets/trusted-logos.svg';
 
 export function Trusted(): JSX.Element {

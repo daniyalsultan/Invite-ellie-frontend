@@ -1,4 +1,4 @@
-import React from 'react';
+// import React from 'react';
 import icon1 from '../assets/feature-icon-1.svg';
 import icon2 from '../assets/feature-icon-2.svg';
 import icon3 from '../assets/feature-icon-3.svg';
