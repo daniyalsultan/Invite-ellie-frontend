@@ -1,0 +1,24 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Base styles aligning with Figma */
+:root {
+  color-scheme: light;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  @apply font-nunito text-ellieBlack bg-white antialiased;
+}
+
+/* Utility wrappers for max-width similar to centered Figma content */
+.container-ellie {
+  /* Desktop inner width observed ~1494px inside 1920 frame with side gutters */
+  @apply w-full max-w-[1494px] mx-auto px-4 md:px-6;
+}
+
+
