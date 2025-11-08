@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import logo from '../../assets/logo.svg';
 
 export interface HeaderProps {
@@ -22,9 +23,9 @@ export function Header({ logoAlt = 'Invite Ellie' }: HeaderProps): JSX.Element {
   const closeMenu = (): void => setIsMenuOpen(false);
 
   const navLinks = [
-    { href: '#features', label: 'Features' },
-    { href: '#cta', label: 'Business' },
-    { href: '#integrations', label: 'Integrations' },
+    { to: '/#features', label: 'Features' },
+    { to: '/#cta', label: 'Business' },
+    { to: '/#integrations', label: 'Integrations' },
   ];
 
   return (
@@ -54,7 +55,7 @@ export function Header({ logoAlt = 'Invite Ellie' }: HeaderProps): JSX.Element {
           <span aria-hidden className="block h-[2px] w-5 rounded-full bg-current"></span>
         </button>
 
-        <a href="#" className="mx-auto flex items-center gap-2 lg:mx-0 lg:gap-[20px]" aria-label={logoAlt}>
+        <Link to="/" className="mx-auto flex items-center gap-2 lg:mx-0 lg:gap-[20px]" aria-label={logoAlt}>
           <img src={logo} alt="" className="h-[56px] w-[56px]" aria-hidden="true" />
           <div className="hidden flex-col lg:flex">
             <span className="font-spaceGrotesk text-[28px] lg:text-[39px] font-bold tracking-tight text-ellieBlack leading-[1.1743]">
@@ -64,13 +65,13 @@ export function Header({ logoAlt = 'Invite Ellie' }: HeaderProps): JSX.Element {
               For unforgettable meetings
             </span>
           </div>
-        </a>
+        </Link>
 
         <nav aria-label="Primary" className="ml-auto hidden items-center gap-[67px] font-nunito text-[18px] text-ellieNavy lg:flex lg:text-[20px] lg:font-semibold">
           {navLinks.map((link) => (
-            <a key={link.label} className="transition-colors hover:text-ellieBlack" href={link.href}>
+            <Link key={link.label} className="transition-colors hover:text-ellieBlack" to={link.to}>
               {link.label}
-            </a>
+            </Link>
           ))}
         </nav>
 
@@ -81,13 +82,13 @@ export function Header({ logoAlt = 'Invite Ellie' }: HeaderProps): JSX.Element {
           >
             Login
           </a>
-          <a
-            href="#cta"
+          <Link
+            to="/"
             className="inline-flex items-center justify-center rounded-[12px] bg-ellieBlue px-6 py-[10px] font-nunito text-[16px] font-extrabold text-white transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ellieBlue lg:rounded-[5px] lg:px-[50px] lg:py-[15px] lg:text-[20px]"
           >
             <span className="lg:hidden">Sign Up</span>
             <span className="hidden lg:inline">Sign Up for free</span>
-          </a>
+          </Link>
         </div>
       </div>
 
@@ -104,13 +105,13 @@ export function Header({ logoAlt = 'Invite Ellie' }: HeaderProps): JSX.Element {
                 <span aria-hidden className="text-2xl leading-none">&times;</span>
               </button>
 
-              <a
-                href="#cta"
+              <Link
+                to="/"
                 className="w-full rounded-[18px] bg-ellieBlue py-4 text-center font-nunito text-[18px] font-extrabold text-white"
                 onClick={closeMenu}
               >
                 Sign Up for free
-              </a>
+              </Link>
 
               <a
                 href="#login"
@@ -122,14 +123,14 @@ export function Header({ logoAlt = 'Invite Ellie' }: HeaderProps): JSX.Element {
 
               <nav className="flex flex-col gap-8 text-left">
                 {navLinks.map((link) => (
-                  <a
+                  <Link
                     key={link.label}
-                    href={link.href}
+                    to={link.to}
                     className="font-nunito text-[22px] font-semibold text-ellieBlack"
                     onClick={closeMenu}
                   >
                     {link.label}
-                  </a>
+                  </Link>
                 ))}
               </nav>
             </div>
