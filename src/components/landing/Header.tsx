@@ -76,14 +76,14 @@ export function Header({ logoAlt = 'Invite Ellie' }: HeaderProps): JSX.Element {
         </nav>
 
         <div className="flex flex-shrink-0 items-center gap-[10px]">
-          <a
+          <Link
+            to="/login"
             className="hidden lg:inline-flex items-center justify-center rounded-[5px] border border-transparent px-[30px] py-[10px] font-nunito text-[18px] font-medium text-ellieNavy transition-colors hover:text-ellieBlack"
-            href="#login"
           >
             Login
-          </a>
+          </Link>
           <Link
-            to="/"
+            to="/signup"
             className="inline-flex items-center justify-center rounded-[12px] bg-ellieBlue px-6 py-[10px] font-nunito text-[16px] font-extrabold text-white transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ellieBlue lg:rounded-[5px] lg:px-[50px] lg:py-[15px] lg:text-[20px]"
           >
             <span className="lg:hidden">Sign Up</span>
@@ -106,20 +106,20 @@ export function Header({ logoAlt = 'Invite Ellie' }: HeaderProps): JSX.Element {
               </button>
 
               <Link
-                to="/"
+                to="/signup"
                 className="w-full rounded-[18px] bg-ellieBlue py-4 text-center font-nunito text-[18px] font-extrabold text-white"
                 onClick={closeMenu}
               >
                 Sign Up for free
               </Link>
 
-              <a
-                href="#login"
+              <Link
+                to="/login"
                 className="text-center font-nunito text-[18px] font-semibold text-ellieNavy"
                 onClick={closeMenu}
               >
                 Login
-              </a>
+              </Link>
 
               <nav className="flex flex-col gap-8 text-left">
                 {navLinks.map((link) => (

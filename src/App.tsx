@@ -4,6 +4,10 @@ import { Header } from './components/landing/Header';
 import { LandingPage } from './components/landing/LandingPage';
 import { SetupProfilePage } from './components/setupProfile/SetupProfilePage';
 import { ComingSoonPage } from './components/comingSoon/ComingSoonPage';
+import { SignupPage } from './components/signup/SignupPage';
+import { LoginPage } from './components/login/LoginPage';
+import { ResetPasswordPage } from './components/resetpassword/ResetPasswordPage';
+import { NewPasswordPage } from './components/resetpassword/NewPasswordPage';
 
 function ScrollToHash(): null {
   const location = useLocation();
@@ -33,6 +37,11 @@ function App(): JSX.Element {
         <Route path="/" element={<LandingPage />} />
         <Route path="/setup-profile" element={<SetupProfilePage />} />
         <Route path="/coming-soon" element={<ComingSoonPage />} />
+        <Route path="/signup" element={<SignupPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/forgot-password" element={<ResetPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/new-password" element={<NewPasswordPage />} />
         <Route path="*" element={<LandingPage />} />
       </Routes>
       <ScrollToHash />
