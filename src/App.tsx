@@ -3,6 +3,7 @@ import { Routes, Route, useLocation } from 'react-router-dom';
 import { Header } from './components/landing/Header';
 import { LandingPage } from './components/landing/LandingPage';
 import { SetupProfilePage } from './components/setupProfile/SetupProfilePage';
+import { ComingSoonPage } from './components/comingSoon/ComingSoonPage';
 
 function ScrollToHash(): null {
   const location = useLocation();
@@ -22,12 +23,16 @@ function ScrollToHash(): null {
 }
 
 function App(): JSX.Element {
+  const location = useLocation();
+  const hideHeader = location.pathname === '/coming-soon';
+
   return (
     <div className="min-h-screen bg-white">
-      <Header />
+      {!hideHeader && <Header />}
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/setup-profile" element={<SetupProfilePage />} />
+        <Route path="/coming-soon" element={<ComingSoonPage />} />
         <Route path="*" element={<LandingPage />} />
       </Routes>
       <ScrollToHash />
