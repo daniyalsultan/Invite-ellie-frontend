@@ -34,7 +34,7 @@ const FAQ_ITEMS: FaqItem[] = [
   {
     question: 'Can I search through past meetings?',
     answer:
-      'You can and it’s fast. Ellie’s smart memory lets you search by keyword, topic, or participant and instantly find relevant moments from any meeting.',
+      "You can and it's fast. Ellie's smart memory lets you search by keyword, topic, or participant and instantly find relevant moments from any meeting.",
   },
 ];
 
@@ -42,26 +42,35 @@ export function FAQ(): JSX.Element {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
 
   return (
-    <section id="faq" className="w-full py-12 md:py-16" aria-labelledby="faq-heading">
-      <div className="container-ellie">
-        <h2 id="faq-heading" className="text-[28px] md:text-[36px] font-extrabold text-ellieBlack mb-6">Frequently Asked Questions</h2>
-        <div className="flex flex-col gap-4">
+    <section id="faq" className="w-full py-[70px] md:py-[90px]" aria-labelledby="faq-heading">
+      <div className="container-ellie flex flex-col items-center gap-[35px] text-center">
+        <h2
+          id="faq-heading"
+          className="font-poppins text-[30px] font-semibold leading-[1.5] tracking-[-0.05em] text-ellieBlack md:text-[40px]"
+        >
+          Frequently Asked Questions
+        </h2>
+
+        <div className="flex w-full max-w-[830px] flex-col gap-[15px] text-left">
           {FAQ_ITEMS.map((item, idx) => {
             const isOpen = openIndex === idx;
             return (
-              <div key={item.question} className="rounded-[5px] shadow-sm">
+              <div
+                key={item.question}
+                className="overflow-hidden rounded-[5px] shadow-[0_4px_10px_rgba(0,0,0,0.25)] transition"
+              >
                 <button
                   type="button"
                   aria-expanded={isOpen}
                   aria-controls={`faq-panel-${idx}`}
                   onClick={() => setOpenIndex(isOpen ? null : idx)}
-                  className={`w-full text-left px-5 py-4 rounded-[5px] border border-black/10 flex items-center justify-between transition ${
-                    isOpen ? 'bg-[#F4F7FA]' : 'bg-white'
-                  }`}
+                  className="flex w-full items-center justify-between gap-[30px] bg-ellieBlue px-[25px] py-[23px] text-left"
                 >
-                  <span className="text-[18px] md:text-[20px] font-bold text-ellieBlack">{item.question}</span>
+                  <span className="font-nunito text-[18px] font-bold leading-[1.364] text-white md:text-[20px]">
+                    {item.question}
+                  </span>
                   <svg
-                    className={`h-5 w-5 text-ellieBlack transition-transform ${isOpen ? 'rotate-180' : ''}`}
+                    className={`h-5 w-5 text-white transition-transform ${isOpen ? 'rotate-180' : ''}`}
                     viewBox="0 0 20 20"
                     fill="none"
                     aria-hidden
@@ -70,7 +79,10 @@ export function FAQ(): JSX.Element {
                   </svg>
                 </button>
                 {isOpen && (
-                  <div id={`faq-panel-${idx}`} className="px-5 pb-5 text-[16px] text-ellieBlack/80 bg-white rounded-b-[5px] border-x border-b border-black/10">
+                  <div
+                    id={`faq-panel-${idx}`}
+                    className="bg-[#F2F9FD] px-[34px] py-[19px] font-nunito text-[18px] leading-[1.364] text-ellieBlack"
+                  >
                     {item.answer}
                   </div>
                 )}

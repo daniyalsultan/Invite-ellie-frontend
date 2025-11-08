@@ -8,11 +8,17 @@ module.exports = {
     extend: {
       fontFamily: {
         nunito: ['Nunito', 'system-ui', 'sans-serif'],
+        inter: ['Inter', 'system-ui', 'sans-serif'],
+        spaceGrotesk: ['"Space Grotesk"', 'system-ui', 'sans-serif'],
+        poppins: ['Poppins', 'system-ui', 'sans-serif'],
       },
       colors: {
         ellieBlue: '#327AAD',
         ellieBlack: '#000000',
         ellieGray: '#545454',
+        ellieNavy: '#0A1628',
+        ellieAccent: '#FF8000',
+        ellieSurface: '#F4F7FA',
       },
       fontSize: {
         // From Figma desktop hero title

@@ -1,26 +1,24 @@
 // import React from 'react';
-import { Header } from './components/Header';
-import { Hero } from './components/Hero';
-import { Integrations } from './components/Integrations';
-import { Features } from './components/Features';
-import { IntegrationsCards } from './components/IntegrationsCards';
-import { Trusted } from './components/Trusted';
-import { Narrative } from './components/Narrative';
-import { CTA } from './components/CTA';
-import { Footer } from './components/Footer';
-import { FAQ } from './components/FAQ';
+import { Header } from './components/landing/Header';
+import { Hero } from './components/landing/Hero';
+import { Integrations } from './components/landing/Integrations';
+import { Features } from './components/landing/Features';
+import { Trusted } from './components/landing/Trusted';
+import { Narrative } from './components/landing/Narrative';
+import { CTA } from './components/landing/CTA';
+import { Footer } from './components/landing/Footer';
+import { FAQ } from './components/landing/FAQ';
 
 function App(): JSX.Element {
   return (
     <div className="min-h-full">
       <Header />
-      <main>
+      <main className="flex flex-col gap-[118px]">
         <Hero />
         <Integrations />
-        <IntegrationsCards />
-        <Narrative />
         <Trusted />
         <Features />
+        <Narrative />
         <FAQ />
         <CTA />
       </main>
