@@ -13,7 +13,7 @@ function App(): JSX.Element {
   return (
     <div className="min-h-full">
       <Header />
-      <main className="flex flex-col gap-[118px]">
+      <main className="flex flex-col gap-[80px] lg:gap-[118px]">
         <Hero />
         <Integrations />
         <Trusted />

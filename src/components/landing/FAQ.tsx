@@ -42,46 +42,44 @@ export function FAQ(): JSX.Element {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
 
   return (
-    <section id="faq" className="w-full py-[70px] md:py-[90px]" aria-labelledby="faq-heading">
+    <section id="faq" className="w-full py-[70px] lg:py-[90px]" aria-labelledby="faq-heading">
       <div className="container-ellie flex flex-col items-center gap-[35px] text-center">
         <h2
           id="faq-heading"
-          className="font-poppins text-[30px] font-semibold leading-[1.5] tracking-[-0.05em] text-ellieBlack md:text-[40px]"
+          className="font-poppins text-[26px] font-semibold leading-[1.4] tracking-[-0.05em] text-ellieBlack lg:text-[40px]"
         >
           Frequently Asked Questions
         </h2>
 
-        <div className="flex w-full max-w-[830px] flex-col gap-[15px] text-left">
+        <div className="flex w-full max-w-[830px] flex-col gap-[18px] text-left">
           {FAQ_ITEMS.map((item, idx) => {
             const isOpen = openIndex === idx;
             return (
               <div
                 key={item.question}
-                className="overflow-hidden rounded-[5px] shadow-[0_4px_10px_rgba(0,0,0,0.25)] transition"
+                className="overflow-hidden rounded-[18px] bg-white shadow-[0_20px_45px_rgba(0,0,0,0.12)] transition lg:rounded-[5px] lg:bg-transparent lg:shadow-[0_4px_10px_rgba(0,0,0,0.25)]"
               >
                 <button
                   type="button"
                   aria-expanded={isOpen}
                   aria-controls={`faq-panel-${idx}`}
                   onClick={() => setOpenIndex(isOpen ? null : idx)}
-                  className="flex w-full items-center justify-between gap-[30px] bg-ellieBlue px-[25px] py-[23px] text-left"
+                  className="flex w-full items-center justify-between gap-[30px] bg-white px-[26px] py-[24px] text-left font-nunito text-[18px] font-semibold text-[#4F4F4F] lg:bg-ellieBlue lg:px-[25px] lg:py-[23px] lg:text-[20px] lg:font-bold lg:text-white"
                 >
-                  <span className="font-nunito text-[18px] font-bold leading-[1.364] text-white md:text-[20px]">
-                    {item.question}
-                  </span>
+                  <span className="leading-[1.364]">{item.question}</span>
                   <svg
-                    className={`h-5 w-5 text-white transition-transform ${isOpen ? 'rotate-180' : ''}`}
+                    className={`h-[20px] w-[20px] text-ellieBlue transition-transform ${isOpen ? 'rotate-180' : ''} lg:text-white`}
                     viewBox="0 0 20 20"
                     fill="none"
                     aria-hidden
                   >
-                    <path d="M5 8l5 5 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M5 7.5l5 5 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 </button>
                 {isOpen && (
                   <div
                     id={`faq-panel-${idx}`}
-                    className="bg-[#F2F9FD] px-[34px] py-[19px] font-nunito text-[18px] leading-[1.364] text-ellieBlack"
+                    className="bg-white px-[26px] pb-[24px] font-nunito text-[17px] leading-[1.5] text-[#4F4F4F] lg:bg-[#F2F9FD] lg:px-[34px] lg:py-[19px] lg:text-[18px] lg:leading-[1.364] lg:text-ellieBlack"
                   >
                     {item.answer}
                   </div>

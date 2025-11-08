@@ -25,9 +25,9 @@ module.exports = {
         hero: ['55px', { lineHeight: '1.1743' }],
       },
     },
-    // Breakpoints matching Figma frames
     screens: {
-      md: '440px', // mobile frame width
+      md: '700px',
+      lg: '1050px',
       xl: '1920px', // desktop frame width
     },
   },

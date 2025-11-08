@@ -7,7 +7,9 @@
   color-scheme: light;
 }
 
-html, body, #root {
+html,
+body,
+#root {
   height: 100%;
 }
 
@@ -21,4 +23,28 @@ body {
   @apply w-full max-w-[1494px] mx-auto px-4 md:px-6;
 }
 
+@keyframes drawerInRight {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0%);
+  }
+}
 
+@keyframes drawerInLeft {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0%);
+  }
+}
+
+.animate-drawer-in {
+  animation: drawerInRight 0.35s ease forwards;
+}
+
+.animate-drawer-in-left {
+  animation: drawerInLeft 0.35s ease forwards;
+}

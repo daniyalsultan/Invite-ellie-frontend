@@ -18,53 +18,51 @@ export function Hero({
   ctaLabel = "Get Started, it's Free",
 }: HeroProps): JSX.Element {
   return (
-    <section className="w-full bg-ellieBlue/5 py-[60px] md:py-[80px]" aria-labelledby="hero-heading">
-      <div className="container-ellie grid items-center gap-[32px] md:grid-cols-2 md:gap-[46px]">
-        <div className="flex flex-col gap-[40px] md:gap-[61px]">
-          <div className="flex flex-col gap-4 md:gap-[16px]">
-            <h1
-              id="hero-heading"
-              className="text-[32px] md:text-hero font-extrabold leading-[1.1743] text-ellieBlack"
-            >
-              <span className="block">{titleLead}</span>
-              <span className="block">
-                <span className="text-ellieBlue">{titleInvite}</span>{' '}
-                <span className="text-[#7864A0]">{titleEllie}</span>
-              </span>
-            </h1>
-            <p className="font-nunito text-[18px] md:text-[22px] font-medium leading-[1.364] text-ellieGray max-w-[618px]">
-              {subtitle}
-            </p>
-            <div className="flex flex-wrap items-center gap-[6px]">
-              <a
-                href="#cta"
-                className="inline-flex items-center justify-center rounded-[5px] bg-ellieBlue px-[40px] py-[15px] font-nunito text-[18px] md:text-[20px] font-extrabold text-white transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ellieBlue"
-              >
-                {ctaLabel}
-              </a>
-              <a
-                href="#features"
-                className="inline-flex items-center justify-center rounded-[5px] border border-ellieNavy px-[30px] py-[15px] font-nunito text-[18px] font-semibold text-ellieNavy transition hover:bg-ellieBlue/10"
-              >
-                Features
-              </a>
-            </div>
-          </div>
-
-          <div className="flex flex-col items-center gap-[20px] md:items-start md:gap-[27px]">
-            <span className="font-nunito text-[14px] md:text-[18px] font-semibold tracking-[0.24em] text-ellieNavy">
-              INTEGRATIONS
+    <section className="w-full bg-ellieBlue/5 py-[60px] lg:py-[80px]" aria-labelledby="hero-heading">
+      <div className="container-ellie flex flex-col items-center gap-[32px] lg:grid lg:grid-cols-2 lg:items-center lg:gap-[46px]">
+        <div className="order-2 flex flex-col gap-[28px] text-center lg:order-1 lg:gap-[61px] lg:text-left">
+          <h1
+            id="hero-heading"
+            className="font-spaceGrotesk text-[36px] font-bold leading-[1.1] text-ellieBlack lg:text-hero lg:leading-[1.1743]"
+          >
+            <span className="block">{titleLead}</span>
+            <span className="block">
+              <span className="text-ellieBlue">{titleInvite}</span>{' '}
+              <span className="text-[#7864A0]">{titleEllie}</span>
             </span>
-            <img
-              src={integrationsRow}
-              alt="Integrations: Google Meet, Zoom, Microsoft Teams"
-              className="max-w-[320px] md:max-w-[420px]"
-            />
+          </h1>
+          <p className="mx-auto max-w-[320px] font-nunito text-[18px] leading-[1.5] text-ellieGray lg:mx-0 lg:max-w-[618px] lg:text-[22px] lg:leading-[1.364]">
+            {subtitle}
+          </p>
+          <div className="flex w-full max-w-[320px] flex-col items-stretch gap-4 lg:max-w-none lg:flex-row lg:items-center lg:justify-start">
+            <a
+              href="#cta"
+              className="inline-flex w-full items-center justify-center rounded-[18px] bg-ellieBlue px-8 py-4 font-nunito text-[18px] font-extrabold text-white transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ellieBlue lg:w-auto lg:rounded-[5px] lg:px-[40px] lg:py-[15px] lg:text-[20px]"
+            >
+              {ctaLabel}
+            </a>
+            <a
+              href="#features"
+              className="inline-flex w-full items-center justify-center rounded-[18px] border border-ellieNavy px-3 py-3 font-nunito text-[18px] font-semibold text-ellieNavy transition hover:bg-ellieBlue/10 lg:w-auto lg:rounded-[5px] lg:px-[30px] lg:py-[15px] lg:text-[18px]"
+            >
+              Features
+            </a>
           </div>
         </div>
 
-        <div className="flex min-h-[260px] items-center justify-center md:min-h-[400px]">
-          <img src={heroGraphic} alt="Ellie hero illustration" className="h-auto w-full rounded-[12px]" />
+        <div className="order-1 w-full max-w-[360px] overflow-hidden rounded-[32px] bg-white shadow-[0_12px_30px_rgba(0,0,0,0.1)] lg:order-2 lg:max-w-none lg:rounded-[24px]">
+          <img src={heroGraphic} alt="Ellie hero illustration" className="h-auto w-full" />
+        </div>
+
+        <div className="order-3 flex flex-col items-center gap-3 lg:-mt-6 lg:items-start lg:gap-[16px]">
+          <span className="font-nunito text-[14px] font-semibold tracking-[0.24em] text-ellieNavy lg:text-[18px]">
+            INTEGRATIONS
+          </span>
+          <img
+            src={integrationsRow}
+            alt="Integrations: Google Meet, Zoom, Microsoft Teams"
+            className="max-w-[220px] lg:max-w-[420px]"
+          />
         </div>
       </div>
     </section>
