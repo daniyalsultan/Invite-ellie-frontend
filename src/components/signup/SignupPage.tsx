@@ -39,12 +39,12 @@ export function SignupPage(): JSX.Element {
             Join Ellie — The meeting intelligence platform that connects every conversation and keeps your team on track.
           </p>
 
-          <div className="mt-8 flex gap-4">
+          <div className="mt-8 flex flex-col gap-4 lg:flex-row">
             {/* Quick Sign Up Buttons */}
             <button
               type="button"
               onClick={handleGoogleSignup}
-              className="flex flex-1 items-center justify-center gap-3 rounded-[12px] border border-[#7964A0] bg-white px-5 py-[14px] font-nunito text-[18px] font-semibold text-ellieBlack transition hover:bg-[rgba(121,100,160,0.05)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ellieBlue"
+              className="flex w-full lg:flex-1 items-center justify-center gap-3 rounded-[12px] border border-[#7964A0] bg-white px-5 py-[14px] font-nunito text-[18px] font-semibold text-ellieBlack transition hover:bg-[rgba(121,100,160,0.05)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ellieBlue"
             >
               <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -58,7 +58,7 @@ export function SignupPage(): JSX.Element {
             <button
               type="button"
               onClick={handleMicrosoftSignup}
-              className="flex flex-1 items-center justify-center gap-3 rounded-[12px] border border-[#7964A0] bg-white px-5 py-[14px] font-nunito text-[18px] font-semibold text-ellieBlack transition hover:bg-[rgba(121,100,160,0.05)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ellieBlue"
+              className="flex w-full lg:flex-1 items-center justify-center gap-3 rounded-[12px] border border-[#7964A0] bg-white px-5 py-[14px] font-nunito text-[18px] font-semibold text-ellieBlack transition hover:bg-[rgba(121,100,160,0.05)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ellieBlue"
             >
               <svg className="h-5 w-5" viewBox="0 0 23 23" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M0 0h10.556v10.556H0V0z" fill="#F25022"/>
