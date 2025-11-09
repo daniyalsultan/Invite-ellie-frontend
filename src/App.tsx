@@ -8,6 +8,10 @@ import { SignupPage } from './components/signup/SignupPage';
 import { LoginPage } from './components/login/LoginPage';
 import { ResetPasswordPage } from './components/resetpassword/ResetPasswordPage';
 import { NewPasswordPage } from './components/resetpassword/NewPasswordPage';
+import { IntegrationsPage } from './components/integrations';
+import { PreferencesPage } from './components/preferences';
+import { SettingsPage } from './components/settings';
+import { NotificationsPage } from './components/notifications';
 
 function ScrollToHash(): null {
   const location = useLocation();
@@ -28,7 +32,7 @@ function ScrollToHash(): null {
 
 function App(): JSX.Element {
   const location = useLocation();
-  const hideHeader = location.pathname === '/coming-soon';
+  const hideHeader = location.pathname === '/coming-soon' || location.pathname.startsWith('/integrations') || location.pathname.startsWith('/preferences') || location.pathname.startsWith('/settings') || location.pathname.startsWith('/notifications');
 
   return (
     <div className="min-h-screen bg-white">
@@ -42,6 +46,10 @@ function App(): JSX.Element {
         <Route path="/forgot-password" element={<ResetPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/new-password" element={<NewPasswordPage />} />
+        <Route path="/integrations" element={<IntegrationsPage />} />
+        <Route path="/preferences" element={<PreferencesPage />} />
+        <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/notifications" element={<NotificationsPage />} />
         <Route path="*" element={<LandingPage />} />
       </Routes>
       <ScrollToHash />
