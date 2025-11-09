@@ -12,6 +12,8 @@ import { IntegrationsPage } from './components/integrations';
 import { PreferencesPage } from './components/preferences';
 import { SettingsPage } from './components/settings';
 import { NotificationsPage } from './components/notifications';
+import { DashboardPage } from './components/dashboard';
+import { WorkspacePage, CreateWorkspacePage, WorkspaceViewPage } from './components/workspace';
 
 function ScrollToHash(): null {
   const location = useLocation();
@@ -32,7 +34,16 @@ function ScrollToHash(): null {
 
 function App(): JSX.Element {
   const location = useLocation();
-  const hideHeader = location.pathname === '/coming-soon' || location.pathname.startsWith('/integrations') || location.pathname.startsWith('/preferences') || location.pathname.startsWith('/settings') || location.pathname.startsWith('/notifications');
+  const hideHeader =
+    location.pathname === '/coming-soon' ||
+    location.pathname.startsWith('/dashboard') ||
+    location.pathname.startsWith('/integrations') ||
+    location.pathname.startsWith('/preferences') ||
+    location.pathname.startsWith('/settings') ||
+    location.pathname.startsWith('/notifications') ||
+    location.pathname.startsWith('/workspaces') ||
+    location.pathname.startsWith('/create-workspace') ||
+    location.pathname.startsWith('/workspace-view');
 
   return (
     <div className="min-h-screen bg-white">
@@ -50,6 +61,10 @@ function App(): JSX.Element {
         <Route path="/preferences" element={<PreferencesPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/notifications" element={<NotificationsPage />} />
+        <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/workspaces" element={<WorkspacePage />} />
+        <Route path="/create-workspace" element={<CreateWorkspacePage />} />
+        <Route path="/workspace-view" element={<WorkspaceViewPage />} />
         <Route path="*" element={<LandingPage />} />
       </Routes>
       <ScrollToHash />

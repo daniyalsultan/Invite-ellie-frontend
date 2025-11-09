@@ -52,6 +52,11 @@ export function Sidebar({ activeTab }: SidebarProps): JSX.Element {
     if (path === '/dashboard') {
       return currentPath === '/dashboard' || currentPath === '/';
     }
+    if (path === '/workspaces') {
+      return (
+        currentPath.startsWith('/workspaces') || currentPath.startsWith('/workspace-view')
+      );
+    }
     return currentPath.startsWith(path);
   };
 
