@@ -1,0 +1,2 @@
+export { TranscriptionsPage } from './TranscriptionsPage';
+

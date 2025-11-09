@@ -14,6 +14,9 @@ import { SettingsPage } from './components/settings';
 import { NotificationsPage } from './components/notifications';
 import { DashboardPage } from './components/dashboard';
 import { WorkspacePage, CreateWorkspacePage, WorkspaceViewPage } from './components/workspace';
+import { TranscriptionsPage } from './components/transcriptions';
+import { MeetingRecordingsPage } from './components/meetingrecordings';
+import { MeetingViewPage } from './components/meetingView';
 
 function ScrollToHash(): null {
   const location = useLocation();
@@ -43,7 +46,10 @@ function App(): JSX.Element {
     location.pathname.startsWith('/notifications') ||
     location.pathname.startsWith('/workspaces') ||
     location.pathname.startsWith('/create-workspace') ||
-    location.pathname.startsWith('/workspace-view');
+    location.pathname.startsWith('/workspace-view') ||
+    location.pathname.startsWith('/transcriptions') ||
+    location.pathname.startsWith('/meeting-recordings') ||
+    location.pathname.startsWith('/meeting-view');
 
   return (
     <div className="min-h-screen bg-white">
@@ -65,6 +71,9 @@ function App(): JSX.Element {
         <Route path="/workspaces" element={<WorkspacePage />} />
         <Route path="/create-workspace" element={<CreateWorkspacePage />} />
         <Route path="/workspace-view" element={<WorkspaceViewPage />} />
+        <Route path="/transcriptions" element={<TranscriptionsPage />} />
+        <Route path="/meeting-recordings" element={<MeetingRecordingsPage />} />
+        <Route path="/meeting-view" element={<MeetingViewPage />} />
         <Route path="*" element={<LandingPage />} />
       </Routes>
       <ScrollToHash />
