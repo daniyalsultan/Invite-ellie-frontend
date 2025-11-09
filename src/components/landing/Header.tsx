@@ -32,11 +32,11 @@ export function Header({ logoAlt = 'Invite Ellie' }: HeaderProps): JSX.Element {
     <header className="w-full">
       {/* Announcement Banner */}
       <div className="w-full bg-ellieBlue">
-        <div className="container-ellie flex flex-wrap items-center justify-center gap-[9px] py-[12px]">
-          <p className="text-white font-nunito text-[16px] lg:text-[22px] font-semibold leading-[1.364] text-center">
+        <div className="container-ellie flex flex-wrap items-center justify-center gap-[6px] md:gap-[9px] py-[8px] md:py-[12px]">
+          <p className="text-white font-nunito text-[12px] md:text-[16px] lg:text-[22px] font-semibold leading-[1.364] text-center">
             Ellie remembers your discussions, decisions, and next steps. So your team never starts from scratch.
           </p>
-          <span className="inline-flex items-center rounded-[2.5px] bg-ellieAccent px-[12px] py-[6px] font-nunito text-white text-[12px] lg:text-[15px] font-extrabold uppercase leading-[0.8] tracking-[0.08em]">
+          <span className="inline-flex items-center rounded-[2.5px] bg-ellieAccent px-[8px] md:px-[12px] py-[4px] md:py-[6px] font-nunito text-white text-[10px] md:text-[12px] lg:text-[15px] font-extrabold uppercase leading-[0.8] tracking-[0.08em]">
             NEW
           </span>
         </div>
