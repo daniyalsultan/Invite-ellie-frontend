@@ -1,19 +1,112 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import groupImage from '../../assets/Group 40999.png';
 
 export function SignupPage(): JSX.Element {
+  const location = useLocation();
+  const locationState = location.state as { confirmationNotice?: string } | null;
+
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(locationState?.confirmationNotice ?? null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+
+  useEffect(() => {
+    if (locationState?.confirmationNotice) {
+      setErrorMessage(locationState.confirmationNotice);
+    }
+  }, [locationState?.confirmationNotice]);
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // Handle form submission here
-    console.log('Form submitted', { email, password, confirmPassword, agreedToTerms });
+
+    setErrorMessage(null);
+    setSuccessMessage(null);
+
+    if (!apiBaseUrl) {
+      setErrorMessage('API base URL is not configured.');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setErrorMessage('Passwords do not match.');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/accounts/register/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+      });
+
+      let responseData: unknown = null;
+      try {
+        responseData = await response.json();
+      } catch (jsonError) {
+        // Ignore JSON parsing errors for empty responses
+      }
+
+      if (!response.ok) {
+        let message = 'Unable to create account.';
+
+        if (responseData && typeof responseData === 'object') {
+          if ('error' in (responseData as Record<string, unknown>) && typeof (responseData as Record<string, unknown>).error === 'string') {
+            message = (responseData as Record<string, string>).error;
+          } else {
+            const fieldErrors = Object.entries(responseData as Record<string, unknown>)
+              .map(([field, value]) => {
+                if (Array.isArray(value)) {
+                  return `${field}: ${value.join(', ')}`;
+                }
+                if (typeof value === 'string') {
+                  return `${field}: ${value}`;
+                }
+                return null;
+              })
+              .filter(Boolean);
+
+            if (fieldErrors.length > 0) {
+              message = fieldErrors.join(' | ');
+            }
+          }
+        }
+
+        setErrorMessage(message);
+        return;
+      }
+
+      const success =
+        responseData &&
+        typeof responseData === 'object' &&
+        'message' in responseData
+          ? String((responseData as Record<string, unknown>).message)
+          : 'Check your email to confirm your account.';
+
+      setSuccessMessage(success);
+      setEmail('');
+      setPassword('');
+      setConfirmPassword('');
+      setAgreedToTerms(false);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Something went wrong. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleGoogleSignup = () => {
@@ -160,11 +253,27 @@ export function SignupPage(): JSX.Element {
               </label>
             </div>
 
+            {(errorMessage || successMessage) && (
+              <div aria-live="polite" className="space-y-3">
+                {errorMessage && (
+                  <div className="rounded-[12px] border border-red-200 bg-red-50 px-5 py-3 font-nunito text-[16px] text-red-600">
+                    {errorMessage}
+                  </div>
+                )}
+                {successMessage && (
+                  <div className="rounded-[12px] border border-green-200 bg-green-50 px-5 py-3 font-nunito text-[16px] text-green-600">
+                    {successMessage}
+                  </div>
+                )}
+              </div>
+            )}
+
             <button
               type="submit"
-              className="mt-2 inline-flex w-full items-center justify-center rounded-[12px] bg-ellieBlue px-[40px] py-[16px] font-nunito text-[18px] font-extrabold text-white transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ellieBlue lg:text-[20px]"
+              disabled={isLoading}
+              className="mt-2 inline-flex w-full items-center justify-center rounded-[12px] bg-ellieBlue px-[40px] py-[16px] font-nunito text-[18px] font-extrabold text-white transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ellieBlue disabled:cursor-not-allowed disabled:opacity-60 lg:text-[20px]"
             >
-              Create an account
+              {isLoading ? 'Creating account...' : 'Create an account'}
             </button>
           </form>
 

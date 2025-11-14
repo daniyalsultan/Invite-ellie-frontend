@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import logo from '../../assets/logo.svg';
 import searchIcon from '../../assets/Vector.png';
 import notificationsIcon from '../../assets/noti.png';
 import mikeImage from '../../assets/mike.jpg';
+import { useAuth } from '../../context/AuthContext';
 
 export interface DashboardHeaderProps {
   userName?: string;
@@ -17,6 +18,14 @@ export function DashboardHeader({
   userAvatar,
 }: DashboardHeaderProps): JSX.Element {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    setIsDropdownOpen(false);
+    logout();
+    navigate('/login', { replace: true });
+  };
   return (
     <header className="w-full bg-white border-b border-gray-200">
       <div className="w-full px-6 py-4">
@@ -140,10 +149,7 @@ export function DashboardHeader({
                 <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
                   <button
                     type="button"
-                    onClick={() => {
-                      setIsDropdownOpen(false);
-                      // Handle logout
-                    }}
+                    onClick={handleLogout}
                     className="w-full px-4 py-2 text-left font-nunito text-sm text-ellieBlack hover:bg-gray-100 transition-colors"
                   >
                     Logout

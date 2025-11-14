@@ -1,26 +1,50 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import groupImage from '../../assets/Group 41000.png';
+import { useAuth } from '../../context/AuthContext';
 
 export function LoginPage(): JSX.Element {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const { login } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const redirectPath = (location.state as { from?: string } | null)?.from ?? '/dashboard';
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // Handle form submission here
-    console.log('Form submitted', { email, password, rememberMe });
+    setErrorMessage(null);
+
+    setIsSubmitting(true);
+    try {
+      await login({ email, password, rememberMe });
+      if (!rememberMe) {
+        try {
+          sessionStorage.setItem('ellie_last_login_email', email);
+        } catch {
+          /* ignore */
+        }
+      }
+      navigate(redirectPath, { replace: true });
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Unable to login. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleGoogleLogin = () => {
-    // Handle Google login
+    // TODO: Integrate Google SSO
     console.log('Google login');
   };
 
   const handleMicrosoftLogin = () => {
-    // Handle Microsoft login
+    // TODO: Integrate Microsoft SSO
     console.log('Microsoft login');
   };
 
@@ -137,11 +161,18 @@ export function LoginPage(): JSX.Element {
                 </Link>
               </div>
 
+              {errorMessage && (
+                <div className="rounded-[12px] border border-red-200 bg-red-50 px-5 py-3 font-nunito text-[16px] text-red-600">
+                  {errorMessage}
+                </div>
+              )}
+
               <button
                 type="submit"
-                className="mt-2 inline-flex w-full items-center justify-center rounded-[12px] bg-ellieBlue px-[40px] py-[16px] font-nunito text-[18px] font-extrabold text-white transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ellieBlue lg:text-[20px]"
+                disabled={isSubmitting}
+                className="mt-2 inline-flex w-full items-center justify-center rounded-[12px] bg-ellieBlue px-[40px] py-[16px] font-nunito text-[18px] font-extrabold text-white transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ellieBlue disabled:cursor-not-allowed disabled:opacity-60 lg:text-[20px]"
               >
-                Login
+                {isSubmitting ? 'Logging in...' : 'Login'}
               </button>
             </form>
 
@@ -155,9 +186,9 @@ export function LoginPage(): JSX.Element {
 
           {/* Right Side - Image */}
           <div className="hidden lg:flex lg:items-center lg:justify-center">
-            <img 
-              src={groupImage} 
-              alt="Ellie dashboard preview" 
+            <img
+              src={groupImage}
+              alt="Ellie dashboard preview"
               className="w-full h-auto max-w-full object-contain"
             />
           </div>
@@ -166,4 +197,3 @@ export function LoginPage(): JSX.Element {
     </div>
   );
 }
-

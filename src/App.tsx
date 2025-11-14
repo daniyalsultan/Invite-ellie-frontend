@@ -1,10 +1,11 @@
 import { useEffect } from 'react';
-import { Routes, Route, useLocation } from 'react-router-dom';
+import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { Header } from './components/landing/Header';
 import { LandingPage } from './components/landing/LandingPage';
 import { SetupProfilePage } from './components/setupProfile/SetupProfilePage';
 import { ComingSoonPage } from './components/comingSoon/ComingSoonPage';
 import { SignupPage } from './components/signup/SignupPage';
+import { ConfirmSignupPage } from './components/signup/ConfirmSignupPage';
 import { LoginPage } from './components/login/LoginPage';
 import { ResetPasswordPage } from './components/resetpassword/ResetPasswordPage';
 import { NewPasswordPage } from './components/resetpassword/NewPasswordPage';
@@ -18,20 +19,60 @@ import { TranscriptionsPage } from './components/transcriptions';
 import { MeetingRecordingsPage } from './components/meetingrecordings';
 import { MeetingViewPage } from './components/meetingView';
 import { SearchResultsPage } from './components/search';
+import { ProtectedRoute } from './components/auth/ProtectedRoute';
 
 function ScrollToHash(): null {
   const location = useLocation();
 
   useEffect(() => {
-    if (location.hash) {
-      const element = document.querySelector(location.hash);
-      if (element) {
-        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    } else {
+    if (!location.hash) {
       window.scrollTo({ top: 0, behavior: 'auto' });
+      return;
+    }
+
+    if (location.hash.startsWith('#access_token=')) {
+      return;
+    }
+
+    const element = document.querySelector(location.hash);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   }, [location]);
+
+  return null;
+}
+
+function AuthRedirectHandler(): null {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!location.hash || !location.hash.startsWith('#')) {
+      return;
+    }
+
+    const hashParams = new URLSearchParams(location.hash.substring(1));
+    const type = hashParams.get('type');
+    const accessToken = hashParams.get('access_token');
+    const errorCode = hashParams.get('error_code');
+    const errorDescription = hashParams.get('error_description');
+
+    if (type === 'recovery') {
+      const params = new URLSearchParams();
+      if (accessToken) {
+        params.set('token', accessToken);
+      }
+      params.set('notice', 'recovery');
+      navigate(`/new-password?${params.toString()}`, { replace: true });
+      return;
+    }
+
+    if (errorCode === 'otp_expired') {
+      const message = errorDescription || 'Your recovery link has expired. Please request a new one.';
+      navigate(`/new-password?error=${encodeURIComponent(message)}`, { replace: true });
+    }
+  }, [location, navigate]);
 
   return null;
 }
@@ -58,10 +99,10 @@ function App(): JSX.Element {
       {!hideHeader && <Header />}
       <Routes>
         <Route path="/" element={<LandingPage />} />
-        <Route path="/setup-profile" element={<SetupProfilePage />} />
         <Route path="/coming-soon" element={<ComingSoonPage />} />
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/confirm-signup" element={<ConfirmSignupPage />} />
         <Route path="/forgot-password" element={<ResetPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/new-password" element={<NewPasswordPage />} />
@@ -77,8 +118,23 @@ function App(): JSX.Element {
         <Route path="/meeting-recordings" element={<MeetingRecordingsPage />} />
         <Route path="/meeting-view" element={<MeetingViewPage />} />
         <Route path="/search-results" element={<SearchResultsPage />} />
+        <Route element={<ProtectedRoute />}>
+          <Route path="/setup-profile" element={<SetupProfilePage />} />
+          <Route path="/integrations" element={<IntegrationsPage />} />
+          <Route path="/preferences" element={<PreferencesPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/notifications" element={<NotificationsPage />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/workspaces" element={<WorkspacePage />} />
+          <Route path="/create-workspace" element={<CreateWorkspacePage />} />
+          <Route path="/workspaces/workspace-view" element={<WorkspaceViewPage />} />
+          <Route path="/transcriptions" element={<TranscriptionsPage />} />
+          <Route path="/meeting-recordings" element={<MeetingRecordingsPage />} />
+          <Route path="/meeting-view" element={<MeetingViewPage />} />
+        </Route>
         <Route path="*" element={<LandingPage />} />
       </Routes>
+      <AuthRedirectHandler />
       <ScrollToHash />
     </div>
   );

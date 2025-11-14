@@ -1,16 +1,130 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import frameImage from '../../assets/Frame.png';
 
 export function NewPasswordPage(): JSX.Element {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+
+  const recoveryToken = useMemo(() => {
+    const tokenParam = searchParams.get('token');
+    return tokenParam ? tokenParam.trim() : '';
+  }, [searchParams]);
+
+  const showRecoveryNotice = searchParams.get('notice') === 'recovery';
+
+  const initialError = useMemo(() => {
+    const errorParam = searchParams.get('error');
+    if (!errorParam) {
+      return null;
+    }
+    try {
+      return decodeURIComponent(errorParam);
+    } catch {
+      return errorParam;
+    }
+  }, [searchParams]);
+
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(initialError);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // Handle form submission here
-    console.log('New password submitted', { password, confirmPassword });
+    setErrorMessage(null);
+    setSuccessMessage(null);
+
+    if (!apiBaseUrl) {
+      setErrorMessage('API base URL is not configured.');
+      return;
+    }
+
+    if (!recoveryToken) {
+      setErrorMessage('Your recovery link is missing necessary details. Please request a new password reset email.');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setErrorMessage('Passwords do not match.');
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/accounts/password/reset/confirm/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          password,
+          token: recoveryToken,
+        }),
+      });
+
+      let responseData: unknown = null;
+      try {
+        responseData = await response.json();
+      } catch {
+        // ignore empty body
+      }
+
+      if (!response.ok) {
+        let message = 'Unable to update your password.';
+
+        if (responseData && typeof responseData === 'object') {
+          if ('error' in (responseData as Record<string, unknown>) && typeof (responseData as Record<string, unknown>).error === 'string') {
+            message = (responseData as Record<string, string>).error;
+          } else {
+            const fieldErrors = Object.entries(responseData as Record<string, unknown>)
+              .map(([field, value]) => {
+                if (Array.isArray(value)) {
+                  return `${field}: ${value.join(', ')}`;
+                }
+                if (typeof value === 'string') {
+                  return `${field}: ${value}`;
+                }
+                return null;
+              })
+              .filter(Boolean);
+
+            if (fieldErrors.length > 0) {
+              message = fieldErrors.join(' | ');
+            }
+          }
+        }
+
+        setErrorMessage(message);
+        return;
+      }
+
+      const success =
+        responseData &&
+        typeof responseData === 'object' &&
+        'message' in responseData &&
+        typeof (responseData as Record<string, unknown>).message === 'string'
+          ? (responseData as Record<string, string>).message
+          : 'Password updated successfully.';
+
+      setSuccessMessage(success);
+      setPassword('');
+      setConfirmPassword('');
+
+      setTimeout(() => {
+        navigate('/login', { replace: true });
+      }, 2500);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Something went wrong. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -19,9 +133,9 @@ export function NewPasswordPage(): JSX.Element {
         <div className="w-full max-w-[500px]">
           {/* Illustrative Graphic */}
           <div className="mb-8 flex justify-center">
-            <img 
-              src={frameImage} 
-              alt="Secure account illustration" 
+            <img
+              src={frameImage}
+              alt="Secure account illustration"
               className="h-auto w-full max-w-[250px] object-contain"
             />
           </div>
@@ -36,22 +150,31 @@ export function NewPasswordPage(): JSX.Element {
             Create a new password to regain access to your Ellie.
           </p>
 
+          {showRecoveryNotice && (
+            <div className="mt-4 rounded-[12px] border border-[#7964A0]/30 bg-[#7964A0]/10 px-5 py-3 font-nunito text-[15px] text-ellieGray">
+              We opened this page from your recovery link. Set a new password below and we'll finish the process for you
+              automatically.
+            </div>
+          )}
+
           {/* New Password Form */}
           <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-4">
             <div className="relative">
               <input
                 type={showPassword ? 'text' : 'password'}
-                placeholder="New Password"
+                placeholder="New password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 className="w-full rounded-[12px] border border-[#7964A0] bg-white px-5 py-[14px] pr-12 font-nunito text-[18px] text-ellieBlack placeholder-black/30 outline-none focus:border-ellieBlue focus:ring-2 focus:ring-ellieBlue/30"
+                disabled={isSubmitting || !!successMessage}
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-4 top-1/2 -translate-y-1/2 text-ellieGray hover:text-ellieBlack"
                 aria-label={showPassword ? 'Hide password' : 'Show password'}
+                disabled={isSubmitting}
               >
                 {showPassword ? (
                   <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -74,12 +197,14 @@ export function NewPasswordPage(): JSX.Element {
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
                 className="w-full rounded-[12px] border border-[#7964A0] bg-white px-5 py-[14px] pr-12 font-nunito text-[18px] text-ellieBlack placeholder-black/30 outline-none focus:border-ellieBlue focus:ring-2 focus:ring-ellieBlue/30"
+                disabled={isSubmitting || !!successMessage}
               />
               <button
                 type="button"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 className="absolute right-4 top-1/2 -translate-y-1/2 text-ellieGray hover:text-ellieBlack"
                 aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                disabled={isSubmitting}
               >
                 {showConfirmPassword ? (
                   <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -94,16 +219,44 @@ export function NewPasswordPage(): JSX.Element {
               </button>
             </div>
 
+            {errorMessage && (
+              <div className="rounded-[12px] border border-red-200 bg-red-50 px-5 py-3 font-nunito text-[16px] text-red-600">
+                {errorMessage}
+              </div>
+            )}
+            {successMessage && (
+              <div className="space-y-3">
+                <div className="rounded-[12px] border border-green-200 bg-green-50 px-5 py-3 font-nunito text-[16px] text-green-700">
+                  {successMessage}
+                </div>
+                <p className="text-center font-nunito text-[15px] text-ellieGray">
+                  You will be redirected to the login page shortly. If nothing happens,{' '}
+                  <Link to="/login" className="font-semibold text-ellieBlue underline">
+                    click here
+                  </Link>
+                  .
+                </p>
+              </div>
+            )}
+
             <button
               type="submit"
-              className="mt-2 inline-flex w-full items-center justify-center rounded-[12px] bg-ellieBlue px-[40px] py-[16px] font-nunito text-[18px] font-extrabold text-white transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ellieBlue lg:text-[20px]"
+              disabled={isSubmitting || !!successMessage || !recoveryToken}
+              className="mt-2 inline-flex w-full items-center justify-center rounded-[12px] bg-ellieBlue px-[40px] py-[16px] font-nunito text-[18px] font-extrabold text-white transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ellieBlue disabled:cursor-not-allowed disabled:opacity-60 lg:text-[20px]"
             >
-              Continue and Login
+              {isSubmitting ? 'Updating password...' : 'Continue and Login'}
             </button>
           </form>
+
+          <p className="mt-6 text-center font-nunito text-[15px] text-ellieGray">
+            Link expired or not working?{' '}
+            <Link to="/forgot-password" className="font-semibold text-ellieBlue underline">
+              Request a new reset email
+            </Link>
+            .
+          </p>
         </div>
       </div>
     </div>
   );
 }
-
