@@ -18,6 +18,7 @@ import { WorkspacePage, CreateWorkspacePage, WorkspaceViewPage } from './compone
 import { TranscriptionsPage } from './components/transcriptions';
 import { MeetingRecordingsPage } from './components/meetingrecordings';
 import { MeetingViewPage } from './components/meetingView';
+import { SearchResultsPage } from './components/search';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 
 function ScrollToHash(): null {
@@ -90,7 +91,8 @@ function App(): JSX.Element {
     location.pathname.startsWith('/workspaces/workspace-view') ||
     location.pathname.startsWith('/transcriptions') ||
     location.pathname.startsWith('/meeting-recordings') ||
-    location.pathname.startsWith('/meeting-view');
+    location.pathname.startsWith('/meeting-view') ||
+    location.pathname.startsWith('/search-results');
 
   return (
     <div className="min-h-screen bg-white">
@@ -104,6 +106,18 @@ function App(): JSX.Element {
         <Route path="/forgot-password" element={<ResetPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/new-password" element={<NewPasswordPage />} />
+        <Route path="/integrations" element={<IntegrationsPage />} />
+        <Route path="/preferences" element={<PreferencesPage />} />
+        <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/notifications" element={<NotificationsPage />} />
+        <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/workspaces" element={<WorkspacePage />} />
+        <Route path="/create-workspace" element={<CreateWorkspacePage />} />
+        <Route path="/workspaces/workspace-view" element={<WorkspaceViewPage />} />
+        <Route path="/transcriptions" element={<TranscriptionsPage />} />
+        <Route path="/meeting-recordings" element={<MeetingRecordingsPage />} />
+        <Route path="/meeting-view" element={<MeetingViewPage />} />
+        <Route path="/search-results" element={<SearchResultsPage />} />
         <Route element={<ProtectedRoute />}>
           <Route path="/setup-profile" element={<SetupProfilePage />} />
           <Route path="/integrations" element={<IntegrationsPage />} />
