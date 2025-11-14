@@ -17,6 +17,7 @@ import { WorkspacePage, CreateWorkspacePage, WorkspaceViewPage } from './compone
 import { TranscriptionsPage } from './components/transcriptions';
 import { MeetingRecordingsPage } from './components/meetingrecordings';
 import { MeetingViewPage } from './components/meetingView';
+import { SearchResultsPage } from './components/search';
 
 function ScrollToHash(): null {
   const location = useLocation();
@@ -49,7 +50,8 @@ function App(): JSX.Element {
     location.pathname.startsWith('/workspaces/workspace-view') ||
     location.pathname.startsWith('/transcriptions') ||
     location.pathname.startsWith('/meeting-recordings') ||
-    location.pathname.startsWith('/meeting-view');
+    location.pathname.startsWith('/meeting-view') ||
+    location.pathname.startsWith('/search-results');
 
   return (
     <div className="min-h-screen bg-white">
@@ -74,6 +76,7 @@ function App(): JSX.Element {
         <Route path="/transcriptions" element={<TranscriptionsPage />} />
         <Route path="/meeting-recordings" element={<MeetingRecordingsPage />} />
         <Route path="/meeting-view" element={<MeetingViewPage />} />
+        <Route path="/search-results" element={<SearchResultsPage />} />
         <Route path="*" element={<LandingPage />} />
       </Routes>
       <ScrollToHash />
