@@ -2,6 +2,8 @@ import { ReactNode } from 'react';
 import { DashboardHeader } from './DashboardHeader';
 import { Sidebar } from './Sidebar';
 import searchIcon from '../../assets/Vector.png';
+import { useProfile } from '../../context/ProfileContext';
+import reactLogo from '../../assets/user.png';
 
 export interface DashboardLayoutProps {
   children: ReactNode;
@@ -18,9 +20,17 @@ export function DashboardLayout({
   userEmail,
   userAvatar,
 }: DashboardLayoutProps): JSX.Element {
+  const { profile } = useProfile();
+
+  const derivedName =
+    userName ??
+    ([profile?.first_name, profile?.last_name].filter(Boolean).join(' ').trim() || undefined);
+  const derivedEmail = userEmail ?? profile?.email ?? undefined;
+  const derivedAvatar = userAvatar ?? profile?.avatar_url ?? reactLogo;
+
   return (
     <div className="flex flex-col h-screen bg-gray-50">
-      <DashboardHeader userName={userName} userEmail={userEmail} userAvatar={userAvatar} />
+      <DashboardHeader userName={derivedName} userEmail={derivedEmail} userAvatar={derivedAvatar} />
       
       {/* Mobile Search Bar */}
       <div className="lg:hidden px-4 py-3 bg-white">

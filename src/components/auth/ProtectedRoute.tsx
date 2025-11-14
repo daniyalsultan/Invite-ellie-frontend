@@ -1,11 +1,30 @@
+import { useEffect } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useProfile } from '../../context/ProfileContext';
+import { hasCompletedProfileSetup, markProfileSetupComplete } from '../../utils/profileForm';
 
 export function ProtectedRoute(): JSX.Element {
-  const { isAuthenticated, isInitializing } = useAuth();
+  const { isAuthenticated, isInitializing, session } = useAuth();
+  const { profile, isLoading: isProfileLoading } = useProfile();
   const location = useLocation();
 
-  if (isInitializing) {
+  const isSetupRoute = location.pathname === '/setup-profile';
+  const userId = session?.userId ?? null;
+
+  const hasProfileName =
+    Boolean(profile?.first_name?.trim()) && Boolean(profile?.last_name?.trim());
+
+  useEffect(() => {
+    if (userId && hasProfileName) {
+      markProfileSetupComplete(userId);
+    }
+  }, [hasProfileName, userId]);
+
+  const completedOnce = userId ? hasCompletedProfileSetup(userId) : false;
+  const needsSetup = !isProfileLoading && !hasProfileName && !completedOnce;
+
+  if (isInitializing || (isProfileLoading && !isSetupRoute)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-white">
         <p className="font-nunito text-[18px] text-ellieGray">Loading...</p>
@@ -18,6 +37,10 @@ export function ProtectedRoute(): JSX.Element {
     return <Navigate to="/login" replace state={{ from: redirectTo }} />;
   }
 
+  if (needsSetup && !isSetupRoute) {
+    const redirectTo = `${location.pathname}${location.search}${location.hash}`;
+    return <Navigate to="/setup-profile" replace state={{ from: redirectTo }} />;
+  }
+
   return <Outlet />;
 }
-

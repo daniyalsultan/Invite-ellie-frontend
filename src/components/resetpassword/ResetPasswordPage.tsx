@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import forgetPasswordImage from '../../assets/forgetpassword.png';
+import { getApiBaseUrl } from '../../utils/apiBaseUrl';
 
 export function ResetPasswordPage(): JSX.Element {
   const [email, setEmail] = useState('');
@@ -7,7 +8,7 @@ export function ResetPasswordPage(): JSX.Element {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+  const apiBaseUrl = getApiBaseUrl();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();

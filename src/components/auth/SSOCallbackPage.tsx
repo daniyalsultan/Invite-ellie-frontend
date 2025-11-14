@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { getApiBaseUrl } from '../../utils/apiBaseUrl';
 
 export function SSOCallbackPage(): JSX.Element {
   const [searchParams] = useSearchParams();
@@ -10,9 +11,15 @@ export function SSOCallbackPage(): JSX.Element {
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(true);
 
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+  const apiBaseUrl = getApiBaseUrl();
+  const hasHandledRef = useRef(false);
 
   useEffect(() => {
+    if (hasHandledRef.current) {
+      return;
+    }
+    hasHandledRef.current = true;
+
     const handleCallback = async () => {
       if (!apiBaseUrl) {
         setError('API base URL is not configured.');
@@ -69,8 +76,7 @@ export function SSOCallbackPage(): JSX.Element {
         // POST /api/accounts/sso/callback/
         // Request body: {"code": "string"}
         // Response: {"access_token": "string", "refresh_token": "string", "expires_in": 0, "user_id": "string"}
-        const baseUrl = apiBaseUrl.endsWith('/') ? apiBaseUrl.slice(0, -1) : apiBaseUrl;
-        const apiUrl = `${baseUrl}/accounts/sso/callback/`;
+        const apiUrl = `${apiBaseUrl}/accounts/sso/callback/`;
         
         console.log('Making SSO callback request:', {
           url: apiUrl,
@@ -84,6 +90,7 @@ export function SSOCallbackPage(): JSX.Element {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
           },
+          credentials: 'include',
           body: JSON.stringify({ code }),
         });
 

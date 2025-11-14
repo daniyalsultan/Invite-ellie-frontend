@@ -1,14 +1,24 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import frameImage from '../../assets/Frame.png';
+import { getApiBaseUrl } from '../../utils/apiBaseUrl';
 
 export function NewPasswordPage(): JSX.Element {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  const recoveryToken = useMemo(() => {
-    const tokenParam = searchParams.get('token');
-    return tokenParam ? tokenParam.trim() : '';
+  const accessToken = useMemo(() => {
+    const direct = searchParams.get('access_token');
+    if (direct && direct.trim()) {
+      return direct.trim();
+    }
+    const legacyToken = searchParams.get('token');
+    return legacyToken ? legacyToken.trim() : '';
+  }, [searchParams]);
+
+  const refreshToken = useMemo(() => {
+    const token = searchParams.get('refresh_token');
+    return token ? token.trim() : '';
   }, [searchParams]);
 
   const showRecoveryNotice = searchParams.get('notice') === 'recovery';
@@ -33,7 +43,7 @@ export function NewPasswordPage(): JSX.Element {
   const [errorMessage, setErrorMessage] = useState<string | null>(initialError);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+  const apiBaseUrl = getApiBaseUrl();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -45,8 +55,13 @@ export function NewPasswordPage(): JSX.Element {
       return;
     }
 
-    if (!recoveryToken) {
-      setErrorMessage('Your recovery link is missing necessary details. Please request a new password reset email.');
+    if (!accessToken) {
+      setErrorMessage('Your recovery link is missing the access token. Please request a new password reset email.');
+      return;
+    }
+
+    if (!refreshToken) {
+      setErrorMessage('Your recovery link is missing the refresh token. Please request a new password reset email.');
       return;
     }
 
@@ -65,7 +80,8 @@ export function NewPasswordPage(): JSX.Element {
         },
         body: JSON.stringify({
           password,
-          token: recoveryToken,
+          access_token: accessToken,
+          refresh_token: refreshToken,
         }),
       });
 
@@ -241,7 +257,7 @@ export function NewPasswordPage(): JSX.Element {
 
             <button
               type="submit"
-              disabled={isSubmitting || !!successMessage || !recoveryToken}
+              disabled={isSubmitting || !!successMessage || !accessToken || !refreshToken}
               className="mt-2 inline-flex w-full items-center justify-center rounded-[12px] bg-ellieBlue px-[40px] py-[16px] font-nunito text-[18px] font-extrabold text-white transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ellieBlue disabled:cursor-not-allowed disabled:opacity-60 lg:text-[20px]"
             >
               {isSubmitting ? 'Updating password...' : 'Continue and Login'}

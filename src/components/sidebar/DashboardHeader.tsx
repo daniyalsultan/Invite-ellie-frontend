@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import logo from '../../assets/logo.svg';
 import searchIcon from '../../assets/Vector.png';
 import notificationsIcon from '../../assets/noti.png';
-import mikeImage from '../../assets/mike.jpg';
 import { useAuth } from '../../context/AuthContext';
 
 export interface DashboardHeaderProps {
@@ -13,8 +12,8 @@ export interface DashboardHeaderProps {
 }
 
 export function DashboardHeader({
-  userName = 'Mike Volkin',
-  userEmail = 'mikevolkin@email.com',
+  userName,
+  userEmail,
   userAvatar,
 }: DashboardHeaderProps): JSX.Element {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -114,17 +113,23 @@ export function DashboardHeader({
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                 className="flex items-center gap-2"
               >
-                <div className="hidden lg:flex flex-col items-start">
-                  <span className="font-nunito text-sm font-semibold text-ellieBlack leading-tight">
-                    {userName}
-                  </span>
-                  <span className="font-nunito text-xs text-ellieGray leading-tight">
-                    {userEmail}
-                  </span>
-                </div>
+                {(userName || userEmail) && (
+                  <div className="hidden lg:flex flex-col items-start">
+                    {userName && (
+                      <span className="font-nunito text-sm font-semibold text-ellieBlack leading-tight">
+                        {userName}
+                      </span>
+                    )}
+                    {userEmail && (
+                      <span className="font-nunito text-xs text-ellieGray leading-tight">
+                        {userEmail}
+                      </span>
+                    )}
+                  </div>
+                )}
                 <img
-                  src={userAvatar || mikeImage}
-                  alt={userName}
+                  src={userAvatar}
+                  alt={userName ?? 'User avatar'}
                   className="w-10 h-10 rounded-lg object-cover"
                 />
                 {/* Dropdown Icon */}

@@ -91,6 +91,7 @@ export function ConfirmSignupPage(): JSX.Element {
   const [isResending, setIsResending] = useState(false);
   const [resendStatus, setResendStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [emailInput, setEmailInput] = useState(email || '');
+  const [shouldOfferResend, setShouldOfferResend] = useState(false);
 
   // Update email input when email from URL changes
   useEffect(() => {
@@ -195,6 +196,7 @@ export function ConfirmSignupPage(): JSX.Element {
       }
 
       try {
+        setShouldOfferResend(false);
         // URL decode the token in case it's encoded
         const decodedToken = token ? decodeURIComponent(token) : null;
         
@@ -243,10 +245,13 @@ export function ConfirmSignupPage(): JSX.Element {
 
         if (!response.ok) {
           let errorMessage = 'Could not verify your account.';
+          let offerResend = false;
 
           if (responseData && typeof responseData === 'object') {
             if ('error' in (responseData as Record<string, unknown>) && typeof (responseData as Record<string, unknown>).error === 'string') {
               errorMessage = (responseData as Record<string, string>).error;
+            } else if ('detail' in responseData && typeof (responseData as Record<string, unknown>).detail === 'string') {
+              errorMessage = String((responseData as Record<string, string>).detail);
             } else {
               const fieldErrors = Object.entries(responseData as Record<string, unknown>)
                 .map(([field, value]) => {
@@ -262,11 +267,20 @@ export function ConfirmSignupPage(): JSX.Element {
 
               if (fieldErrors.length > 0) {
                 errorMessage = fieldErrors.join(' | ');
-              } else {
-                // If no field errors, show the raw response for debugging
-                errorMessage = JSON.stringify(responseData);
+              } else if (responseText) {
+                errorMessage = responseText;
               }
             }
+          }
+
+          const normalizedMessage = errorMessage.toLowerCase();
+          if (
+            response.status === 400 ||
+            response.status === 404 ||
+            normalizedMessage.includes('expired') ||
+            normalizedMessage.includes('invalid')
+          ) {
+            offerResend = true;
           }
 
           console.error('Email confirmation failed:', { 
@@ -284,6 +298,7 @@ export function ConfirmSignupPage(): JSX.Element {
           if (isMounted) {
             setConfirmation({ status: 'error', message: errorMessage });
             setResendStatus(null);
+            setShouldOfferResend(offerResend);
           }
 
           return;
@@ -358,6 +373,7 @@ export function ConfirmSignupPage(): JSX.Element {
             message: successMessage,
           };
         });
+        setShouldOfferResend(false);
         
         confirmationInProgress.current = false;
         
@@ -540,11 +556,17 @@ export function ConfirmSignupPage(): JSX.Element {
                   </div>
                 )}
                 <div className="space-y-3 font-nunito text-[16px] text-ellieGray">
-                  <p>Double-check the link in your email or request a new confirmation link.</p>
-                  {(email || emailInput) && (
-                    <p>
-                      We can resend it to <span className="font-semibold text-ellieBlack">{email || emailInput}</span>.
-                    </p>
+                  {shouldOfferResend ? (
+                    <>
+                      <p>Your confirmation link may be expired or invalid. Request a new one below.</p>
+                      {(email || emailInput) && (
+                        <p>
+                          We can resend it to <span className="font-semibold text-ellieBlack">{email || emailInput}</span>.
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <p>Double-check the link in your email or request a new confirmation link.</p>
                   )}
                 </div>
                 {resendStatus && (
@@ -567,109 +589,6 @@ export function ConfirmSignupPage(): JSX.Element {
                   >
                     {isResending ? 'Sending...' : 'Resend Email'}
                   </button>
-                  {token && !email && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const emailToUse = emailInput.trim();
-                        if (emailToUse) {
-                          setConfirmation({ status: 'loading' });
-                          // Trigger the confirmation again with the entered email
-                          const confirmWithEmail = async () => {
-                            if (!apiBaseUrl) {
-                              setConfirmation({
-                                status: 'error',
-                                message: 'API base URL is not configured.',
-                              });
-                              return;
-                            }
-
-                            try {
-                              const response = await fetch(`${apiBaseUrl}/accounts/confirm/verify/`, {
-                                method: 'POST',
-                                headers: {
-                                  'Content-Type': 'application/json',
-                                },
-                                body: JSON.stringify({
-                                  email: emailToUse,
-                                  token,
-                                }),
-                              });
-
-                              let responseData: unknown = null;
-                              try {
-                                responseData = await response.json();
-                              } catch {
-                                // Ignore JSON parsing errors
-                              }
-
-                              if (!response.ok) {
-                                let errorMessage = 'Could not verify your account.';
-                                if (responseData && typeof responseData === 'object') {
-                                  if ('error' in (responseData as Record<string, unknown>) && typeof (responseData as Record<string, unknown>).error === 'string') {
-                                    errorMessage = (responseData as Record<string, string>).error;
-                                  }
-                                }
-                                setConfirmation({ status: 'error', message: errorMessage });
-                                return;
-                              }
-
-                              if (
-                                responseData &&
-                                typeof responseData === 'object' &&
-                                'access_token' in responseData &&
-                                typeof (responseData as Record<string, unknown>).access_token === 'string'
-                              ) {
-                                const accessToken = String((responseData as Record<string, unknown>).access_token);
-                                const refreshToken =
-                                  'refresh_token' in responseData && typeof (responseData as Record<string, unknown>).refresh_token === 'string'
-                                    ? String((responseData as Record<string, unknown>).refresh_token)
-                                    : null;
-                                const userId =
-                                  'user_id' in responseData && typeof (responseData as Record<string, unknown>).user_id === 'string'
-                                    ? String((responseData as Record<string, unknown>).user_id)
-                                    : null;
-                                const expiresIn =
-                                  'expires_in' in responseData && typeof (responseData as Record<string, unknown>).expires_in === 'number'
-                                    ? Number((responseData as Record<string, unknown>).expires_in)
-                                    : null;
-
-                                establishSession({
-                                  accessToken,
-                                  refreshToken,
-                                  userId,
-                                  expiresAt: expiresIn ? Date.now() + expiresIn * 1000 : null,
-                                });
-                              }
-
-                              const successMessage =
-                                responseData &&
-                                typeof responseData === 'object' &&
-                                'message' in responseData &&
-                                typeof (responseData as Record<string, unknown>).message === 'string'
-                                  ? (responseData as Record<string, string>).message
-                                  : 'Your email has been confirmed successfully.';
-
-                              setConfirmation({
-                                status: 'success',
-                                message: successMessage,
-                              });
-                            } catch (error) {
-                              setConfirmation({
-                                status: 'error',
-                                message: error instanceof Error ? error.message : 'Something went wrong. Please try again.',
-                              });
-                            }
-                          };
-                          confirmWithEmail();
-                        }
-                      }}
-                      disabled={!emailInput.trim()}
-                      className="inline-flex items-center justify-center rounded-[12px] bg-ellieBlue px-6 py-3 font-nunito text-[16px] font-semibold text-white transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ellieBlue disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      Confirm with Email
-                    </button>
-                  )}
                   <Link
                     to="/signup"
                     className="inline-flex items-center justify-center rounded-[12px] border border-ellieBlue px-6 py-3 font-nunito text-[16px] font-semibold text-ellieBlue transition hover:bg-ellieBlue/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ellieBlue"

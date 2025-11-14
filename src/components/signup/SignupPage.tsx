@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import groupImage from '../../assets/Group 40999.png';
+import { getApiBaseUrl } from '../../utils/apiBaseUrl';
 
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+const apiBaseUrl = getApiBaseUrl();
 
 export function SignupPage(): JSX.Element {
   const location = useLocation();
@@ -110,20 +111,24 @@ export function SignupPage(): JSX.Element {
     }
   };
 
-  const handleGoogleSignup = async () => {
+  const initiateSSOSignup = async (provider: 'google' | 'microsoft') => {
     if (!apiBaseUrl) {
       setErrorMessage('API base URL is not configured.');
       return;
     }
 
-    setIsSSOLoading('google');
+    setIsSSOLoading(provider);
     setErrorMessage(null);
     setSuccessMessage(null);
 
     try {
-      // GET /api/accounts/sso/{provider}/ - No headers needed for GET request
-      const response = await fetch(`${apiBaseUrl}/accounts/sso/google/`, {
+      const providerSlug = provider === 'microsoft' ? 'azure' : provider;
+      const response = await fetch(`${apiBaseUrl}/accounts/sso/providers/${providerSlug}/`, {
         method: 'GET',
+        headers: {
+          Accept: 'application/json',
+        },
+        credentials: 'include',
       });
 
       let responseData: unknown = null;
@@ -134,7 +139,7 @@ export function SignupPage(): JSX.Element {
       }
 
       if (!response.ok) {
-        let message = 'Unable to initiate Google sign-in.';
+        let message = `Unable to initiate ${provider === 'google' ? 'Google' : 'Microsoft'} sign-in.`;
         if (responseData && typeof responseData === 'object' && 'error' in responseData) {
           message = typeof responseData.error === 'string' ? responseData.error : message;
         }
@@ -149,7 +154,6 @@ export function SignupPage(): JSX.Element {
         'url' in responseData &&
         typeof responseData.url === 'string'
       ) {
-        // Redirect to Google OAuth URL
         window.location.href = responseData.url;
       } else {
         setErrorMessage('Invalid response from server.');
@@ -161,56 +165,8 @@ export function SignupPage(): JSX.Element {
     }
   };
 
-  const handleMicrosoftSignup = async () => {
-    if (!apiBaseUrl) {
-      setErrorMessage('API base URL is not configured.');
-      return;
-    }
-
-    setIsSSOLoading('microsoft');
-    setErrorMessage(null);
-    setSuccessMessage(null);
-
-    try {
-      // GET /api/accounts/sso/{provider}/ - No headers needed for GET request
-      const response = await fetch(`${apiBaseUrl}/accounts/sso/microsoft/`, {
-        method: 'GET',
-      });
-
-      let responseData: unknown = null;
-      try {
-        responseData = await response.json();
-      } catch {
-        // Ignore JSON parsing errors
-      }
-
-      if (!response.ok) {
-        let message = 'Unable to initiate Microsoft sign-in.';
-        if (responseData && typeof responseData === 'object' && 'error' in responseData) {
-          message = typeof responseData.error === 'string' ? responseData.error : message;
-        }
-        setErrorMessage(message);
-        setIsSSOLoading(null);
-        return;
-      }
-
-      if (
-        responseData &&
-        typeof responseData === 'object' &&
-        'url' in responseData &&
-        typeof responseData.url === 'string'
-      ) {
-        // Redirect to Microsoft OAuth URL
-        window.location.href = responseData.url;
-      } else {
-        setErrorMessage('Invalid response from server.');
-        setIsSSOLoading(null);
-      }
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Something went wrong. Please try again.');
-      setIsSSOLoading(null);
-    }
-  };
+  const handleGoogleSignup = () => initiateSSOSignup('google');
+  const handleMicrosoftSignup = () => initiateSSOSignup('microsoft');
 
   return (
     <div className="bg-white pb-[80px] pt-[40px] lg:pb-[120px] lg:pt-[60px]">

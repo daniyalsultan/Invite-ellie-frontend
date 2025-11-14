@@ -85,8 +85,12 @@ function AuthRedirectHandler(): null {
 
       if (type === 'recovery') {
         const params = new URLSearchParams();
+        const refreshToken = hashParams.get('refresh_token');
         if (accessToken) {
-          params.set('token', accessToken);
+          params.set('access_token', accessToken);
+        }
+        if (refreshToken) {
+          params.set('refresh_token', refreshToken);
         }
         params.set('notice', 'recovery');
         navigate(`/new-password?${params.toString()}`, { replace: true });
