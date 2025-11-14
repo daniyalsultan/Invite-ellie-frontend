@@ -9,6 +9,7 @@ import { ConfirmSignupPage } from './components/signup/ConfirmSignupPage';
 import { LoginPage } from './components/login/LoginPage';
 import { ResetPasswordPage } from './components/resetpassword/ResetPasswordPage';
 import { NewPasswordPage } from './components/resetpassword/NewPasswordPage';
+import { SSOCallbackPage } from './components/auth/SSOCallbackPage';
 import { IntegrationsPage } from './components/integrations';
 import { PreferencesPage } from './components/preferences';
 import { SettingsPage } from './components/settings';
@@ -48,29 +49,54 @@ function AuthRedirectHandler(): null {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!location.hash || !location.hash.startsWith('#')) {
-      return;
-    }
+    // Handle Supabase email confirmation redirect from /auth/confirm
+    if (location.pathname === '/auth/confirm' && location.hash) {
+      const hashParams = new URLSearchParams(location.hash.substring(1));
+      const token = hashParams.get('token');
+      const type = hashParams.get('type');
+      const email = hashParams.get('email');
+      const errorCode = hashParams.get('error_code');
+      const errorDescription = hashParams.get('error_description');
 
-    const hashParams = new URLSearchParams(location.hash.substring(1));
-    const type = hashParams.get('type');
-    const accessToken = hashParams.get('access_token');
-    const errorCode = hashParams.get('error_code');
-    const errorDescription = hashParams.get('error_description');
-
-    if (type === 'recovery') {
-      const params = new URLSearchParams();
-      if (accessToken) {
-        params.set('token', accessToken);
+      if (errorCode) {
+        const message = errorDescription || 'Invalid or expired confirmation link.';
+        navigate(`/confirm-signup?error=${encodeURIComponent(message)}`, { replace: true });
+        return;
       }
-      params.set('notice', 'recovery');
-      navigate(`/new-password?${params.toString()}`, { replace: true });
-      return;
+
+      if (type === 'email' && token) {
+        const params = new URLSearchParams();
+        params.set('token', token);
+        if (email) {
+          params.set('email', email);
+        }
+        navigate(`/confirm-signup?${params.toString()}`, { replace: true });
+        return;
+      }
     }
 
-    if (errorCode === 'otp_expired') {
-      const message = errorDescription || 'Your recovery link has expired. Please request a new one.';
-      navigate(`/new-password?error=${encodeURIComponent(message)}`, { replace: true });
+    // Handle password recovery redirects
+    if (location.hash && location.hash.startsWith('#')) {
+      const hashParams = new URLSearchParams(location.hash.substring(1));
+      const type = hashParams.get('type');
+      const accessToken = hashParams.get('access_token');
+      const errorCode = hashParams.get('error_code');
+      const errorDescription = hashParams.get('error_description');
+
+      if (type === 'recovery') {
+        const params = new URLSearchParams();
+        if (accessToken) {
+          params.set('token', accessToken);
+        }
+        params.set('notice', 'recovery');
+        navigate(`/new-password?${params.toString()}`, { replace: true });
+        return;
+      }
+
+      if (errorCode === 'otp_expired') {
+        const message = errorDescription || 'Your recovery link has expired. Please request a new one.';
+        navigate(`/new-password?error=${encodeURIComponent(message)}`, { replace: true });
+      }
     }
   }, [location, navigate]);
 
@@ -103,21 +129,12 @@ function App(): JSX.Element {
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/confirm-signup" element={<ConfirmSignupPage />} />
+        <Route path="/auth/confirm" element={<ConfirmSignupPage />} />
         <Route path="/forgot-password" element={<ResetPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/new-password" element={<NewPasswordPage />} />
-        <Route path="/integrations" element={<IntegrationsPage />} />
-        <Route path="/preferences" element={<PreferencesPage />} />
-        <Route path="/settings" element={<SettingsPage />} />
-        <Route path="/notifications" element={<NotificationsPage />} />
-        <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/workspaces" element={<WorkspacePage />} />
-        <Route path="/create-workspace" element={<CreateWorkspacePage />} />
-        <Route path="/workspaces/workspace-view" element={<WorkspaceViewPage />} />
-        <Route path="/transcriptions" element={<TranscriptionsPage />} />
-        <Route path="/meeting-recordings" element={<MeetingRecordingsPage />} />
-        <Route path="/meeting-view" element={<MeetingViewPage />} />
         <Route path="/search-results" element={<SearchResultsPage />} />
+        <Route path="/auth/callback" element={<SSOCallbackPage />} />
         <Route element={<ProtectedRoute />}>
           <Route path="/setup-profile" element={<SetupProfilePage />} />
           <Route path="/integrations" element={<IntegrationsPage />} />
