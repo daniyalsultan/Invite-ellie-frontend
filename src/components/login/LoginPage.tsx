@@ -1,31 +1,121 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import groupImage from '../../assets/Group 41000.png';
+import { useAuth } from '../../context/AuthContext';
+import { getApiBaseUrl } from '../../utils/apiBaseUrl';
+import { GradientLoader } from '../common/GradientLoader';
 
 export function LoginPage(): JSX.Element {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isSSOLoading, setIsSSOLoading] = useState<'google' | 'microsoft' | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const apiBaseUrl = getApiBaseUrl();
+
+  const { login } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const redirectPath = (location.state as { from?: string } | null)?.from ?? '/dashboard';
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // Handle form submission here
-    console.log('Form submitted', { email, password, rememberMe });
+    setErrorMessage(null);
+
+    setIsSubmitting(true);
+    try {
+      await login({ email, password, rememberMe });
+      if (!rememberMe) {
+        try {
+          sessionStorage.setItem('ellie_last_login_email', email);
+        } catch {
+          /* ignore */
+        }
+      }
+      navigate(redirectPath, { replace: true });
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Unable to login. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleGoogleLogin = () => {
-    // Handle Google login
-    console.log('Google login');
+  const initiateSSO = async (provider: 'google' | 'microsoft') => {
+    if (!apiBaseUrl) {
+      setErrorMessage('API base URL is not configured.');
+      return;
+    }
+
+    setIsSSOLoading(provider);
+    setErrorMessage(null);
+
+    try {
+      const providerSlug = provider === 'microsoft' ? 'azure' : provider;
+      const response = await fetch(`${apiBaseUrl}/accounts/sso/providers/${providerSlug}/`, {
+        method: 'GET',
+        headers: {
+          Accept: 'application/json',
+        },
+        credentials: 'include',
+      });
+
+      let responseData: unknown = null;
+      try {
+        responseData = await response.json();
+      } catch {
+        // Ignore JSON parsing errors
+      }
+
+      if (!response.ok) {
+        let message = `Unable to initiate ${provider === 'google' ? 'Google' : 'Microsoft'} sign-in.`;
+        if (responseData && typeof responseData === 'object' && 'error' in responseData) {
+          message = typeof responseData.error === 'string' ? responseData.error : message;
+        }
+        setErrorMessage(message);
+        setIsSSOLoading(null);
+        return;
+      }
+
+      if (
+        responseData &&
+        typeof responseData === 'object' &&
+        'url' in responseData &&
+        typeof responseData.url === 'string'
+      ) {
+        window.location.href = responseData.url;
+      } else {
+        setErrorMessage('Invalid response from server.');
+        setIsSSOLoading(null);
+      }
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Something went wrong. Please try again.');
+      setIsSSOLoading(null);
+    }
   };
 
-  const handleMicrosoftLogin = () => {
-    // Handle Microsoft login
-    console.log('Microsoft login');
-  };
+  const handleGoogleLogin = () => initiateSSO('google');
+  const handleMicrosoftLogin = () => initiateSSO('microsoft');
+
+  const showLoadingOverlay = isSubmitting || isSSOLoading !== null;
 
   return (
-    <div className="bg-white pb-[80px] pt-[40px] lg:pb-[120px] lg:pt-[60px]">
+    <div className="relative bg-white pb-[80px] pt-[40px] lg:pb-[120px] lg:pt-[60px]">
+      {showLoadingOverlay && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/80 backdrop-blur-sm">
+          <GradientLoader
+            label={
+              isSSOLoading === 'google'
+                ? 'Redirecting to Google...'
+                : isSSOLoading === 'microsoft'
+                  ? 'Redirecting to Microsoft...'
+                  : 'Signing you in...'
+            }
+          />
+        </div>
+      )}
       <div className="container-ellie">
         <div className="grid gap-8 lg:grid-cols-2 lg:items-center lg:gap-[60px]">
           {/* Left Side - Login Form */}
@@ -42,7 +132,8 @@ export function LoginPage(): JSX.Element {
               <button
                 type="button"
                 onClick={handleGoogleLogin}
-                className="flex w-full lg:flex-1 items-center justify-center gap-3 rounded-[12px] border border-[#7964A0] bg-white px-5 py-[14px] font-nunito text-[18px] font-semibold text-ellieBlack transition hover:bg-[rgba(121,100,160,0.05)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ellieBlue"
+                disabled={isSSOLoading !== null || isSubmitting}
+                className="flex w-full lg:flex-1 items-center justify-center gap-3 rounded-[12px] border border-[#7964A0] bg-white px-5 py-[14px] font-nunito text-[18px] font-semibold text-ellieBlack transition hover:bg-[rgba(121,100,160,0.05)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ellieBlue disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -50,13 +141,14 @@ export function LoginPage(): JSX.Element {
                   <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
                   <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
                 </svg>
-                Login with Google
+                {isSSOLoading === 'google' ? 'Redirecting...' : 'Login with Google'}
               </button>
 
               <button
                 type="button"
                 onClick={handleMicrosoftLogin}
-                className="flex w-full lg:flex-1 items-center justify-center gap-3 rounded-[12px] border border-[#7964A0] bg-white px-5 py-[14px] font-nunito text-[18px] font-semibold text-ellieBlack transition hover:bg-[rgba(121,100,160,0.05)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ellieBlue"
+                disabled={isSSOLoading !== null || isSubmitting}
+                className="flex w-full lg:flex-1 items-center justify-center gap-3 rounded-[12px] border border-[#7964A0] bg-white px-5 py-[14px] font-nunito text-[18px] font-semibold text-ellieBlack transition hover:bg-[rgba(121,100,160,0.05)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ellieBlue disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <svg className="h-5 w-5" viewBox="0 0 23 23" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M0 0h10.556v10.556H0V0z" fill="#F25022"/>
@@ -64,7 +156,7 @@ export function LoginPage(): JSX.Element {
                   <path d="M0 12.444h10.556V23H0V12.444z" fill="#00A4EF"/>
                   <path d="M12.444 12.444H23V23H12.444V12.444z" fill="#FFB900"/>
                 </svg>
-                Login with Microsoft
+                {isSSOLoading === 'microsoft' ? 'Redirecting...' : 'Login with Microsoft'}
               </button>
             </div>
 
@@ -137,11 +229,18 @@ export function LoginPage(): JSX.Element {
                 </Link>
               </div>
 
+              {errorMessage && (
+                <div className="rounded-[12px] border border-red-200 bg-red-50 px-5 py-3 font-nunito text-[16px] text-red-600">
+                  {errorMessage}
+                </div>
+              )}
+
               <button
                 type="submit"
-                className="mt-2 inline-flex w-full items-center justify-center rounded-[12px] bg-ellieBlue px-[40px] py-[16px] font-nunito text-[18px] font-extrabold text-white transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ellieBlue lg:text-[20px]"
+                disabled={isSubmitting}
+                className="mt-2 inline-flex w-full items-center justify-center rounded-[12px] bg-ellieBlue px-[40px] py-[16px] font-nunito text-[18px] font-extrabold text-white transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ellieBlue disabled:cursor-not-allowed disabled:opacity-60 lg:text-[20px]"
               >
-                Login
+                {isSubmitting ? 'Logging in...' : 'Login'}
               </button>
             </form>
 
@@ -155,9 +254,9 @@ export function LoginPage(): JSX.Element {
 
           {/* Right Side - Image */}
           <div className="hidden lg:flex lg:items-center lg:justify-center">
-            <img 
-              src={groupImage} 
-              alt="Ellie dashboard preview" 
+            <img
+              src={groupImage}
+              alt="Ellie dashboard preview"
               className="w-full h-auto max-w-full object-contain"
             />
           </div>
@@ -166,4 +265,3 @@ export function LoginPage(): JSX.Element {
     </div>
   );
 }
-

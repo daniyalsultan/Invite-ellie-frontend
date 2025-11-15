@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import dashboardIcon from '../../assets/dashboard.png';
 import workspaceIcon from '../../assets/workspace.png';
 import transcriptionIcon from '../../assets/transcription.png';
@@ -8,6 +8,7 @@ import notificationsIcon from '../../assets/notifications.png';
 import preferencesIcon from '../../assets/preferences.png';
 import integrationsIcon from '../../assets/integrations.png';
 import settingsIcon from '../../assets/settings.png';
+import { useAuth } from '../../context/AuthContext';
 
 export interface SidebarProps {
   activeTab?: string;
@@ -24,6 +25,8 @@ export function Sidebar({ activeTab }: SidebarProps): JSX.Element {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
   const currentPath = activeTab || location.pathname;
+  const navigate = useNavigate();
+  const { logout } = useAuth();
 
   // Listen for mobile menu toggle event from header
   useEffect(() => {
@@ -53,9 +56,7 @@ export function Sidebar({ activeTab }: SidebarProps): JSX.Element {
       return currentPath === '/dashboard' || currentPath === '/';
     }
     if (path === '/workspaces') {
-      return (
-        currentPath.startsWith('/workspaces') || currentPath.startsWith('/workspace-view')
-      );
+      return currentPath.startsWith('/workspaces');
     }
     return currentPath.startsWith(path);
   };
@@ -99,6 +100,12 @@ export function Sidebar({ activeTab }: SidebarProps): JSX.Element {
     );
   };
 
+  const handleLogout = () => {
+    logout();
+    setIsMobileMenuOpen(false);
+    navigate('/login', { replace: true });
+  };
+
   return (
     <>
       {/* Mobile Menu Overlay */}
@@ -124,9 +131,30 @@ export function Sidebar({ activeTab }: SidebarProps): JSX.Element {
           </ul>
 
           {/* Bottom 4 items */}
-          <ul className="space-y-1">
-            {bottomItems.map(renderSidebarItem)}
-          </ul>
+          <div className="space-y-4">
+            <ul className="space-y-1">
+              {bottomItems.map(renderSidebarItem)}
+            </ul>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="flex w-full items-center gap-3 rounded-lg bg-gray-100 px-4 py-3 font-nunito text-sm font-medium text-ellieBlack transition-colors hover:bg-gray-200"
+            >
+              <svg
+                className="h-5 w-5 text-ellieBlack opacity-70"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={1.8}
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 8.25L19.5 12l-3.75 3.75" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 12H8.25" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 19.5a7.5 7.5 0 110-15" />
+              </svg>
+              <span>Logout</span>
+            </button>
+          </div>
         </nav>
       </aside>
     </>

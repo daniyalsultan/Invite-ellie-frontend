@@ -33,7 +33,7 @@ export function NotificationsPage(): JSX.Element {
   };
 
   return (
-    <DashboardLayout activeTab="/notifications" userName="Mike Volkin" userEmail="mikevolkin@email.com">
+    <DashboardLayout activeTab="/notifications">
       <div className="w-full min-h-full bg-white">
         <div className="px-4 py-4 md:px-6 md:py-6 lg:px-8 lg:py-8">
           {/* Breadcrumb */}

@@ -1,30 +1,172 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import groupImage from '../../assets/Group 40999.png';
+import { getApiBaseUrl } from '../../utils/apiBaseUrl';
+
+const apiBaseUrl = getApiBaseUrl();
 
 export function SignupPage(): JSX.Element {
+  const location = useLocation();
+  const locationState = location.state as { confirmationNotice?: string } | null;
+
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(locationState?.confirmationNotice ?? null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [isSSOLoading, setIsSSOLoading] = useState<'google' | 'microsoft' | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (locationState?.confirmationNotice) {
+      setErrorMessage(locationState.confirmationNotice);
+    }
+  }, [locationState?.confirmationNotice]);
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // Handle form submission here
-    console.log('Form submitted', { email, password, confirmPassword, agreedToTerms });
+
+    setErrorMessage(null);
+    setSuccessMessage(null);
+
+    if (!apiBaseUrl) {
+      setErrorMessage('API base URL is not configured.');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setErrorMessage('Passwords do not match.');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/accounts/register/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+      });
+
+      let responseData: unknown = null;
+      try {
+        responseData = await response.json();
+      } catch (jsonError) {
+        // Ignore JSON parsing errors for empty responses
+      }
+
+      if (!response.ok) {
+        let message = 'Unable to create account.';
+
+        if (responseData && typeof responseData === 'object') {
+          if ('error' in (responseData as Record<string, unknown>) && typeof (responseData as Record<string, unknown>).error === 'string') {
+            message = (responseData as Record<string, string>).error;
+          } else {
+            const fieldErrors = Object.entries(responseData as Record<string, unknown>)
+              .map(([field, value]) => {
+                if (Array.isArray(value)) {
+                  return `${field}: ${value.join(', ')}`;
+                }
+                if (typeof value === 'string') {
+                  return `${field}: ${value}`;
+                }
+                return null;
+              })
+              .filter(Boolean);
+
+            if (fieldErrors.length > 0) {
+              message = fieldErrors.join(' | ');
+            }
+          }
+        }
+
+        setErrorMessage(message);
+        return;
+      }
+
+      const success =
+        responseData &&
+        typeof responseData === 'object' &&
+        'message' in responseData
+          ? String((responseData as Record<string, unknown>).message)
+          : 'Check your email to confirm your account.';
+
+      setSuccessMessage(success);
+      setEmail('');
+      setPassword('');
+      setConfirmPassword('');
+      setAgreedToTerms(false);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Something went wrong. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleGoogleSignup = () => {
-    // Handle Google signup
-    console.log('Google signup');
+  const initiateSSOSignup = async (provider: 'google' | 'microsoft') => {
+    if (!apiBaseUrl) {
+      setErrorMessage('API base URL is not configured.');
+      return;
+    }
+
+    setIsSSOLoading(provider);
+    setErrorMessage(null);
+    setSuccessMessage(null);
+
+    try {
+      const providerSlug = provider === 'microsoft' ? 'azure' : provider;
+      const response = await fetch(`${apiBaseUrl}/accounts/sso/providers/${providerSlug}/`, {
+        method: 'GET',
+        headers: {
+          Accept: 'application/json',
+        },
+        credentials: 'include',
+      });
+
+      let responseData: unknown = null;
+      try {
+        responseData = await response.json();
+      } catch {
+        // Ignore JSON parsing errors
+      }
+
+      if (!response.ok) {
+        let message = `Unable to initiate ${provider === 'google' ? 'Google' : 'Microsoft'} sign-in.`;
+        if (responseData && typeof responseData === 'object' && 'error' in responseData) {
+          message = typeof responseData.error === 'string' ? responseData.error : message;
+        }
+        setErrorMessage(message);
+        setIsSSOLoading(null);
+        return;
+      }
+
+      if (
+        responseData &&
+        typeof responseData === 'object' &&
+        'url' in responseData &&
+        typeof responseData.url === 'string'
+      ) {
+        window.location.href = responseData.url;
+      } else {
+        setErrorMessage('Invalid response from server.');
+        setIsSSOLoading(null);
+      }
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Something went wrong. Please try again.');
+      setIsSSOLoading(null);
+    }
   };
 
-  const handleMicrosoftSignup = () => {
-    // Handle Microsoft signup
-    console.log('Microsoft signup');
-  };
+  const handleGoogleSignup = () => initiateSSOSignup('google');
+  const handleMicrosoftSignup = () => initiateSSOSignup('microsoft');
 
   return (
     <div className="bg-white pb-[80px] pt-[40px] lg:pb-[120px] lg:pt-[60px]">
@@ -44,7 +186,8 @@ export function SignupPage(): JSX.Element {
             <button
               type="button"
               onClick={handleGoogleSignup}
-              className="flex w-full lg:flex-1 items-center justify-center gap-3 rounded-[12px] border border-[#7964A0] bg-white px-5 py-[14px] font-nunito text-[18px] font-semibold text-ellieBlack transition hover:bg-[rgba(121,100,160,0.05)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ellieBlue"
+              disabled={isSSOLoading !== null || isLoading}
+              className="flex w-full lg:flex-1 items-center justify-center gap-3 rounded-[12px] border border-[#7964A0] bg-white px-5 py-[14px] font-nunito text-[18px] font-semibold text-ellieBlack transition hover:bg-[rgba(121,100,160,0.05)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ellieBlue disabled:cursor-not-allowed disabled:opacity-60"
             >
               <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -52,13 +195,14 @@ export function SignupPage(): JSX.Element {
                 <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
                 <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
               </svg>
-              Sign Up with Google
+              {isSSOLoading === 'google' ? 'Redirecting...' : 'Sign Up with Google'}
             </button>
 
             <button
               type="button"
               onClick={handleMicrosoftSignup}
-              className="flex w-full lg:flex-1 items-center justify-center gap-3 rounded-[12px] border border-[#7964A0] bg-white px-5 py-[14px] font-nunito text-[18px] font-semibold text-ellieBlack transition hover:bg-[rgba(121,100,160,0.05)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ellieBlue"
+              disabled={isSSOLoading !== null || isLoading}
+              className="flex w-full lg:flex-1 items-center justify-center gap-3 rounded-[12px] border border-[#7964A0] bg-white px-5 py-[14px] font-nunito text-[18px] font-semibold text-ellieBlack transition hover:bg-[rgba(121,100,160,0.05)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ellieBlue disabled:cursor-not-allowed disabled:opacity-60"
             >
               <svg className="h-5 w-5" viewBox="0 0 23 23" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M0 0h10.556v10.556H0V0z" fill="#F25022"/>
@@ -66,7 +210,7 @@ export function SignupPage(): JSX.Element {
                 <path d="M0 12.444h10.556V23H0V12.444z" fill="#00A4EF"/>
                 <path d="M12.444 12.444H23V23H12.444V12.444z" fill="#FFB900"/>
               </svg>
-              Sign Up with Microsoft
+              {isSSOLoading === 'microsoft' ? 'Redirecting...' : 'Sign Up with Microsoft'}
             </button>
           </div>
 
@@ -160,11 +304,27 @@ export function SignupPage(): JSX.Element {
               </label>
             </div>
 
+            {(errorMessage || successMessage) && (
+              <div aria-live="polite" className="space-y-3">
+                {errorMessage && (
+                  <div className="rounded-[12px] border border-red-200 bg-red-50 px-5 py-3 font-nunito text-[16px] text-red-600">
+                    {errorMessage}
+                  </div>
+                )}
+                {successMessage && (
+                  <div className="rounded-[12px] border border-green-200 bg-green-50 px-5 py-3 font-nunito text-[16px] text-green-600">
+                    {successMessage}
+                  </div>
+                )}
+              </div>
+            )}
+
             <button
               type="submit"
-              className="mt-2 inline-flex w-full items-center justify-center rounded-[12px] bg-ellieBlue px-[40px] py-[16px] font-nunito text-[18px] font-extrabold text-white transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ellieBlue lg:text-[20px]"
+              disabled={isLoading}
+              className="mt-2 inline-flex w-full items-center justify-center rounded-[12px] bg-ellieBlue px-[40px] py-[16px] font-nunito text-[18px] font-extrabold text-white transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ellieBlue disabled:cursor-not-allowed disabled:opacity-60 lg:text-[20px]"
             >
-              Create an account
+              {isLoading ? 'Creating account...' : 'Create an account'}
             </button>
           </form>
 

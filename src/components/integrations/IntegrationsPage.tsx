@@ -78,7 +78,7 @@ export function IntegrationsPage(): JSX.Element {
   };
 
   return (
-    <DashboardLayout activeTab="/integrations" userName="Mike Volkin" userEmail="mikevolkin@email.com">
+    <DashboardLayout activeTab="/integrations">
       <div className="w-full min-h-full bg-white">
         <div className="px-4 py-4 md:px-6 md:py-6 lg:px-8 lg:py-8">
           {/* Breadcrumb */}

@@ -1,13 +1,86 @@
 import { useState } from 'react';
 import forgetPasswordImage from '../../assets/forgetpassword.png';
+import { getApiBaseUrl } from '../../utils/apiBaseUrl';
 
 export function ResetPasswordPage(): JSX.Element {
   const [email, setEmail] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const apiBaseUrl = getApiBaseUrl();
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // Handle form submission here
-    console.log('Reset password submitted', { email });
+    setSuccessMessage(null);
+    setErrorMessage(null);
+
+    if (!apiBaseUrl) {
+      setErrorMessage('API base URL is not configured.');
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/accounts/password/reset/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
+
+      let responseData: unknown = null;
+      try {
+        responseData = await response.json();
+      } catch {
+        // ignore empty responses
+      }
+
+      if (!response.ok) {
+        let message = 'Unable to send password reset email.';
+
+        if (responseData && typeof responseData === 'object') {
+          if ('error' in (responseData as Record<string, unknown>) && typeof (responseData as Record<string, unknown>).error === 'string') {
+            message = (responseData as Record<string, string>).error;
+          } else {
+            const fieldErrors = Object.entries(responseData as Record<string, unknown>)
+              .map(([field, value]) => {
+                if (Array.isArray(value)) {
+                  return `${field}: ${value.join(', ')}`;
+                }
+                if (typeof value === 'string') {
+                  return `${field}: ${value}`;
+                }
+                return null;
+              })
+              .filter(Boolean);
+
+            if (fieldErrors.length > 0) {
+              message = fieldErrors.join(' | ');
+            }
+          }
+        }
+
+        setErrorMessage(message);
+        return;
+      }
+
+      const message =
+        responseData &&
+        typeof responseData === 'object' &&
+        'message' in responseData &&
+        typeof (responseData as Record<string, unknown>).message === 'string'
+          ? (responseData as Record<string, string>).message
+          : 'Check your inbox for a secure link to reset your password.';
+
+      setSuccessMessage(message);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Something went wrong. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -16,9 +89,9 @@ export function ResetPasswordPage(): JSX.Element {
         <div className="w-full max-w-[500px]">
           {/* Illustrative Graphic */}
           <div className="mb-8 flex justify-center">
-            <img 
-              src={forgetPasswordImage} 
-              alt="Forgot password illustration" 
+            <img
+              src={forgetPasswordImage}
+              alt="Forgot password illustration"
               className="h-auto w-full max-w-[250px] object-contain"
             />
           </div>
@@ -46,11 +119,23 @@ export function ResetPasswordPage(): JSX.Element {
               />
             </div>
 
+            {errorMessage && (
+              <div className="rounded-[12px] border border-red-200 bg-red-50 px-5 py-3 font-nunito text-[16px] text-red-600">
+                {errorMessage}
+              </div>
+            )}
+            {successMessage && (
+              <div className="rounded-[12px] border border-green-200 bg-green-50 px-5 py-3 font-nunito text-[16px] text-green-700">
+                {successMessage}
+              </div>
+            )}
+
             <button
               type="submit"
-              className="mt-2 inline-flex w-full items-center justify-center rounded-[12px] bg-ellieBlue px-[40px] py-[16px] font-nunito text-[18px] font-extrabold text-white transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ellieBlue lg:text-[20px]"
+              disabled={isSubmitting}
+              className="mt-2 inline-flex w-full items-center justify-center rounded-[12px] bg-ellieBlue px-[40px] py-[16px] font-nunito text-[18px] font-extrabold text-white transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ellieBlue disabled:cursor-not-allowed disabled:opacity-60 lg:text-[20px]"
             >
-              Reset Password
+              {isSubmitting ? 'Sending reset link...' : 'Reset Password'}
             </button>
           </form>
         </div>
@@ -58,4 +143,3 @@ export function ResetPasswordPage(): JSX.Element {
     </div>
   );
 }
-
