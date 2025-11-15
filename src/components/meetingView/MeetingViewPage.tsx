@@ -1,94 +1,96 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { DashboardLayout } from '../sidebar';
 import zoomLogo from '../../assets/logos_zoom.png';
 import searchIcon from '../../assets/Vector.png';
 import setupProfileAvatar from '../../assets/setup-profile-avatar.png';
 import threeDotsIcon from '../../assets/3dotsinrow.png';
 import twoStarsIcon from '../../assets/twostars.png';
+import { useMeeting, useTranscripts, useAINotes } from '../../hooks/useMeetings';
+import { apiService } from '../../services/api';
 
-interface TranscriptionMessage {
-  speaker: string;
-  avatar: string;
-  message: string;
+// Helper functions
+function formatDate(dateString?: string): string {
+  if (!dateString) return 'N/A';
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
-const TRANSCRIPTION_MESSAGES: TranscriptionMessage[] = [
-  {
-    speaker: 'Theresa Webb',
-    avatar: setupProfileAvatar,
-    message: "I'll review the latest changes and share an update before our next meeting.",
-  },
-  {
-    speaker: 'Theresa Webb',
-    avatar: setupProfileAvatar,
-    message: 'Can we confirm the final list of priorities for this week?',
-  },
-  {
-    speaker: 'Theresa Webb',
-    avatar: setupProfileAvatar,
-    message: "I'll follow up with the team and make sure everything stays on track.",
-  },
-  {
-    speaker: 'Theresa Webb',
-    avatar: setupProfileAvatar,
-    message: "Let's keep the same layout for now and revisit the design in the next round.",
-  },
-  {
-    speaker: 'Theresa Webb',
-    avatar: setupProfileAvatar,
-    message: "I'll organize the notes and send a quick summary later today.",
-  },
-  {
-    speaker: 'Theresa Webb',
-    avatar: setupProfileAvatar,
-    message: 'That sounds good — we can finalize the details once everyone has reviewed it.',
-  },
-];
+function formatTime(dateString?: string): string {
+  if (!dateString) return 'N/A';
+  const date = new Date(dateString);
+  return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+}
 
-const MEETING_DATA = {
-  id: '23665',
-  title: 'Invite Ellie UX/UI Design Discussion & Project Timeline',
-  meetingLink: 'https://www.figma.com/proto/pflejRyGUKnFHsWlyCYzws/Invite-Ellie?node-id=37-5569&t=wtIfIXx2Kfam6tFh-1',
-  date: 'October 12, 2025',
-  time: '05:02 PM',
-  platform: 'zoom',
-  platformIcon: zoomLogo,
-  duration: '1 H, 25 M',
-  participants: 9,
-};
+function formatDuration(seconds?: number): string {
+  if (!seconds) return 'N/A';
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  if (hours > 0) {
+    return `${hours} H ${minutes} M`;
+  }
+  return `${minutes} M`;
+}
 
-const PARTICIPANTS = [
-  'Danielle Woods',
-  'Kristin Watson',
-  'Wade Warren',
-  'Cameron Williamson',
-  'Ralph Edwards',
-  'Larissa Davis',
-  'Floyd Miles',
-  'Jessica Bell',
-  'Savannah Nguyen',
-];
-
-const ACTION_ITEMS = [
-  {
-    text: 'Finalize the home dashboard layout — determine placement for upcoming meetings, AI summaries, and quick actions.',
-    owner: 'UX Designer - Maria',
-    due: 'Oct 30',
-  },
-  {
-    text: 'Create wireframes of the interface.',
-    owner: 'UI Designer - Ravi',
-    due: 'Oct 28',
-  },
-  {
-    text: 'Review and align on navigation structure (tabs: Meetings, Recordings, Insights, Settings).',
-    owner: 'Product Manager - Sam',
-    due: 'Oct 27',
-  },
-];
+function getPlatformIcon(platform?: string): string {
+  if (platform?.toLowerCase().includes('zoom')) return zoomLogo;
+  return zoomLogo;
+}
 
 export function MeetingViewPage(): JSX.Element {
+  const [searchParams] = useSearchParams();
+  const meetingId = searchParams.get('id') || 'test-meeting-1';
   const [transcriptionSearchQuery, setTranscriptionSearchQuery] = useState('');
+  const [isSummarizing, setIsSummarizing] = useState(false);
+
+  // Fetch data from backend
+  const { meeting, loading: meetingLoading, error: meetingError } = useMeeting(meetingId);
+  const { transcripts, loading: transcriptsLoading, error: transcriptsError } = useTranscripts(meetingId);
+  const { notes, loading: notesLoading, error: notesError, refresh: refreshNotes } = useAINotes(meetingId);
+
+  // Extract summary, highlights, and action items from AI notes
+  const summaryNote = useMemo(() => {
+    return notes.find(n => n.type === 'summary');
+  }, [notes]);
+
+  const highlightsNote = useMemo(() => {
+    return notes.find(n => n.type === 'highlights');
+  }, [notes]);
+
+  const actionItemsNote = useMemo(() => {
+    return notes.find(n => n.type === 'action_items');
+  }, [notes]);
+
+  const meetingSummary = summaryNote?.content?.summary || '';
+  const highlights = highlightsNote?.content?.highlights || summaryNote?.content?.highlights || [];
+  const actionItems = actionItemsNote?.content?.items || [];
+
+  // Filter transcripts based on search
+  const filteredTranscripts = useMemo(() => {
+    if (!transcriptionSearchQuery.trim()) return transcripts;
+    const query = transcriptionSearchQuery.toLowerCase();
+    return transcripts.filter(
+      t => t.speaker?.toLowerCase().includes(query) || t.message?.toLowerCase().includes(query)
+    );
+  }, [transcripts, transcriptionSearchQuery]);
+
+  // Handle summarization
+  const handleSummarize = async () => {
+    if (!meetingId) return;
+    setIsSummarizing(true);
+    try {
+      await apiService.summarizeMeeting(meetingId);
+      // Refresh notes after summarization
+      setTimeout(() => {
+        refreshNotes();
+      }, 1000);
+    } catch (error) {
+      console.error('Failed to summarize meeting:', error);
+      alert('Failed to generate summary. Please try again.');
+    } finally {
+      setIsSummarizing(false);
+    }
+  };
 
   const handleCopyLink = (link: string): void => {
     navigator.clipboard.writeText(link);
@@ -107,14 +109,21 @@ export function MeetingViewPage(): JSX.Element {
                 </a>
               </li>
               <li className="text-ellieGray">›</li>
-              <li className="text-ellieBlue">MEETING ID # {MEETING_DATA.id}</li>
+              <li className="text-ellieBlue">MEETING ID # {meetingId}</li>
             </ol>
           </nav>
 
           {/* Page Title */}
           <h1 className="font-nunito text-xl md:text-2xl lg:text-3xl xl:text-4xl font-extrabold text-[#1F2A44] mb-4 md:mb-6 lg:mb-8">
-            Meeting ID # {MEETING_DATA.id}
+            {meetingLoading ? 'Loading...' : meeting?.title || `Meeting ID # ${meetingId}`}
           </h1>
+
+          {/* Error Messages */}
+          {meetingError && (
+            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-red-600">Error loading meeting: {meetingError}</p>
+            </div>
+          )}
 
           {/* Three Column Layout for Desktop */}
           <div className="flex flex-col lg:grid lg:grid-cols-3 gap-6 lg:gap-8">
@@ -125,13 +134,13 @@ export function MeetingViewPage(): JSX.Element {
                 <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-[#101828] border border-[#E2E8F3] shadow-[0_18px_36px_rgba(16,24,40,0.28)]">
                   {/* Video Grid with Participants */}
                   <div className="absolute inset-0 grid grid-cols-3 gap-1 p-2">
-                    {PARTICIPANTS.map((name, i) => (
+                    {Array.from({ length: Math.max(1, meeting?.participant_count || 3) }).map((_, i) => (
                       <div
                         key={i}
                         className="bg-gray-800 rounded flex flex-col items-center justify-center text-white text-[10px] md:text-xs font-nunito relative overflow-hidden"
                       >
                         <div className="absolute inset-0 bg-gradient-to-br from-gray-700 to-gray-900"></div>
-                        <span className="relative z-10 px-1 text-center truncate w-full">{name}</span>
+                        <span className="relative z-10 px-1 text-center truncate w-full">Participant {i + 1}</span>
                       </div>
                     ))}
                   </div>
@@ -215,49 +224,51 @@ export function MeetingViewPage(): JSX.Element {
                           Meeting title
                         </label>
                         <p className="font-nunito text-sm md:text-base lg:text-lg font-bold text-[#25324B]">
-                          {MEETING_DATA.title}
+                          {meeting?.title || 'Loading...'}
                         </p>
                       </div>
 
                       {/* Meeting Recording Link */}
-                      <div>
-                        <label className="font-nunito text-xs md:text-sm text-ellieGray mb-1 block">
-                          Meeting Recording Link (Sharable)
-                        </label>
-                        <div className="flex items-center gap-2">
-                          <a
-                            href={MEETING_DATA.meetingLink}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="font-nunito text-sm md:text-base font-semibold text-[#0B5CFF] hover:underline flex-1 truncate"
-                            title={MEETING_DATA.meetingLink}
-                          >
-                            {MEETING_DATA.meetingLink.length > 40
-                              ? `${MEETING_DATA.meetingLink.substring(0, 40)}...`
-                              : MEETING_DATA.meetingLink}
-                          </a>
-                          <button
-                            type="button"
-                            onClick={() => handleCopyLink(MEETING_DATA.meetingLink)}
-                            className="flex-shrink-0 p-1 hover:bg-gray-100 rounded transition-colors"
-                            aria-label="Copy link"
-                          >
-                            <svg
-                              className="w-4 h-4 text-ellieGray"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
+                      {meeting?.recording_url && (
+                        <div>
+                          <label className="font-nunito text-xs md:text-sm text-ellieGray mb-1 block">
+                            Meeting Recording Link (Sharable)
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <a
+                              href={meeting.recording_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="font-nunito text-sm md:text-base font-semibold text-[#0B5CFF] hover:underline flex-1 truncate"
+                              title={meeting.recording_url}
                             >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                              />
-                            </svg>
-                          </button>
+                              {meeting.recording_url.length > 40
+                                ? `${meeting.recording_url.substring(0, 40)}...`
+                                : meeting.recording_url}
+                            </a>
+                            <button
+                              type="button"
+                              onClick={() => handleCopyLink(meeting.recording_url || '')}
+                              className="flex-shrink-0 p-1 hover:bg-gray-100 rounded transition-colors"
+                              aria-label="Copy link"
+                            >
+                              <svg
+                                className="w-4 h-4 text-ellieGray"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                                />
+                              </svg>
+                            </button>
+                          </div>
                         </div>
-                      </div>
+                      )}
 
                       {/* Meeting Date and Total Duration in One Row */}
                       <div className="flex flex-row items-start justify-between gap-4 sm:gap-6">
@@ -267,7 +278,7 @@ export function MeetingViewPage(): JSX.Element {
                             Meeting Date
                           </label>
                           <p className="font-nunito text-sm md:text-base lg:text-lg font-bold text-[#25324B]">
-                            {MEETING_DATA.date} | {MEETING_DATA.time}
+                            {meeting?.started_at ? `${formatDate(meeting.started_at)} | ${formatTime(meeting.started_at)}` : 'N/A'}
                           </p>
                         </div>
 
@@ -277,7 +288,7 @@ export function MeetingViewPage(): JSX.Element {
                             Total Duration
                           </label>
                           <p className="font-nunito text-sm md:text-base lg:text-lg font-bold text-[#25324B]">
-                            {MEETING_DATA.duration}
+                            {formatDuration(meeting?.duration_seconds)}
                           </p>
                         </div>
                       </div>
@@ -290,7 +301,7 @@ export function MeetingViewPage(): JSX.Element {
                             Total Participants
                           </label>
                           <p className="font-nunito text-sm md:text-base lg:text-lg font-bold text-[#25324B]">
-                            {MEETING_DATA.participants}
+                            {meeting?.participant_count || 'N/A'}
                           </p>
                         </div>
 
@@ -301,8 +312,8 @@ export function MeetingViewPage(): JSX.Element {
                           </label>
                           <div className="flex items-center">
                             <img
-                              src={MEETING_DATA.platformIcon}
-                              alt={MEETING_DATA.platform}
+                              src={getPlatformIcon(meeting?.platform)}
+                              alt={meeting?.platform || 'Unknown'}
                               className="w-8 h-8 md:w-10 md:h-10 object-contain flex-shrink-0"
                             />
                           </div>
@@ -382,36 +393,49 @@ export function MeetingViewPage(): JSX.Element {
 
                 {/* Transcription Dialogue */}
                 <div className="flex-1 space-y-3 md:space-y-4 lg:space-y-6 pr-1 md:pr-2 overflow-y-auto">
-                  {TRANSCRIPTION_MESSAGES.map((msg, index) => (
-                    <div key={index} className="flex gap-2 md:gap-3 lg:gap-4">
-                      <img
-                        src={msg.avatar}
-                        alt={msg.speaker}
-                        className="w-8 h-8 md:w-10 md:h-10 lg:w-12 lg:h-12 rounded-full object-cover flex-shrink-0"
-                      />
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-1.5 md:mb-2">
-                          <span className="font-nunito text-xs md:text-sm lg:text-base font-semibold text-ellieBlue">
-                            {msg.speaker}
-                          </span>
-                          <button
-                            type="button"
-                            className="p-0.5 md:p-1 hover:bg-gray-100 rounded transition-colors"
-                            aria-label="More options"
-                          >
-                            <img
-                              src={threeDotsIcon}
-                              alt="More options"
-                              className="w-3.5 h-3.5 md:w-4 md:h-4 lg:w-5 lg:h-5 object-contain"
-                            />
-                          </button>
+                  {transcriptsLoading ? (
+                    <div className="text-center py-8 text-gray-500">Loading transcripts...</div>
+                  ) : transcriptsError ? (
+                    <div className="text-center py-8 text-red-500">Error loading transcripts: {transcriptsError}</div>
+                  ) : filteredTranscripts.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">No transcripts available</div>
+                  ) : (
+                    filteredTranscripts.map((transcript, index) => (
+                      <div key={transcript.id || index} className="flex gap-2 md:gap-3 lg:gap-4">
+                        <img
+                          src={setupProfileAvatar}
+                          alt={transcript.speaker || 'Speaker'}
+                          className="w-8 h-8 md:w-10 md:h-10 lg:w-12 lg:h-12 rounded-full object-cover flex-shrink-0"
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between mb-1.5 md:mb-2">
+                            <span className="font-nunito text-xs md:text-sm lg:text-base font-semibold text-ellieBlue">
+                              {transcript.speaker || 'Unknown Speaker'}
+                            </span>
+                            <button
+                              type="button"
+                              className="p-0.5 md:p-1 hover:bg-gray-100 rounded transition-colors"
+                              aria-label="More options"
+                            >
+                              <img
+                                src={threeDotsIcon}
+                                alt="More options"
+                                className="w-3.5 h-3.5 md:w-4 md:h-4 lg:w-5 lg:h-5 object-contain"
+                              />
+                            </button>
+                          </div>
+                          <p className="font-nunito text-xs md:text-sm lg:text-base text-[#25324B] leading-relaxed">
+                            {transcript.message || ''}
+                          </p>
+                          {transcript.timestamp_seconds !== undefined && (
+                            <span className="text-xs text-gray-400 mt-1 block">
+                              {Math.floor(transcript.timestamp_seconds / 60)}:{(transcript.timestamp_seconds % 60).toString().padStart(2, '0')}
+                            </span>
+                          )}
                         </div>
-                        <p className="font-nunito text-xs md:text-sm lg:text-base text-[#25324B] leading-relaxed">
-                          {msg.message}
-                        </p>
                       </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </div>
             </div>
@@ -421,42 +445,90 @@ export function MeetingViewPage(): JSX.Element {
               <div className="bg-white rounded-[12px] md:rounded-[18px] shadow-[0px_18px_30px_rgba(15,23,42,0.05)] p-4 md:p-6 lg:p-8">
                 <div className="space-y-4 md:space-y-6">
                   {/* Header */}
-                  <div className="flex items-center gap-2">
-                    <h2 className="font-nunito text-lg md:text-xl lg:text-2xl font-bold text-[#25324B]">
-                      AI Notes & Suggestions
-                    </h2>
-                    <img
-                      src={twoStarsIcon}
-                      alt="AI Notes"
-                      className="w-5 h-5 md:w-6 md:h-6 object-contain"
-                    />
+                  <div className="flex items-center justify-between gap-2 mb-4">
+                    <div className="flex items-center gap-2">
+                      <h2 className="font-nunito text-lg md:text-xl lg:text-2xl font-bold text-[#25324B]">
+                        AI Notes & Suggestions
+                      </h2>
+                      <img
+                        src={twoStarsIcon}
+                        alt="AI Notes"
+                        className="w-5 h-5 md:w-6 md:h-6 object-contain"
+                      />
+                    </div>
+                    {transcripts.length > 0 && !summaryNote && (
+                      <button
+                        onClick={handleSummarize}
+                        disabled={isSummarizing}
+                        className="px-3 py-1.5 bg-purple-600 text-white text-xs md:text-sm rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {isSummarizing ? 'Generating...' : 'Generate Summary'}
+                      </button>
+                    )}
                   </div>
 
-                  {/* Meeting Conclusion */}
-                  <div className="bg-purple-50 rounded-lg p-4 md:p-5">
-                    <h3 className="font-nunito text-sm md:text-base lg:text-lg font-bold text-[#25324B] mb-2 md:mb-3">
-                      Meeting Conclusion
-                    </h3>
-                    <p className="font-nunito text-xs md:text-sm lg:text-base text-[#25324B] leading-relaxed">
-                      The team reviewed recent updates and agreed on the next set of tasks. Everyone confirmed their
-                      responsibilities, and the plan is to continue progress before the next check-in.
-                    </p>
-                  </div>
+                  {notesLoading ? (
+                    <div className="text-center py-8 text-gray-500">Loading AI notes...</div>
+                  ) : notesError ? (
+                    <div className="text-center py-8 text-red-500">Error loading notes: {notesError}</div>
+                  ) : (
+                    <>
+                      {/* Meeting Conclusion / Summary */}
+                      {meetingSummary && (
+                        <div className="bg-purple-50 rounded-lg p-4 md:p-5">
+                          <h3 className="font-nunito text-sm md:text-base lg:text-lg font-bold text-[#25324B] mb-2 md:mb-3">
+                            Meeting Conclusion
+                          </h3>
+                          <p className="font-nunito text-xs md:text-sm lg:text-base text-[#25324B] leading-relaxed">
+                            {meetingSummary}
+                          </p>
+                        </div>
+                      )}
 
-                  {/* Action Items */}
-                  <div className="bg-purple-50 rounded-lg p-4 md:p-5">
-                    <h3 className="font-nunito text-sm md:text-base lg:text-lg font-bold text-[#25324B] mb-3 md:mb-4">
-                      Action Items
-                    </h3>
-                    <ol className="space-y-3 md:space-y-4 list-decimal list-inside">
-                      {ACTION_ITEMS.map((item, index) => (
-                        <li key={index} className="font-nunito text-xs md:text-sm lg:text-base text-[#25324B] leading-relaxed">
-                          <span className="font-semibold">{item.text}</span>
-                          <span className="text-ellieGray"> (Owner: {item.owner}, Due: {item.due})</span>
-                        </li>
-                      ))}
-                    </ol>
-                  </div>
+                      {/* Highlights */}
+                      {highlights.length > 0 && (
+                        <div className="bg-purple-50 rounded-lg p-4 md:p-5">
+                          <h3 className="font-nunito text-sm md:text-base lg:text-lg font-bold text-[#25324B] mb-3 md:mb-4">
+                            Highlights
+                          </h3>
+                          <ul className="space-y-2 md:space-y-3 list-disc list-inside">
+                            {highlights.map((highlight, index) => (
+                              <li key={index} className="font-nunito text-xs md:text-sm lg:text-base text-[#25324B] leading-relaxed">
+                                {highlight}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Action Items */}
+                      {actionItems.length > 0 && (
+                        <div className="bg-purple-50 rounded-lg p-4 md:p-5">
+                          <h3 className="font-nunito text-sm md:text-base lg:text-lg font-bold text-[#25324B] mb-3 md:mb-4">
+                            Action Items
+                          </h3>
+                          <ol className="space-y-3 md:space-y-4 list-decimal list-inside">
+                            {actionItems.map((item: any, index: number) => (
+                              <li key={index} className="font-nunito text-xs md:text-sm lg:text-base text-[#25324B] leading-relaxed">
+                                <span className="font-semibold">{item.text || item}</span>
+                                {item.owner && (
+                                  <span className="text-ellieGray"> (Owner: {item.owner}{item.due ? `, Due: ${item.due}` : ''})</span>
+                                )}
+                              </li>
+                            ))}
+                          </ol>
+                        </div>
+                      )}
+
+                      {!meetingSummary && highlights.length === 0 && actionItems.length === 0 && (
+                        <div className="text-center py-8 text-gray-500">
+                          {transcripts.length > 0 
+                            ? 'No AI notes yet. Click "Generate Summary" to create one.'
+                            : 'No transcripts available. Transcripts are needed to generate summaries.'}
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
               </div>
             </div>
