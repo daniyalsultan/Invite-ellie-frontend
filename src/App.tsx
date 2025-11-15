@@ -118,7 +118,6 @@ function App(): JSX.Element {
     location.pathname.startsWith('/notifications') ||
     location.pathname.startsWith('/workspaces') ||
     location.pathname.startsWith('/create-workspace') ||
-    location.pathname.startsWith('/workspaces/workspace-view') ||
     location.pathname.startsWith('/transcriptions') ||
     location.pathname.startsWith('/meeting-recordings') ||
     location.pathname.startsWith('/meeting-view') ||
@@ -148,7 +147,7 @@ function App(): JSX.Element {
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/workspaces" element={<WorkspacePage />} />
           <Route path="/create-workspace" element={<CreateWorkspacePage />} />
-          <Route path="/workspaces/workspace-view" element={<WorkspaceViewPage />} />
+          <Route path="/workspaces/:workspaceId" element={<WorkspaceViewPage />} />
           <Route path="/transcriptions" element={<TranscriptionsPage />} />
           <Route path="/meeting-recordings" element={<MeetingRecordingsPage />} />
           <Route path="/meeting-view" element={<MeetingViewPage />} />

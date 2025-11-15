@@ -4,6 +4,7 @@ import logo from '../../assets/logo.svg';
 import searchIcon from '../../assets/Vector.png';
 import notificationsIcon from '../../assets/noti.png';
 import { useAuth } from '../../context/AuthContext';
+import defaultAvatar from '../../assets/user.png';
 
 export interface DashboardHeaderProps {
   userName?: string;
@@ -128,7 +129,7 @@ export function DashboardHeader({
                   </div>
                 )}
                 <img
-                  src={userAvatar}
+                  src={userAvatar ?? defaultAvatar}
                   alt={userName ?? 'User avatar'}
                   className="w-10 h-10 rounded-lg object-cover"
                 />
@@ -150,12 +151,46 @@ export function DashboardHeader({
               </button>
 
               {/* Dropdown Menu */}
-              {isDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                {isDropdownOpen && (
+                 <div className="absolute right-0 mt-2 w-80 rounded-[10px] border border-[#E3E7F2] bg-white p-5 shadow-[0_25px_55px_rgba(31,47,70,0.14)] z-50">
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={userAvatar ?? defaultAvatar}
+                      alt={userName ?? 'User avatar'}
+                      className="h-12 w-12 rounded-[8px] object-cover"
+                    />
+                    <div className="flex flex-col">
+                      {userName && (
+                        <span className="font-nunito text-base font-extrabold text-[#111928]">
+                          {userName}
+                        </span>
+                      )}
+                      {userEmail && (
+                        <span className="font-nunito text-sm text-[#6B7A96]">{userEmail}</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="my-4 h-px w-full bg-[#D7E2F0]" />
+                  <div className="flex flex-col gap-3">
+                    <Link
+                      to="/preferences"
+                      onClick={() => setIsDropdownOpen(false)}
+                      className="rounded-[8px] bg-[#F8F7FC] px-4 py-3 font-nunito text-sm font-bold text-[#111928] transition hover:bg-[#F0EDFC]"
+                    >
+                      Profile & Preferences
+                    </Link>
+                    <Link
+                      to="/settings"
+                      onClick={() => setIsDropdownOpen(false)}
+                      className="rounded-[8px] bg-[#F8F7FC] px-4 py-3 font-nunito text-sm font-bold text-[#111928] transition hover:bg-[#F0EDFC]"
+                    >
+                      Settings
+                    </Link>
+                  </div>
                   <button
                     type="button"
                     onClick={handleLogout}
-                    className="w-full px-4 py-2 text-left font-nunito text-sm text-ellieBlack hover:bg-gray-100 transition-colors"
+                    className="mt-4 w-full rounded-[8px] bg-[#F8F7FC] px-4 py-3 font-nunito text-sm font-bold text-[#C62828] transition hover:bg-[#FDEEEF]"
                   >
                     Logout
                   </button>

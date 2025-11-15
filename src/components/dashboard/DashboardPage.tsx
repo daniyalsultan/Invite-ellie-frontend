@@ -1,13 +1,17 @@
-import React from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { DashboardLayout } from '../sidebar';
 import d1Icon from '../../assets/d1.jpg';
 import folderIcon from '../../assets/folder.png';
-
-interface FolderItem {
-  name: string;
-  id: string;
-}
+import createFolderIllustration from '../../assets/folder-create.png';
+import { useAuth } from '../../context/AuthContext';
+import {
+  FolderRecord,
+  WorkspaceRecord,
+  createFolder,
+  listFolders,
+  listWorkspaces,
+} from '../workspace/workspaceApi';
 
 interface ActivityItem {
   type: string;
@@ -15,11 +19,6 @@ interface ActivityItem {
   date: string;
   time: string;
 }
-
-const FOLDERS: FolderItem[] = Array.from({ length: 6 }).map(() => ({
-  name: 'Folder name',
-  id: '12354566',
-}));
 
 const RECENT_ACTIVITY: ActivityItem[] = [
   {
@@ -44,10 +43,163 @@ const RECENT_ACTIVITY: ActivityItem[] = [
 
 const CREATE_WORKSPACE_ILLUSTRATION = '/assets/dashboard/create-workspace-illustration.svg';
 const JOIN_MEETING_ILLUSTRATION = '/assets/dashboard/join-meeting-illustration.svg';
-const WORKSPACE_SELECT_ICON = '/assets/dashboard/workspace-select-icon.svg';
 const WORKSPACE_HELP_ICON = '/assets/dashboard/workspace-help-icon.svg';
 
 export function DashboardPage(): JSX.Element {
+  const { ensureFreshAccessToken } = useAuth();
+  const [folders, setFolders] = useState<FolderRecord[]>([]);
+  const [isFoldersLoading, setIsFoldersLoading] = useState(true);
+  const [foldersError, setFoldersError] = useState<string | null>(null);
+  const [folderSearch, setFolderSearch] = useState('');
+  const [workspaces, setWorkspaces] = useState<WorkspaceRecord[]>([]);
+  const [workspacesError, setWorkspacesError] = useState<string | null>(null);
+  const [isWorkspacesLoading, setIsWorkspacesLoading] = useState(true);
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(null);
+  const [newFolderName, setNewFolderName] = useState('');
+  const [isCreatingFolder, setIsCreatingFolder] = useState(false);
+  const [folderStatusMessage, setFolderStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [modalError, setModalError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchWorkspaces = async (): Promise<void> => {
+      setIsWorkspacesLoading(true);
+      setWorkspacesError(null);
+      try {
+        const token = await ensureFreshAccessToken();
+        if (!token) {
+          throw new Error('Unable to authenticate. Please login again.');
+        }
+        const response = await listWorkspaces(token, { pageSize: 50, ordering: 'name' });
+        if (isMounted) {
+          setWorkspaces(response.results);
+          if (!selectedWorkspaceId && response.results.length > 0) {
+            setSelectedWorkspaceId(response.results[0].id);
+          }
+        }
+      } catch (error) {
+        if (isMounted) {
+          const message =
+            error instanceof Error ? error.message : 'Unable to load workspaces. Please try again.';
+          setWorkspacesError(message);
+        }
+      } finally {
+        if (isMounted) {
+          setIsWorkspacesLoading(false);
+        }
+      }
+    };
+
+    void fetchWorkspaces();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [ensureFreshAccessToken]);
+
+  const fetchFolders = useCallback(async (): Promise<void> => {
+    if (!selectedWorkspaceId) {
+      setFolders([]);
+      return;
+    }
+    setIsFoldersLoading(true);
+    setFoldersError(null);
+    try {
+      const token = await ensureFreshAccessToken();
+      if (!token) {
+        throw new Error('Unable to authenticate. Please login again.');
+      }
+      const response = await listFolders(token, {
+        pageSize: 12,
+        ordering: '-created_at',
+        workspaceId: selectedWorkspaceId,
+      });
+      setFolders(response.results);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unable to load folders. Please try again.';
+      setFoldersError(message);
+    } finally {
+      setIsFoldersLoading(false);
+    }
+  }, [ensureFreshAccessToken, selectedWorkspaceId]);
+
+  useEffect(() => {
+    void fetchFolders();
+  }, [fetchFolders]);
+
+  const selectedWorkspace = useMemo(
+    () => workspaces.find((workspace) => workspace.id === selectedWorkspaceId) ?? null,
+    [selectedWorkspaceId, workspaces],
+  );
+
+  const filteredFolders = useMemo(() => {
+    const query = folderSearch.trim().toLowerCase();
+    if (!query) {
+      return folders;
+    }
+    return folders.filter(
+      (folder) =>
+        folder.name.toLowerCase().includes(query) || folder.id.toLowerCase().includes(query),
+    );
+  }, [folderSearch, folders]);
+
+  const displayedFolders = filteredFolders.slice(0, 6);
+
+  const closeCreateModal = (): void => {
+    setIsCreateModalOpen(false);
+    setNewFolderName('');
+    setModalError(null);
+  };
+
+  const openCreateModal = (): void => {
+    if (!selectedWorkspaceId) {
+      setFolderStatusMessage({ type: 'error', text: 'Please select a workspace first.' });
+      return;
+    }
+    setFolderStatusMessage(null);
+    setModalError(null);
+    setIsCreateModalOpen(true);
+  };
+
+  const handleCreateFolder = async (): Promise<void> => {
+    if (!selectedWorkspaceId) {
+      setFolderStatusMessage({ type: 'error', text: 'Please select a workspace first.' });
+      return;
+    }
+    const trimmed = newFolderName.trim();
+    if (!trimmed) {
+      setModalError('Folder name is required.');
+      return;
+    }
+
+    setFolderStatusMessage(null);
+    setIsCreatingFolder(true);
+    try {
+      const token = await ensureFreshAccessToken();
+      if (!token) {
+        throw new Error('Unable to authenticate. Please login again.');
+      }
+      await createFolder(token, {
+        name: trimmed,
+        workspace: selectedWorkspaceId,
+      });
+      setNewFolderName('');
+      setFolderStatusMessage({ type: 'success', text: 'Folder created successfully.' });
+      setModalError(null);
+      closeCreateModal();
+      await fetchFolders();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unable to create folder. Please try again.';
+      setFolderStatusMessage({ type: 'error', text: message });
+    } finally {
+      setIsCreatingFolder(false);
+    }
+  };
+
   const handleCopyLink = (link: string): void => {
     navigator.clipboard.writeText(link);
   };
@@ -126,53 +278,85 @@ export function DashboardPage(): JSX.Element {
           <section className="flex flex-col gap-8 lg:flex-row lg:gap-4">
             <div className="flex flex-col gap-6 rounded-[18px] bg-white px-8 py-8 shadow-[0px_18px_30px_rgba(15,23,42,0.05)] lg:w-[55%]">
               <div className="flex flex-col gap-5">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="relative h-[45px] flex-1 min-w-[200px]">
-                      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2">
-                        <img src={d1Icon} alt="" className="h-5 w-5 object-contain" />
-                      </span>
-                      <select
-                        id="workspace-filter"
-                        className="h-full w-full appearance-none rounded-[5px] border border-[#7964A0] bg-white pl-10 pr-8 font-nunito text-sm font-semibold text-[#25324B] focus:border-[#327AAD] focus:outline-none focus:ring-2 focus:ring-[#327AAD]/20"
-                      >
-                        <option>Workspace Name</option>
-                      </select>
-                      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
-                        <svg
-                          aria-hidden
-                          className="h-4 w-4 text-[#327AAD]"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          viewBox="0 0 24 24"
+                <div className="flex flex-col gap-4">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="relative h-[45px] min-w-[220px] flex-1">
+                        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2">
+                          <img src={d1Icon} alt="" className="h-5 w-5 object-contain" />
+                        </span>
+                        <select
+                          id="workspace-filter"
+                          className="h-full w-full appearance-none rounded-[5px] border border-[#7964A0] bg-white pl-10 pr-8 font-nunito text-sm font-semibold text-[#25324B] focus:border-[#327AAD] focus:outline-none focus:ring-2 focus:ring-[#327AAD]/20"
+                          value={selectedWorkspaceId ?? ''}
+                          onChange={(event) => setSelectedWorkspaceId(event.target.value || null)}
+                          disabled={isWorkspacesLoading || !!workspacesError}
                         >
-                          <path d="M6 9l6 6 6-6" />
-                        </svg>
-                      </span>
+                          {isWorkspacesLoading ? (
+                            <option value="">Loading workspaces...</option>
+                          ) : workspacesError ? (
+                            <option value="">{workspacesError}</option>
+                          ) : workspaces.length === 0 ? (
+                            <option value="">No workspaces available</option>
+                          ) : (
+                            workspaces.map((workspace) => (
+                              <option key={workspace.id} value={workspace.id}>
+                                {workspace.name}
+                              </option>
+                            ))
+                          )}
+                        </select>
+                        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
+                          <svg
+                            aria-hidden
+                            className="h-4 w-4 text-[#327AAD]"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            viewBox="0 0 24 24"
+                          >
+                            <path d="M6 9l6 6 6-6" />
+                          </svg>
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        className="flex flex-shrink-0 items-center justify-center"
+                        aria-label="Workspace help"
+                      >
+                        <img src={WORKSPACE_HELP_ICON} alt="Help" className="h-3 w-3" />
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      className="flex flex-shrink-0 items-center justify-center"
-                      aria-label="Workspace help"
-                    >
-                      <img src={WORKSPACE_HELP_ICON} alt="Help" className="h-3 w-3" />
-                    </button>
+                    <div className="flex flex-1 items-center justify-end">
+                      <button
+                        type="button"
+                        onClick={openCreateModal}
+                        className="inline-flex h-[40px] items-center justify-center rounded-[5px] bg-[#327AAD] px-6 font-nunito text-sm font-extrabold text-white transition hover:bg-[#286996] disabled:cursor-not-allowed disabled:opacity-60"
+                        disabled={isWorkspacesLoading || !!workspacesError || workspaces.length === 0}
+                      >
+                        Create a folder
+                      </button>
+                    </div>
                   </div>
-                  <button
-                    type="button"
-                    className="inline-flex h-[40px] items-center justify-center rounded-[5px] bg-[#327AAD] px-6 font-nunito text-sm font-extrabold text-white transition hover:bg-[#286996] lg:ml-auto"
-                  >
-                    Create a folder
-                  </button>
+                  {folderStatusMessage && (
+                    <div
+                      className={`rounded-[8px] px-3 py-2 font-nunito text-sm ${
+                        folderStatusMessage.type === 'success'
+                          ? 'border border-green-200 bg-green-50 text-green-700'
+                          : 'border border-red-200 bg-red-50 text-red-700'
+                      }`}
+                    >
+                      {folderStatusMessage.text}
+                    </div>
+                  )}
                 </div>
-                <div className="flex items-center gap-4 justify-between">
+                <div className="flex items-center justify-between gap-4">
                   <label htmlFor="folder-search" className="font-nunito text-[20px] font-semibold text-[#25324B] whitespace-nowrap">
                     Folder name
                   </label>
-                  <div className="relative h-[60px] w-full max-w-[300px] ml-auto">
+                  <div className="relative ml-auto h-[60px] w-full max-w-[300px]">
                     <span className="pointer-events-none absolute left-5 top-1/2 -translate-y-1/2 text-[#327AAD]">
                       <svg
                         aria-hidden
@@ -189,27 +373,57 @@ export function DashboardPage(): JSX.Element {
                       id="folder-search"
                       type="text"
                       placeholder="Search by folder name"
+                      value={folderSearch}
+                      onChange={(event) => setFolderSearch(event.target.value)}
                       className="h-full w-full rounded-[5px] border border-[#7964A0] bg-white pl-14 pr-5 font-nunito text-[20px] font-semibold text-[#25324B] placeholder:text-[#25324B]/40 focus:border-[#327AAD] focus:outline-none focus:ring-2 focus:ring-[#327AAD]/20"
                     />
                   </div>
                 </div>
               </div>
 
+              {selectedWorkspace && (
+                <p className="text-sm font-nunito text-[#6B7A96]">
+                  Showing folders for <span className="font-semibold text-[#25324B]">{selectedWorkspace.name}</span>
+                </p>
+              )}
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {FOLDERS.map((folder, index) => (
-                  <div
-                    key={`${folder.name}-${index}`}
-                    className="flex flex-col gap-4 rounded-[12px] bg-[rgba(50,122,173,0.05)] px-6 py-6 items-center text-center"
-                  >
-                    <img src={folderIcon} alt="" className="h-16 w-16 object-contain" />
-                    <div className="space-y-1">
-                      <span className="block font-nunito text-[20px] font-bold tracking-[-0.02em] text-[#25324B] leading-[1.36]">
-                        {folder.name}
-                      </span>
-                      <span className="font-nunito text-[16px] text-[#545454]">{folder.id}</span>
+                {isFoldersLoading ? (
+                  Array.from({ length: 6 }).map((_, index) => (
+                    <div
+                      key={`folder-skeleton-${index}`}
+                      className="flex animate-pulse flex-col gap-4 rounded-[12px] bg-[rgba(50,122,173,0.05)] px-6 py-6 text-center"
+                    >
+                      <div className="mx-auto h-16 w-16 rounded-full bg-white/60" />
+                      <div className="space-y-2">
+                        <div className="mx-auto h-4 w-24 rounded bg-white/70" />
+                        <div className="mx-auto h-3 w-20 rounded bg-white/60" />
+                      </div>
                     </div>
+                  ))
+                ) : foldersError ? (
+                  <div className="col-span-full rounded-[12px] border border-red-100 bg-red-50 px-4 py-6 text-center font-nunito text-sm text-red-600">
+                    {foldersError}
                   </div>
-                ))}
+                ) : displayedFolders.length === 0 ? (
+                  <div className="col-span-full rounded-[12px] border border-dashed border-[#327AAD]/30 px-4 py-6 text-center font-nunito text-sm text-[#25324B]">
+                    No folders found. Try a different search.
+                  </div>
+                ) : (
+                  displayedFolders.map((folder) => (
+                    <div
+                      key={folder.id}
+                      className="flex flex-col items-center gap-4 rounded-[12px] bg-[rgba(50,122,173,0.05)] px-6 py-6 text-center"
+                    >
+                      <img src={folderIcon} alt="" className="h-16 w-16 object-contain" />
+                      <div className="space-y-1">
+                        <span className="block font-nunito text-[20px] font-bold tracking-[-0.02em] text-[#25324B] leading-[1.36]">
+                          {folder.name}
+                        </span>
+                        <span className="font-nunito text-[16px] text-[#545454]">{folder.id}</span>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
 
@@ -318,7 +532,73 @@ export function DashboardPage(): JSX.Element {
           </section>
         </div>
       </div>
-    </DashboardLayout>
+      {isCreateModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6">
+          <div className="w-full max-w-sm rounded-[30px] bg-white p-6 text-center shadow-[0_25px_60px_rgba(0,0,0,0.15)]">
+            <div className="mb-4 flex items-start justify-end">
+              <button
+                type="button"
+                onClick={closeCreateModal}
+                className="text-red-500 transition hover:scale-105 disabled:opacity-60"
+                aria-label="Close dialog"
+                disabled={isCreatingFolder}
+              >
+                <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <img
+              src={createFolderIllustration}
+              alt="Folder illustration"
+              className="mx-auto mb-4 h-28 w-auto object-contain"
+            />
+            <h3 className="font-nunito text-2xl font-extrabold text-[#111928]">Create a folder</h3>
+            <p className="mt-2 font-nunito text-sm text-[#5F6B7A]">
+              Give your folder a name so you can easily organize your files and meetings.
+            </p>
+            <div className="my-5 border-t border-[#E6E9F2]" />
+            {selectedWorkspace && (
+              <p className="mb-3 font-nunito text-xs font-semibold uppercase tracking-wide text-[#6B7A96]">
+                Workspace: <span className="text-[#1F2A44]">{selectedWorkspace.name}</span>
+              </p>
+            )}
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                void handleCreateFolder();
+              }}
+              className="space-y-4 text-left"
+            >
+              <label className="flex flex-col gap-2 font-nunito text-sm font-semibold text-[#25324B]">
+                Folder name
+                <input
+                  type="text"
+                  value={newFolderName}
+                  onChange={(event) => setNewFolderName(event.target.value)}
+                  className="rounded-[10px] border border-[#A3AED0] px-4 py-3 font-normal text-[#25324B] placeholder:text-[#A3AED0] focus:border-[#7C5CFF] focus:outline-none focus:ring-2 focus:ring-[#7C5CFF]/30"
+                  autoFocus
+                  disabled={isCreatingFolder}
+                  placeholder="Folder Name"
+                />
+              </label>
+              {modalError && (
+                <p className="rounded-lg border border-red-100 bg-red-50 px-3 py-2 font-nunito text-sm text-red-600">
+                  {modalError}
+                </p>
+              )}
+              <button
+                type="submit"
+                className="mt-2 inline-flex w-full items-center justify-center rounded-[10px] bg-[#327AAD] px-5 py-3 font-nunito text-base font-extrabold text-white transition hover:bg-[#286996] disabled:opacity-60"
+                disabled={isCreatingFolder}
+              >
+                {isCreatingFolder ? 'Creating...' : 'Create folder'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+      </DashboardLayout>
     </React.Fragment>
   );
 }

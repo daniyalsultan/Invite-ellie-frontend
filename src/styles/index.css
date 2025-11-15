@@ -48,3 +48,18 @@ body {
 .animate-drawer-in-left {
   animation: drawerInLeft 0.35s ease forwards;
 }
+
+@keyframes ellie-loader {
+  0% {
+    transform: translateX(-60%);
+    width: 35%;
+  }
+  50% {
+    transform: translateX(5%);
+    width: 70%;
+  }
+  100% {
+    transform: translateX(110%);
+    width: 35%;
+  }
+}

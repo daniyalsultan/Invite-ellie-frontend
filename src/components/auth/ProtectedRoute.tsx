@@ -3,6 +3,7 @@ import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useProfile } from '../../context/ProfileContext';
 import { hasCompletedProfileSetup, markProfileSetupComplete } from '../../utils/profileForm';
+import { FullScreenLoader } from '../common/GradientLoader';
 
 export function ProtectedRoute(): JSX.Element {
   const { isAuthenticated, isInitializing, session } = useAuth();
@@ -25,11 +26,7 @@ export function ProtectedRoute(): JSX.Element {
   const needsSetup = !isProfileLoading && !hasProfileName && !completedOnce;
 
   if (isInitializing || (isProfileLoading && !isSetupRoute)) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-white">
-        <p className="font-nunito text-[18px] text-ellieGray">Loading...</p>
-      </div>
-    );
+    return <FullScreenLoader label="For unforgettable meetings!" />;
   }
 
   if (!isAuthenticated) {

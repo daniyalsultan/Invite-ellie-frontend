@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import groupImage from '../../assets/Group 41000.png';
 import { useAuth } from '../../context/AuthContext';
 import { getApiBaseUrl } from '../../utils/apiBaseUrl';
+import { GradientLoader } from '../common/GradientLoader';
 
 export function LoginPage(): JSX.Element {
   const [showPassword, setShowPassword] = useState(false);
@@ -98,8 +99,23 @@ export function LoginPage(): JSX.Element {
   const handleGoogleLogin = () => initiateSSO('google');
   const handleMicrosoftLogin = () => initiateSSO('microsoft');
 
+  const showLoadingOverlay = isSubmitting || isSSOLoading !== null;
+
   return (
-    <div className="bg-white pb-[80px] pt-[40px] lg:pb-[120px] lg:pt-[60px]">
+    <div className="relative bg-white pb-[80px] pt-[40px] lg:pb-[120px] lg:pt-[60px]">
+      {showLoadingOverlay && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/80 backdrop-blur-sm">
+          <GradientLoader
+            label={
+              isSSOLoading === 'google'
+                ? 'Redirecting to Google...'
+                : isSSOLoading === 'microsoft'
+                  ? 'Redirecting to Microsoft...'
+                  : 'Signing you in...'
+            }
+          />
+        </div>
+      )}
       <div className="container-ellie">
         <div className="grid gap-8 lg:grid-cols-2 lg:items-center lg:gap-[60px]">
           {/* Left Side - Login Form */}
