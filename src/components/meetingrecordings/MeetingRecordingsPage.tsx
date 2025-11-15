@@ -1,44 +1,64 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { DashboardLayout } from '../sidebar';
 import zoomLogo from '../../assets/logos_zoom.png';
 import searchIcon from '../../assets/Vector.png';
+import { useMeetings } from '../../hooks/useMeetings';
+import { Meeting } from '../../services/api';
 
-interface MeetingRecording {
-  title: string;
-  meetingLink: string;
-  date: string;
-  time: string;
-  platform: string;
-  platformIcon: string;
-  duration: string;
-  participants: number;
+// Helper functions
+function formatDate(dateString?: string): string {
+  if (!dateString) return 'N/A';
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
-const MEETING_RECORDINGS: MeetingRecording[] = Array.from({ length: 5 }).map(() => ({
-  title: 'Meeting title',
-  meetingLink: 'https://www.figma.com/proto/pflejRyGUKnFHsWlyCYzws/Invite-Ellie?node-id=37-5569&t=wtIfIXx2Kfam6tFh-1',
-  date: 'October 12, 2025',
-  time: '05:02 PM',
-  platform: 'zoom',
-  platformIcon: zoomLogo,
-  duration: '1 H 25 M',
-  participants: 9,
-}));
+function formatTime(dateString?: string): string {
+  if (!dateString) return 'N/A';
+  const date = new Date(dateString);
+  return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+}
 
-const SELECTED_MEETING: MeetingRecording = {
-  title: 'Invite Ellie UX/UI Design Discussion & Project Timeline',
-  meetingLink: 'https://www.figma.com/proto/pflejRyGUKnFHsWlyCYzws/Invite-Ellie?node-id=37-5569&t=wtIfIXx2Kfam6tFh-1',
-  date: 'October 12, 2025',
-  time: '05:02 PM',
-  platform: 'zoom',
-  platformIcon: zoomLogo,
-  duration: '1 H 25 M',
-  participants: 9,
-};
+function formatDuration(seconds?: number): string {
+  if (!seconds) return 'N/A';
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  if (hours > 0) {
+    return `${hours} H ${minutes} M`;
+  }
+  return `${minutes} M`;
+}
+
+function getPlatformIcon(platform?: string): string {
+  // Map platform names to icons
+  if (platform?.toLowerCase().includes('zoom')) return zoomLogo;
+  // Add more platform icons as needed
+  return zoomLogo;
+}
 
 export function MeetingRecordingsPage(): JSX.Element {
-  const [selectedRecording, setSelectedRecording] = useState<number>(0);
+  const { meetings, loading, error } = useMeetings();
+  const [selectedRecording, setSelectedRecording] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Filter meetings based on search query
+  const filteredMeetings = useMemo(() => {
+    if (!searchQuery.trim()) return meetings;
+    const query = searchQuery.toLowerCase();
+    return meetings.filter(
+      (m) =>
+        m.title?.toLowerCase().includes(query) ||
+        m.meeting_link?.toLowerCase().includes(query) ||
+        m.id?.toLowerCase().includes(query)
+    );
+  }, [meetings, searchQuery]);
+
+  // Get selected meeting
+  const selectedMeeting = useMemo(() => {
+    if (!selectedRecording && filteredMeetings.length > 0) {
+      return filteredMeetings[0];
+    }
+    return filteredMeetings.find((m) => m.id === selectedRecording) || filteredMeetings[0];
+  }, [filteredMeetings, selectedRecording]);
 
   const handleCopyLink = (link: string): void => {
     navigator.clipboard.writeText(link);
@@ -93,250 +113,57 @@ export function MeetingRecordingsPage(): JSX.Element {
                   </div>
                 </div>
 
+                {/* Loading State */}
+                {loading && (
+                  <div className="text-center py-8">
+                    <p className="font-nunito text-base text-ellieGray">Loading meetings...</p>
+                  </div>
+                )}
+
+                {/* Error State */}
+                {error && (
+                  <div className="text-center py-8">
+                    <p className="font-nunito text-base text-red-500">Error: {error}</p>
+                    <p className="font-nunito text-sm text-ellieGray mt-2">Make sure the backend server is running</p>
+                  </div>
+                )}
+
                 {/* Mobile: Recordings Cards */}
-                <div className="lg:hidden grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
-                  {MEETING_RECORDINGS.map((recording, index) => (
-                    <div
-                      key={`${recording.title}-${index}`}
-                      onClick={() => setSelectedRecording(index)}
-                      className={`
-                        bg-white p-4 md:p-6 cursor-pointer transition-all
-                        ${selectedRecording === index ? 'bg-blue-50' : ''}
-                      `}
-                    >
-                      {/* Details with Actions */}
-                      <div className="mb-3 md:mb-4">
-                        <div className="flex items-center justify-between mb-1">
-                          <label className="font-nunito text-[10px] md:text-xs text-ellieGray uppercase tracking-wider">
-                            Details
-                          </label>
-                          <div className="flex items-center gap-1 flex-shrink-0">
-                            <button
-                              type="button"
-                              onClick={(e) => e.stopPropagation()}
-                              className="p-1.5 md:p-2 bg-blue-50 hover:bg-blue-100 rounded transition-colors"
-                              aria-label="View"
-                            >
-                              <svg
-                                className="w-4 h-4 md:w-5 md:h-5 text-blue-500"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                                />
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                                />
-                              </svg>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={(e) => e.stopPropagation()}
-                              className="p-1.5 md:p-2 bg-red-50 hover:bg-red-100 rounded transition-colors"
-                              aria-label="Delete"
-                            >
-                              <svg
-                                className="w-4 h-4 md:w-5 md:h-5 text-red-500"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M6 18L18 6M6 6l12 12"
-                                />
-                              </svg>
-                            </button>
-                          </div>
-                        </div>
-                        <div className="flex-1">
-                          <p className="font-nunito text-xs md:text-sm font-bold text-[#25324B] mb-1">
-                            {recording.title}
-                          </p>
-                          <div className="flex items-center gap-1.5">
-                            <a
-                              href={recording.meetingLink}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              className="font-nunito text-xs md:text-sm font-semibold text-[#0B5CFF] hover:underline flex-1 truncate"
-                              title={recording.meetingLink}
-                            >
-                              {recording.meetingLink.length > 20
-                                ? `${recording.meetingLink.substring(0, 20)}...`
-                                : recording.meetingLink}
-                            </a>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleCopyLink(recording.meetingLink);
-                              }}
-                              className="flex-shrink-0 p-0.5 md:p-1 hover:bg-gray-100 rounded transition-colors"
-                              aria-label="Copy link"
-                            >
-                              <svg
-                                className="w-3 h-3 md:w-4 md:h-4 text-ellieGray"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                                />
-                              </svg>
-                            </button>
-                          </div>
-                        </div>
-                      </div>
+                {!loading && !error && filteredMeetings.length === 0 && (
+                  <div className="text-center py-8">
+                    <p className="font-nunito text-base text-ellieGray">No meetings found</p>
+                  </div>
+                )}
 
-                      {/* Date/Time and Platform in One Row */}
-                      <div className="pb-3 md:pb-4 border-b border-[#DEE1E6]">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <label className="font-nunito text-[10px] md:text-xs text-ellieGray uppercase tracking-wider mb-1 block">
-                              Date/Time
+                {!loading && !error && (
+                  <div className="lg:hidden grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
+                    {filteredMeetings.map((recording) => (
+                      <div
+                        key={recording.id}
+                        onClick={() => setSelectedRecording(recording.id || null)}
+                        className={`
+                          bg-white p-4 md:p-6 cursor-pointer transition-all
+                          ${selectedRecording === recording.id ? 'bg-blue-50' : ''}
+                        `}
+                      >
+                        {/* Details with Actions */}
+                        <div className="mb-3 md:mb-4">
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="font-nunito text-[10px] md:text-xs text-ellieGray uppercase tracking-wider">
+                              Details
                             </label>
-                            <div className="flex flex-col gap-1">
-                              <span className="font-nunito text-xs md:text-sm font-bold text-[#25324B]">
-                                {recording.date}
-                              </span>
-                              <span className="font-nunito text-xs md:text-sm font-bold text-[#25324B]">
-                                {recording.time}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="flex flex-col items-end">
-                            <label className="font-nunito text-[10px] md:text-xs text-ellieGray uppercase tracking-wider mb-1 block">
-                              Platform
-                            </label>
-                            <img
-                              src={recording.platformIcon}
-                              alt={recording.platform}
-                              className="w-6 h-6 md:w-8 md:h-8 lg:w-10 lg:h-10 object-contain flex-shrink-0"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Desktop: Recordings Table */}
-                <div className="hidden lg:block overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-[#DEE1E6]">
-                        <th className="text-left py-3 px-4 font-nunito text-base font-semibold text-[#25324B] max-w-[300px]">
-                          Details
-                        </th>
-                        <th className="text-left py-3 px-4 font-nunito text-base font-semibold text-[#25324B] whitespace-nowrap">
-                          Date/Time
-                        </th>
-                        <th className="text-left py-3 px-4 font-nunito text-base font-semibold text-[#25324B] whitespace-nowrap">
-                          Platform
-                        </th>
-                        <th className="text-center py-3 px-4 font-nunito text-base font-semibold text-[#25324B] whitespace-nowrap">
-                          Actions
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {MEETING_RECORDINGS.map((recording, index) => (
-                        <tr
-                          key={`${recording.title}-${index}`}
-                          onClick={() => setSelectedRecording(index)}
-                          className={`
-                            border-b border-[#DEE1E6] cursor-pointer transition-colors
-                            ${selectedRecording === index ? 'bg-[rgba(50,122,173,0.1)]' : 'hover:bg-gray-50'}
-                          `}
-                        >
-                          <td className="py-4 px-4 max-w-[300px]">
-                            <div className="flex flex-col gap-1">
-                              <p className="font-nunito text-base font-bold text-[#25324B]">
-                                {recording.title}
-                              </p>
-                              <div className="flex items-center gap-2">
-                                <a
-                                  href={recording.meetingLink}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  onClick={(e) => e.stopPropagation()}
-                                  className="font-nunito text-base font-semibold text-[#0B5CFF] hover:underline truncate"
-                                  title={recording.meetingLink}
-                                >
-                                  {recording.meetingLink.length > 18
-                                    ? `${recording.meetingLink.substring(0, 18)}...`
-                                    : recording.meetingLink}
-                                </a>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleCopyLink(recording.meetingLink);
-                                  }}
-                                  className="flex-shrink-0 p-1 hover:bg-gray-100 rounded transition-colors"
-                                  aria-label="Copy link"
-                                >
-                                  <svg
-                                    className="w-4 h-4 text-ellieGray"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                                    />
-                                  </svg>
-                                </button>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="py-4 px-4 whitespace-nowrap">
-                            <div className="flex flex-col gap-1">
-                              <span className="font-nunito text-base font-bold text-[#25324B]">
-                                {recording.date}
-                              </span>
-                              <span className="font-nunito text-base font-bold text-[#25324B]">
-                                {recording.time}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="py-4 px-4 whitespace-nowrap">
-                            <div className="flex items-center">
-                              <img
-                                src={recording.platformIcon}
-                                alt={recording.platform}
-                                className="w-10 h-10 object-contain flex-shrink-0"
-                              />
-                            </div>
-                          </td>
-                          <td className="py-4 px-4 whitespace-nowrap">
-                            <div className="flex items-center justify-center gap-1">
+                            <div className="flex items-center gap-1 flex-shrink-0">
                               <button
                                 type="button"
-                                onClick={(e) => e.stopPropagation()}
-                                className="p-2 bg-blue-50 hover:bg-blue-100 rounded transition-colors"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  window.location.href = `/meeting-view?id=${recording.id}`;
+                                }}
+                                className="p-1.5 md:p-2 bg-blue-50 hover:bg-blue-100 rounded transition-colors"
                                 aria-label="View"
                               >
                                 <svg
-                                  className="w-5 h-5 text-blue-500"
+                                  className="w-4 h-4 md:w-5 md:h-5 text-blue-500"
                                   fill="none"
                                   stroke="currentColor"
                                   viewBox="0 0 24 24"
@@ -355,33 +182,221 @@ export function MeetingRecordingsPage(): JSX.Element {
                                   />
                                 </svg>
                               </button>
-                              <button
-                                type="button"
-                                onClick={(e) => e.stopPropagation()}
-                                className="p-2 bg-red-50 hover:bg-red-100 rounded transition-colors"
-                                aria-label="Delete"
-                              >
-                                <svg
-                                  className="w-5 h-5 text-red-500"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M6 18L18 6M6 6l12 12"
-                                  />
-                                </svg>
-                              </button>
                             </div>
-                          </td>
+                          </div>
+                          <div className="flex-1">
+                            <p className="font-nunito text-xs md:text-sm font-bold text-[#25324B] mb-1">
+                              {recording.title || 'Untitled Meeting'}
+                            </p>
+                            <div className="flex items-center gap-1.5">
+                              <a
+                                href={recording.meeting_link || '#'}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="font-nunito text-xs md:text-sm font-semibold text-[#0B5CFF] hover:underline flex-1 truncate"
+                                title={recording.meeting_link}
+                              >
+                                {recording.meeting_link && recording.meeting_link.length > 20
+                                  ? `${recording.meeting_link.substring(0, 20)}...`
+                                  : recording.meeting_link || 'No link'}
+                              </a>
+                              {recording.meeting_link && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleCopyLink(recording.meeting_link!);
+                                  }}
+                                  className="flex-shrink-0 p-0.5 md:p-1 hover:bg-gray-100 rounded transition-colors"
+                                  aria-label="Copy link"
+                                >
+                                  <svg
+                                    className="w-3 h-3 md:w-4 md:h-4 text-ellieGray"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                                    />
+                                  </svg>
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Date/Time and Platform in One Row */}
+                        <div className="pb-3 md:pb-4 border-b border-[#DEE1E6]">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <label className="font-nunito text-[10px] md:text-xs text-ellieGray uppercase tracking-wider mb-1 block">
+                                Date/Time
+                              </label>
+                              <div className="flex flex-col gap-1">
+                                <span className="font-nunito text-xs md:text-sm font-bold text-[#25324B]">
+                                  {formatDate(recording.started_at)}
+                                </span>
+                                <span className="font-nunito text-xs md:text-sm font-bold text-[#25324B]">
+                                  {formatTime(recording.started_at)}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex flex-col items-end">
+                              <label className="font-nunito text-[10px] md:text-xs text-ellieGray uppercase tracking-wider mb-1 block">
+                                Platform
+                              </label>
+                              <img
+                                src={getPlatformIcon(recording.platform)}
+                                alt={recording.platform || 'platform'}
+                                className="w-6 h-6 md:w-8 md:h-8 lg:w-10 lg:h-10 object-contain flex-shrink-0"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Desktop: Recordings Table */}
+                {!loading && !error && (
+                  <div className="hidden lg:block overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-[#DEE1E6]">
+                          <th className="text-left py-3 px-4 font-nunito text-base font-semibold text-[#25324B] max-w-[300px]">
+                            Details
+                          </th>
+                          <th className="text-left py-3 px-4 font-nunito text-base font-semibold text-[#25324B] whitespace-nowrap">
+                            Date/Time
+                          </th>
+                          <th className="text-left py-3 px-4 font-nunito text-base font-semibold text-[#25324B] whitespace-nowrap">
+                            Platform
+                          </th>
+                          <th className="text-center py-3 px-4 font-nunito text-base font-semibold text-[#25324B] whitespace-nowrap">
+                            Actions
+                          </th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody>
+                        {filteredMeetings.map((recording) => (
+                          <tr
+                            key={recording.id}
+                            onClick={() => setSelectedRecording(recording.id || null)}
+                            className={`
+                              border-b border-[#DEE1E6] cursor-pointer transition-colors
+                              ${selectedRecording === recording.id ? 'bg-[rgba(50,122,173,0.1)]' : 'hover:bg-gray-50'}
+                            `}
+                          >
+                            <td className="py-4 px-4 max-w-[300px]">
+                              <div className="flex flex-col gap-1">
+                                <p className="font-nunito text-base font-bold text-[#25324B]">
+                                  {recording.title || 'Untitled Meeting'}
+                                </p>
+                                <div className="flex items-center gap-2">
+                                  <a
+                                    href={recording.meeting_link || '#'}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="font-nunito text-base font-semibold text-[#0B5CFF] hover:underline truncate"
+                                    title={recording.meeting_link}
+                                  >
+                                    {recording.meeting_link && recording.meeting_link.length > 18
+                                      ? `${recording.meeting_link.substring(0, 18)}...`
+                                      : recording.meeting_link || 'No link'}
+                                  </a>
+                                  {recording.meeting_link && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleCopyLink(recording.meeting_link!);
+                                      }}
+                                      className="flex-shrink-0 p-1 hover:bg-gray-100 rounded transition-colors"
+                                      aria-label="Copy link"
+                                    >
+                                      <svg
+                                        className="w-4 h-4 text-ellieGray"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth={2}
+                                          d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                                        />
+                                      </svg>
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            </td>
+                            <td className="py-4 px-4 whitespace-nowrap">
+                              <div className="flex flex-col gap-1">
+                                <span className="font-nunito text-base font-bold text-[#25324B]">
+                                  {formatDate(recording.started_at)}
+                                </span>
+                                <span className="font-nunito text-base font-bold text-[#25324B]">
+                                  {formatTime(recording.started_at)}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="py-4 px-4 whitespace-nowrap">
+                              <div className="flex items-center">
+                                <img
+                                  src={getPlatformIcon(recording.platform)}
+                                  alt={recording.platform || 'platform'}
+                                  className="w-10 h-10 object-contain flex-shrink-0"
+                                />
+                              </div>
+                            </td>
+                            <td className="py-4 px-4 whitespace-nowrap">
+                              <div className="flex items-center justify-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    window.location.href = `/meeting-view?id=${recording.id}`;
+                                  }}
+                                  className="p-2 bg-blue-50 hover:bg-blue-100 rounded transition-colors"
+                                  aria-label="View"
+                                >
+                                  <svg
+                                    className="w-5 h-5 text-blue-500"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                                    />
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                                    />
+                                  </svg>
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -470,105 +485,115 @@ export function MeetingRecordingsPage(): JSX.Element {
                   </h2>
                   
                   <div className="space-y-4 md:space-y-5">
-                    {/* Meeting Title */}
-                    <div>
-                      <label className="font-nunito text-xs md:text-sm text-ellieGray mb-1 block">
-                        Meeting title
-                      </label>
-                      <p className="font-nunito text-sm md:text-base lg:text-lg font-bold text-[#25324B]">
-                        {SELECTED_MEETING.title}
-                      </p>
-                    </div>
-
-                    {/* Meeting Recording Link */}
-                    <div>
-                      <label className="font-nunito text-xs md:text-sm text-ellieGray mb-1 block">
-                        Meeting Recording Link (Sharable)
-                      </label>
-                      <div className="flex items-center gap-2">
-                        <a
-                          href={SELECTED_MEETING.meetingLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="font-nunito text-sm md:text-base font-semibold text-[#0B5CFF] hover:underline flex-1 truncate"
-                          title={SELECTED_MEETING.meetingLink}
-                        >
-                          {SELECTED_MEETING.meetingLink.length > 40
-                            ? `${SELECTED_MEETING.meetingLink.substring(0, 40)}...`
-                            : SELECTED_MEETING.meetingLink}
-                        </a>
-                        <button
-                          type="button"
-                          onClick={() => handleCopyLink(SELECTED_MEETING.meetingLink)}
-                          className="flex-shrink-0 p-1 hover:bg-gray-100 rounded transition-colors"
-                          aria-label="Copy link"
-                        >
-                          <svg
-                            className="w-4 h-4 text-ellieGray"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                            />
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Meeting Date and Total Duration in One Row */}
-                    <div className="flex flex-row items-start justify-between gap-4 sm:gap-6">
-                      {/* Meeting Date */}
-                      <div className="flex-1">
-                        <label className="font-nunito text-xs md:text-sm text-ellieGray mb-1 block">
-                          Meeting Date
-                        </label>
-                        <p className="font-nunito text-sm md:text-base lg:text-lg font-bold text-[#25324B]">
-                          {SELECTED_MEETING.date} | {SELECTED_MEETING.time}
-                        </p>
-                      </div>
-
-                      {/* Total Duration */}
-                      <div className="flex-1">
-                        <label className="font-nunito text-xs md:text-sm text-ellieGray mb-1 block">
-                          Total Duration
-                        </label>
-                        <p className="font-nunito text-sm md:text-base lg:text-lg font-bold text-[#25324B]">
-                          {SELECTED_MEETING.duration}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Total Participants and Platform in One Row */}
-                    <div className="flex flex-row items-start justify-between gap-4 sm:gap-6">
-                      {/* Total Participants */}
-                      <div className="flex-1">
-                        <label className="font-nunito text-xs md:text-sm text-ellieGray mb-1 block">
-                          Total Participants
-                        </label>
-                        <p className="font-nunito text-sm md:text-base lg:text-lg font-bold text-[#25324B]">
-                          {SELECTED_MEETING.participants}
-                        </p>
-                      </div>
-
-                      {/* Platform */}
-                      <div className="flex-1">
-                        <label className="font-nunito text-xs md:text-sm text-ellieGray mb-1 block">
-                          Platform
-                        </label>
-                        <div className="flex items-center">
-                          <img
-                            src={SELECTED_MEETING.platformIcon}
-                            alt={SELECTED_MEETING.platform}
-                            className="w-8 h-8 md:w-10 md:h-10 object-contain flex-shrink-0"
-                          />
+                    {selectedMeeting ? (
+                      <>
+                        {/* Meeting Title */}
+                        <div>
+                          <label className="font-nunito text-xs md:text-sm text-ellieGray mb-1 block">
+                            Meeting title
+                          </label>
+                          <p className="font-nunito text-sm md:text-base lg:text-lg font-bold text-[#25324B]">
+                            {selectedMeeting.title || 'Untitled Meeting'}
+                          </p>
                         </div>
+
+                        {/* Meeting Recording Link */}
+                        {selectedMeeting.meeting_link && (
+                          <div>
+                            <label className="font-nunito text-xs md:text-sm text-ellieGray mb-1 block">
+                              Meeting Recording Link (Sharable)
+                            </label>
+                            <div className="flex items-center gap-2">
+                              <a
+                                href={selectedMeeting.meeting_link}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="font-nunito text-sm md:text-base font-semibold text-[#0B5CFF] hover:underline flex-1 truncate"
+                                title={selectedMeeting.meeting_link}
+                              >
+                                {selectedMeeting.meeting_link.length > 40
+                                  ? `${selectedMeeting.meeting_link.substring(0, 40)}...`
+                                  : selectedMeeting.meeting_link}
+                              </a>
+                              <button
+                                type="button"
+                                onClick={() => handleCopyLink(selectedMeeting.meeting_link!)}
+                                className="flex-shrink-0 p-1 hover:bg-gray-100 rounded transition-colors"
+                                aria-label="Copy link"
+                              >
+                                <svg
+                                  className="w-4 h-4 text-ellieGray"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                                  />
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Meeting Date and Total Duration in One Row */}
+                        <div className="flex flex-row items-start justify-between gap-4 sm:gap-6">
+                          {/* Meeting Date */}
+                          <div className="flex-1">
+                            <label className="font-nunito text-xs md:text-sm text-ellieGray mb-1 block">
+                              Meeting Date
+                            </label>
+                            <p className="font-nunito text-sm md:text-base lg:text-lg font-bold text-[#25324B]">
+                              {formatDate(selectedMeeting.started_at)} | {formatTime(selectedMeeting.started_at)}
+                            </p>
+                          </div>
+
+                          {/* Total Duration */}
+                          <div className="flex-1">
+                            <label className="font-nunito text-xs md:text-sm text-ellieGray mb-1 block">
+                              Total Duration
+                            </label>
+                            <p className="font-nunito text-sm md:text-base lg:text-lg font-bold text-[#25324B]">
+                              {formatDuration(selectedMeeting.duration_seconds)}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Total Participants and Platform in One Row */}
+                        <div className="flex flex-row items-start justify-between gap-4 sm:gap-6">
+                          {/* Total Participants */}
+                          <div className="flex-1">
+                            <label className="font-nunito text-xs md:text-sm text-ellieGray mb-1 block">
+                              Total Participants
+                            </label>
+                            <p className="font-nunito text-sm md:text-base lg:text-lg font-bold text-[#25324B]">
+                              {selectedMeeting.participant_count || 0}
+                            </p>
+                          </div>
+
+                          {/* Platform */}
+                          <div className="flex-1">
+                            <label className="font-nunito text-xs md:text-sm text-ellieGray mb-1 block">
+                              Platform
+                            </label>
+                            <div className="flex items-center">
+                              <img
+                                src={getPlatformIcon(selectedMeeting.platform)}
+                                alt={selectedMeeting.platform || 'platform'}
+                                className="w-8 h-8 md:w-10 md:h-10 object-contain flex-shrink-0"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="text-center py-8">
+                        <p className="font-nunito text-base text-ellieGray">Select a meeting to view details</p>
                       </div>
-                    </div>
+                    )}
                   </div>
                 </div>
               </div>
