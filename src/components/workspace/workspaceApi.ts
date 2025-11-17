@@ -241,6 +241,49 @@ export async function createFolder(
   return parseResponse<FolderRecord>(response);
 }
 
+export async function patchFolder(
+  token: string,
+  folderId: string,
+  payload: Partial<FolderMutationPayload>,
+): Promise<FolderRecord> {
+  const baseUrl = ensureApiBaseUrl();
+  const response = await fetch(`${baseUrl}/folders/${folderId}/`, {
+    method: 'PATCH',
+    headers: authHeaders(token, {
+      'Content-Type': 'application/json',
+    }),
+    body: JSON.stringify(payload),
+  });
+  return parseResponse<FolderRecord>(response);
+}
+
+export async function deleteFolder(token: string, folderId: string): Promise<void> {
+  const baseUrl = ensureApiBaseUrl();
+  const response = await fetch(`${baseUrl}/folders/${folderId}/`, {
+    method: 'DELETE',
+    headers: authHeaders(token),
+  });
+  await parseResponse<null>(response);
+}
+
+export async function pinFolder(token: string, folderId: string): Promise<FolderRecord> {
+  const baseUrl = ensureApiBaseUrl();
+  const response = await fetch(`${baseUrl}/folders/${folderId}/pin/`, {
+    method: 'PATCH',
+    headers: authHeaders(token),
+  });
+  return parseResponse<FolderRecord>(response);
+}
+
+export async function unpinFolder(token: string, folderId: string): Promise<FolderRecord> {
+  const baseUrl = ensureApiBaseUrl();
+  const response = await fetch(`${baseUrl}/folders/${folderId}/unpin/`, {
+    method: 'PATCH',
+    headers: authHeaders(token),
+  });
+  return parseResponse<FolderRecord>(response);
+}
+
 export async function createWorkspace(
   token: string,
   payload: WorkspaceMutationPayload,

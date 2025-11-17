@@ -14,6 +14,8 @@ type UserProfile = {
   audience?: string | null;
   purpose?: string | null;
   sso_provider?: string | null;
+  first_login?: boolean;
+  show_tour?: boolean;
 };
 
 type ProfileContextValue = {

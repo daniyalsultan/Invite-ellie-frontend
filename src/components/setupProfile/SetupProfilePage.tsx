@@ -10,7 +10,6 @@ import {
   decodeMultiSelect,
   encodeMultiSelect,
   localAudienceToApi,
-  markProfileSetupComplete,
 } from '../../utils/profileForm';
 
 type Option = {
@@ -83,13 +82,8 @@ export function SetupProfilePage(): JSX.Element {
   const previousUrlRef = useRef<string | null>(null);
 
   const navigate = useNavigate();
-  const { ensureFreshAccessToken, session } = useAuth();
+  const { ensureFreshAccessToken } = useAuth();
   const { profile, isLoading: isProfileLoading, refreshProfile } = useProfile();
-  const persistSetupFlag = () => {
-    if (session?.userId) {
-      markProfileSetupComplete(session.userId);
-    }
-  };
   const apiBaseUrl = getApiBaseUrl();
 
   const toggleHelp = (value: string) => {
@@ -181,6 +175,9 @@ export function SetupProfilePage(): JSX.Element {
       formData.append('audience', localAudienceToApi(selectedTeam));
       formData.append('company_notes', encodeMultiSelect(selectedHelp));
       formData.append('purpose', encodeMultiSelect(selectedGoals));
+      // Set first_login to false after profile setup
+      // Keep show_tour as true so the tour shows after redirecting to dashboard
+      formData.append('first_login', 'false');
       if (avatarFile) {
         formData.append('avatar', avatarFile);
       }
@@ -223,7 +220,6 @@ export function SetupProfilePage(): JSX.Element {
 
       setStatusMessage({ type: 'success', text: 'Profile saved successfully!' });
 
-      persistSetupFlag();
       await refreshProfile();
 
       if (redirectToDashboard) {
@@ -409,8 +405,27 @@ export function SetupProfilePage(): JSX.Element {
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  persistSetupFlag();
+                onClick={async () => {
+                  // Update first_login flag even when skipping
+                  if (apiBaseUrl) {
+                    try {
+                      const token = await ensureFreshAccessToken();
+                      if (token) {
+                        const formData = new FormData();
+                        formData.append('first_login', 'false');
+                        await fetch(`${apiBaseUrl}/accounts/me/`, {
+                          method: 'PATCH',
+                          headers: {
+                            Authorization: `Bearer ${token}`,
+                          },
+                          body: formData,
+                        });
+                        await refreshProfile();
+                      }
+                    } catch {
+                      // Ignore errors when skipping
+                    }
+                  }
                   navigate('/dashboard');
                 }}
                 disabled={isSubmitting}
