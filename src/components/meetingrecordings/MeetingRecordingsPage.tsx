@@ -3,7 +3,6 @@ import { DashboardLayout } from '../sidebar';
 import zoomLogo from '../../assets/logos_zoom.png';
 import searchIcon from '../../assets/Vector.png';
 import { useMeetings } from '../../hooks/useMeetings';
-import { Meeting } from '../../services/api';
 
 // Helper functions
 function formatDate(dateString?: string): string {

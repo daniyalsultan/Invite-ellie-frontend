@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { DashboardLayout } from '../sidebar';
 import zoomLogo from '../../assets/logos_zoom.png';
@@ -492,7 +492,7 @@ export function MeetingViewPage(): JSX.Element {
                             Highlights
                           </h3>
                           <ul className="space-y-2 md:space-y-3 list-disc list-inside">
-                            {highlights.map((highlight, index) => (
+                            {highlights.map((highlight: string, index: number) => (
                               <li key={index} className="font-nunito text-xs md:text-sm lg:text-base text-[#25324B] leading-relaxed">
                                 {highlight}
                               </li>
