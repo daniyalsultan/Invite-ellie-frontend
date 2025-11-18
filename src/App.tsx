@@ -21,6 +21,7 @@ import { MeetingRecordingsPage } from './components/meetingrecordings';
 import { MeetingViewPage } from './components/meetingView';
 import { SearchResultsPage } from './components/search';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
+import { ChatBot } from './components/chatbot';
 
 function ScrollToHash(): null {
   const location = useLocation();
@@ -152,8 +153,10 @@ function App(): JSX.Element {
           <Route path="/meeting-recordings" element={<MeetingRecordingsPage />} />
           <Route path="/meeting-view" element={<MeetingViewPage />} />
         </Route>
+        
         <Route path="*" element={<LandingPage />} />
       </Routes>
+      <ChatBot />
       <AuthRedirectHandler />
       <ScrollToHash />
     </div>
