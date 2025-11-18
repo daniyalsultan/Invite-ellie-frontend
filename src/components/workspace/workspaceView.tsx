@@ -24,10 +24,9 @@ import {
   FolderRecord,
   patchFolder,
   deleteFolder,
-  pinFolder,
-  unpinFolder,
 } from './workspaceApi';
 import deleteIllustration from '../../assets/delete.png';
+import { FolderDetailView } from '../folder/FolderDetailView';
 
 type StatusMessage = {
   type: 'success' | 'error';
@@ -97,6 +96,9 @@ export function WorkspaceViewPage(): JSX.Element {
   const [isRenamingFolder, setIsRenamingFolder] = useState(false);
   const [deleteModalFolder, setDeleteModalFolder] = useState<FolderRecord | null>(null);
   const [isDeletingFolder, setIsDeletingFolder] = useState(false);
+  const [showDeleteWorkspaceModal, setShowDeleteWorkspaceModal] = useState(false);
+  const [selectedFolder, setSelectedFolder] = useState<FolderRecord | null>(null);
+  const [isDetailViewOpen, setIsDetailViewOpen] = useState(false);
 
   const refreshWorkspace = useCallback(async () => {
     if (!workspaceId) {
@@ -245,14 +247,12 @@ export function WorkspaceViewPage(): JSX.Element {
     }
   };
 
-  const handleDeleteWorkspace = async () => {
+  const handleDeleteWorkspace = () => {
+    setShowDeleteWorkspaceModal(true);
+  };
+
+  const handleDeleteWorkspaceConfirm = async () => {
     if (!workspaceId || !workspace) {
-      return;
-    }
-    const confirmation = window.confirm(
-      `Delete "${workspace.name}"? All folders and meetings will be removed.`,
-    );
-    if (!confirmation) {
       return;
     }
     setIsDeleting(true);
@@ -267,9 +267,14 @@ export function WorkspaceViewPage(): JSX.Element {
       const message =
         err instanceof Error ? err.message : 'Unable to delete workspace. Please try again.';
       setStatusMessage({ type: 'error', text: message });
+      setShowDeleteWorkspaceModal(false);
     } finally {
       setIsDeleting(false);
     }
+  };
+
+  const closeDeleteWorkspaceModal = () => {
+    setShowDeleteWorkspaceModal(false);
   };
 
   const handleResetForm = () => {
@@ -303,11 +308,9 @@ export function WorkspaceViewPage(): JSX.Element {
       if (!token) {
         throw new Error('Unable to authenticate. Please login again.');
       }
-      if (folder.is_pinned) {
-        await unpinFolder(token, folder.id);
-      } else {
-        await pinFolder(token, folder.id);
-      }
+      await patchFolder(token, folder.id, {
+        is_pinned: !folder.is_pinned,
+      });
       await refreshWorkspace();
       setStatusMessage({
         type: 'success',
@@ -379,6 +382,19 @@ export function WorkspaceViewPage(): JSX.Element {
 
   const closeDeleteModal = (): void => {
     setDeleteModalFolder(null);
+  };
+
+  const handleFolderClick = (folder: FolderRecord): void => {
+    setSelectedFolder(folder);
+    setIsDetailViewOpen(true);
+  };
+
+  const handleCloseDetailView = (): void => {
+    setIsDetailViewOpen(false);
+    // Small delay to allow animation to complete before clearing selected folder
+    setTimeout(() => {
+      setSelectedFolder(null);
+    }, 300);
   };
 
   // Close menu when clicking outside
@@ -548,88 +564,97 @@ export function WorkspaceViewPage(): JSX.Element {
               )}
 
               <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[30%_35%_35%] lg:gap-4">
-                <div className="space-y-4 lg:pr-3">
-                  <div className="flex items-center gap-3">
-                    <div className="relative flex-1">
-                      <input
-                        type="text"
-                        value={folderSearch}
-                        onChange={(event) => setFolderSearch(event.target.value)}
-                        placeholder="Search by folder name"
-                        className="w-full rounded-lg border border-[#CBD3E3] bg-white px-9 py-2.5 font-nunito text-sm text-[#25324B] placeholder-[#94A3C1] focus:border-ellieBlue focus:outline-none focus:ring-2 focus:ring-ellieBlue/20"
-                      />
-                      <img
-                        src={searchIcon}
-                        alt="Search folders"
-                        className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 object-contain"
-                      />
+                <div className="relative space-y-4 overflow-hidden lg:pr-3">
+                  {!isDetailViewOpen && (
+                    <div className="flex items-center gap-3">
+                      <div className="relative flex-1">
+                        <input
+                          type="text"
+                          value={folderSearch}
+                          onChange={(event) => setFolderSearch(event.target.value)}
+                          placeholder="Search by folder name"
+                          className="w-full rounded-lg border border-[#CBD3E3] bg-white px-9 py-2.5 font-nunito text-sm text-[#25324B] placeholder-[#94A3C1] focus:border-ellieBlue focus:outline-none focus:ring-2 focus:ring-ellieBlue/20"
+                        />
+                        <img
+                          src={searchIcon}
+                          alt="Search folders"
+                          className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 object-contain"
+                        />
+                      </div>
+                      {/* View Toggle Button */}
+                      <button
+                        type="button"
+                        onClick={() => setViewMode((prev) => (prev === 'list' ? 'grid' : 'list'))}
+                        className="flex h-[39px] w-[79px] flex-shrink-0 items-center overflow-hidden rounded-[3.58px] border-none p-0 focus:outline-none focus:ring-2 focus:ring-[#327AAD]/20"
+                        aria-label={`Switch to ${viewMode === 'list' ? 'grid' : 'list'} view`}
+                      >
+                        {/* List/Hamburger Button */}
+                        <div
+                          className={`flex h-full w-1/2 items-center justify-center transition-colors ${
+                            viewMode === 'list'
+                              ? 'bg-[#327AAD]'
+                              : 'bg-[rgba(217,217,217,0.3)]'
+                          }`}
+                        >
+                          <svg
+                            className={`h-[17.64px] w-[18.13px] ${
+                              viewMode === 'list' ? 'text-[#D9D9D9]' : 'text-[#327AAD]'
+                            }`}
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth={2}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            viewBox="0 0 24 24"
+                          >
+                            <path d="M3 12h18M3 6h18M3 18h18" />
+                          </svg>
+                        </div>
+                        {/* Grid/Box Button */}
+                        <div
+                          className={`flex h-full w-1/2 items-center justify-center transition-colors ${
+                            viewMode === 'grid'
+                              ? 'bg-[#327AAD]'
+                              : 'bg-[rgba(217,217,217,0.3)]'
+                          }`}
+                        >
+                          <svg
+                            className={`h-[16.13px] w-[20.94px] ${
+                              viewMode === 'grid' ? 'text-[#D9D9D9]' : 'text-[#327AAD]'
+                            }`}
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth={2}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            viewBox="0 0 24 24"
+                          >
+                            <rect x="3" y="3" width="7" height="7" rx="1" />
+                            <rect x="14" y="3" width="7" height="7" rx="1" />
+                            <rect x="3" y="14" width="7" height="7" rx="1" />
+                            <rect x="14" y="14" width="7" height="7" rx="1" />
+                          </svg>
+                        </div>
+                      </button>
                     </div>
-                    {/* View Toggle Button */}
-                    <button
-                      type="button"
-                      onClick={() => setViewMode((prev) => (prev === 'list' ? 'grid' : 'list'))}
-                      className="flex h-[39px] w-[79px] flex-shrink-0 items-center overflow-hidden rounded-[3.58px] border-none p-0 focus:outline-none focus:ring-2 focus:ring-[#327AAD]/20"
-                      aria-label={`Switch to ${viewMode === 'list' ? 'grid' : 'list'} view`}
-                    >
-                      {/* List/Hamburger Button */}
-                      <div
-                        className={`flex h-full w-1/2 items-center justify-center transition-colors ${
-                          viewMode === 'list'
-                            ? 'bg-[#327AAD]'
-                            : 'bg-[rgba(217,217,217,0.3)]'
-                        }`}
-                      >
-                        <svg
-                          className={`h-[17.64px] w-[18.13px] ${
-                            viewMode === 'list' ? 'text-[#D9D9D9]' : 'text-[#327AAD]'
-                          }`}
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth={2}
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          viewBox="0 0 24 24"
-                        >
-                          <path d="M3 12h18M3 6h18M3 18h18" />
-                        </svg>
-                      </div>
-                      {/* Grid/Box Button */}
-                      <div
-                        className={`flex h-full w-1/2 items-center justify-center transition-colors ${
-                          viewMode === 'grid'
-                            ? 'bg-[#327AAD]'
-                            : 'bg-[rgba(217,217,217,0.3)]'
-                        }`}
-                      >
-                        <svg
-                          className={`h-[16.13px] w-[20.94px] ${
-                            viewMode === 'grid' ? 'text-[#D9D9D9]' : 'text-[#327AAD]'
-                          }`}
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth={2}
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          viewBox="0 0 24 24"
-                        >
-                          <rect x="3" y="3" width="7" height="7" rx="1" />
-                          <rect x="14" y="3" width="7" height="7" rx="1" />
-                          <rect x="3" y="14" width="7" height="7" rx="1" />
-                          <rect x="14" y="14" width="7" height="7" rx="1" />
-                        </svg>
-                      </div>
-                    </button>
-                  </div>
+                  )}
                   {filteredFolders.length === 0 ? (
                     <p className="rounded-xl border border-dashed border-gray-200 px-4 py-6 text-center font-nunito text-sm text-[#6B7A96]">
                       No folders found
                     </p>
-                  ) : viewMode === 'grid' ? (
+                  ) : (
+              <div
+                className={`transition-transform duration-300 ease-in-out ${
+                  isDetailViewOpen ? 'translate-x-full opacity-0' : 'translate-x-0 opacity-100'
+                }`}
+              >
+                  {viewMode === 'grid' ? (
                     <div className="grid grid-cols-2 gap-3 md:gap-4">
                       {filteredFolders.map((folder) => (
                         <div
                           key={folder.id}
-                          className="relative flex flex-col gap-3 rounded-2xl border border-[#E3E7F2] bg-[#F7F9FC] px-4 py-5 shadow-[0_12px_24px_rgba(39,62,99,0.06)]"
+                          onClick={() => handleFolderClick(folder)}
+                          className="relative flex cursor-pointer flex-col gap-3 rounded-2xl border border-[#E3E7F2] bg-[#F7F9FC] px-4 py-5 shadow-[0_12px_24px_rgba(39,62,99,0.06)] transition hover:bg-[#E6EDFF]"
                         >
                           {/* Pin indicator in top right */}
                           {folder.is_pinned && (
@@ -658,7 +683,10 @@ export function WorkspaceViewPage(): JSX.Element {
                           <div className="absolute bottom-3 right-3">
                             <button
                               type="button"
-                              onClick={(e) => handleMenuClick(folder.id, e)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleMenuClick(folder.id, e);
+                              }}
                               className="flex items-center justify-center border-none bg-transparent p-0 transition-opacity hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-[#327AAD]/20"
                               aria-label={`More options for ${folder.name}`}
                             >
@@ -708,7 +736,8 @@ export function WorkspaceViewPage(): JSX.Element {
                       {filteredFolders.map((folder) => (
                         <div
                           key={folder.id}
-                          className="flex items-center justify-between gap-4 rounded-[10px] bg-[rgba(50,122,173,0.05)] px-5 py-[10px] transition hover:bg-[rgba(50,122,173,0.08)]"
+                          onClick={() => handleFolderClick(folder)}
+                          className="relative flex cursor-pointer items-center justify-between gap-4 rounded-[10px] bg-[rgba(50,122,173,0.05)] px-5 py-[10px] transition hover:bg-[rgba(50,122,173,0.08)]"
                         >
                           <div className="flex items-center gap-4">
                             <img
@@ -717,9 +746,21 @@ export function WorkspaceViewPage(): JSX.Element {
                               className="h-[32.67px] w-[35.23px] object-contain opacity-40"
                             />
                             <div className="flex flex-col gap-0">
-                              <span className="font-nunito text-[20px] font-bold tracking-[-0.025em] text-[#000000] leading-[1.3639999389648438em]">
-                                {folder.name}
-                              </span>
+                              <div className="flex items-center gap-2">
+                                <span className="font-nunito text-[20px] font-bold tracking-[-0.025em] text-[#000000] leading-[1.3639999389648438em]">
+                                  {folder.name}
+                                </span>
+                                {/* Pin indicator */}
+                                {folder.is_pinned && (
+                                  <svg
+                                    className="h-4 w-4 text-amber-600 flex-shrink-0"
+                                    fill="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path d="M17 3H7C5.9 3 5 3.9 5 5V21L12 18L19 21V5C19 3.9 18.1 3 17 3Z" />
+                                  </svg>
+                                )}
+                              </div>
                               <span className="font-nunito text-[16px] font-medium text-[#545454] leading-[1.3639999628067017em]">
                                 {folder.id}
                               </span>
@@ -730,7 +771,10 @@ export function WorkspaceViewPage(): JSX.Element {
                             <div className="relative">
                               <button
                                 type="button"
-                                onClick={(e) => handleMenuClick(folder.id, e)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleMenuClick(folder.id, e);
+                                }}
                                 className="flex items-center justify-center border-none bg-transparent p-0 transition-opacity hover:opacity-80 focus:outline-none"
                                 aria-label={`More options for ${folder.name}`}
                               >
@@ -784,6 +828,17 @@ export function WorkspaceViewPage(): JSX.Element {
                         </div>
                       ))}
                     </div>
+                  )}
+                    </div>
+                  )}
+                  
+                  {/* Folder Detail View */}
+                  {selectedFolder && (
+                    <FolderDetailView
+                      folder={selectedFolder}
+                      onClose={handleCloseDetailView}
+                      isOpen={isDetailViewOpen}
+                    />
                   )}
                 </div>
 
@@ -1193,6 +1248,52 @@ export function WorkspaceViewPage(): JSX.Element {
                 disabled={isDeletingFolder}
               >
                 {isDeletingFolder ? 'Deleting...' : 'Yes, delete!'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Delete Workspace Modal */}
+      {showDeleteWorkspaceModal && workspace && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-2xl">
+            <div className="mb-4 flex items-start justify-end">
+              <button
+                type="button"
+                onClick={closeDeleteWorkspaceModal}
+                className="rounded-full p-2 transition bg-white text-red-500 hover:bg-red-50"
+                aria-label="Close dialog"
+                disabled={isDeleting}
+              >
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="flex justify-center mb-4">
+              <img src={deleteIllustration} alt="Delete workspace illustration" className="h-28 w-auto object-contain" />
+            </div>
+            <h4 className="font-nunito text-2xl font-extrabold text-[#111928]">Confirm Delete?</h4>
+            <p className="font-nunito text-sm text-[#5F6B7A] mt-2">
+              Are you sure you want to delete "{workspace.name}"? All folders and meetings will be removed. This action can't be undone.
+            </p>
+            <div className="my-4 border-t border-[#DDE1EE]" />
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-center sm:gap-4">
+              <button
+                type="button"
+                onClick={closeDeleteWorkspaceModal}
+                className="rounded-[10px] border border-[#B7C0D6] px-5 py-2 font-nunito text-sm font-semibold text-[#1F2A44] transition hover:bg-[#F7F8FC]"
+                disabled={isDeleting}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteWorkspaceConfirm}
+                className="rounded-[10px] bg-[#327AAD] px-5 py-2 font-nunito text-sm font-extrabold text-white transition hover:bg-[#286996] disabled:opacity-60"
+                disabled={isDeleting}
+              >
+                {isDeleting ? 'Deleting...' : 'Yes, delete!'}
               </button>
             </div>
           </div>

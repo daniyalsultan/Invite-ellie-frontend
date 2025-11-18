@@ -17,10 +17,9 @@ import {
   listWorkspaces,
   patchFolder,
   deleteFolder,
-  pinFolder,
-  unpinFolder,
 } from '../workspace/workspaceApi';
 import { DemoTour } from '../demo';
+import { FolderDetailView } from '../folder/FolderDetailView';
 
 interface ActivityItem {
   type: string;
@@ -82,6 +81,8 @@ export function DashboardPage(): JSX.Element {
   const [isRenamingFolder, setIsRenamingFolder] = useState(false);
   const [deleteModalFolder, setDeleteModalFolder] = useState<FolderRecord | null>(null);
   const [isDeletingFolder, setIsDeletingFolder] = useState(false);
+  const [selectedFolder, setSelectedFolder] = useState<FolderRecord | null>(null);
+  const [isDetailViewOpen, setIsDetailViewOpen] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -136,7 +137,7 @@ export function DashboardPage(): JSX.Element {
       const response = await listFolders(token, {
         pageSize: 12,
         ordering: '-created_at',
-        workspaceId: selectedWorkspaceId,
+        workspace: selectedWorkspaceId,
       });
       setFolders(response.results);
     } catch (error) {
@@ -256,11 +257,9 @@ export function DashboardPage(): JSX.Element {
       if (!token) {
         throw new Error('Unable to authenticate. Please login again.');
       }
-      if (folder.is_pinned) {
-        await unpinFolder(token, folder.id);
-      } else {
-        await pinFolder(token, folder.id);
-      }
+      await patchFolder(token, folder.id, {
+        is_pinned: !folder.is_pinned,
+      });
       await fetchFolders();
       setFolderStatusMessage({
         type: 'success',
@@ -332,6 +331,19 @@ export function DashboardPage(): JSX.Element {
 
   const closeDeleteModal = (): void => {
     setDeleteModalFolder(null);
+  };
+
+  const handleFolderClick = (folder: FolderRecord): void => {
+    setSelectedFolder(folder);
+    setIsDetailViewOpen(true);
+  };
+
+  const handleCloseDetailView = (): void => {
+    setIsDetailViewOpen(false);
+    // Small delay to allow animation to complete before clearing selected folder
+    setTimeout(() => {
+      setSelectedFolder(null);
+    }, 300);
   };
 
   // Close menu when clicking outside
@@ -441,173 +453,182 @@ export function DashboardPage(): JSX.Element {
           </section>
 
           <section className="flex flex-col gap-8 lg:flex-row lg:gap-4">
-            <div className="flex flex-col gap-6 rounded-[18px] bg-white px-8 py-8 shadow-[0px_18px_30px_rgba(15,23,42,0.05)] lg:w-[55%]">
-              <div className="flex flex-col gap-5">
-                <div className="flex flex-col gap-4">
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="relative h-[45px] min-w-[220px] flex-1">
-                        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2">
-                          <img src={d1Icon} alt="" className="h-5 w-5 object-contain" />
-                        </span>
-                        <select
-                          id="workspace-filter"
-                          className="h-full w-full appearance-none rounded-[5px] border border-[#7964A0] bg-white pl-10 pr-8 font-nunito text-sm font-semibold text-[#25324B] focus:border-[#327AAD] focus:outline-none focus:ring-2 focus:ring-[#327AAD]/20"
-                          value={selectedWorkspaceId ?? ''}
-                          onChange={(event) => setSelectedWorkspaceId(event.target.value || null)}
-                          disabled={isWorkspacesLoading || !!workspacesError}
-                        >
-                          {isWorkspacesLoading ? (
-                            <option value="">Loading workspaces...</option>
-                          ) : workspacesError ? (
-                            <option value="">{workspacesError}</option>
-                          ) : workspaces.length === 0 ? (
-                            <option value="">No workspaces available</option>
-                          ) : (
-                            workspaces.map((workspace) => (
-                              <option key={workspace.id} value={workspace.id}>
-                                {workspace.name}
-                              </option>
-                            ))
-                          )}
-                        </select>
-                        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
-                          <svg
-                            aria-hidden
-                            className="h-4 w-4 text-[#327AAD]"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            viewBox="0 0 24 24"
+            <div className="relative flex flex-col gap-6 rounded-[18px] bg-white px-8 py-8 shadow-[0px_18px_30px_rgba(15,23,42,0.05)] lg:w-[55%] overflow-hidden">
+              {!isDetailViewOpen && (
+                <>
+                  <div className="flex flex-col gap-5">
+                    <div className="flex flex-col gap-4">
+                      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="relative h-[45px] min-w-[220px] flex-1">
+                            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2">
+                              <img src={d1Icon} alt="" className="h-5 w-5 object-contain" />
+                            </span>
+                            <select
+                              id="workspace-filter"
+                              className="h-full w-full appearance-none rounded-[5px] border border-[#7964A0] bg-white pl-10 pr-8 font-nunito text-sm font-semibold text-[#25324B] focus:border-[#327AAD] focus:outline-none focus:ring-2 focus:ring-[#327AAD]/20"
+                              value={selectedWorkspaceId ?? ''}
+                              onChange={(event) => setSelectedWorkspaceId(event.target.value || null)}
+                              disabled={isWorkspacesLoading || !!workspacesError}
+                            >
+                              {isWorkspacesLoading ? (
+                                <option value="">Loading workspaces...</option>
+                              ) : workspacesError ? (
+                                <option value="">{workspacesError}</option>
+                              ) : workspaces.length === 0 ? (
+                                <option value="">No workspaces available</option>
+                              ) : (
+                                workspaces.map((workspace) => (
+                                  <option key={workspace.id} value={workspace.id}>
+                                    {workspace.name}
+                                  </option>
+                                ))
+                              )}
+                            </select>
+                            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
+                              <svg
+                                aria-hidden
+                                className="h-4 w-4 text-[#327AAD]"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                viewBox="0 0 24 24"
+                              >
+                                <path d="M6 9l6 6 6-6" />
+                              </svg>
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            className="flex flex-shrink-0 items-center justify-center"
+                            aria-label="Workspace help"
                           >
-                            <path d="M6 9l6 6 6-6" />
-                          </svg>
-                        </span>
+                            <img src={WORKSPACE_HELP_ICON} alt="Help" className="h-3 w-3" />
+                          </button>
+                        </div>
+                        <div className="flex flex-1 items-center justify-end">
+                          <button
+                            type="button"
+                            onClick={openCreateModal}
+                            className="inline-flex h-[40px] items-center justify-center rounded-[5px] bg-[#327AAD] px-6 font-nunito text-sm font-extrabold text-white transition hover:bg-[#286996] disabled:cursor-not-allowed disabled:opacity-60"
+                            disabled={isWorkspacesLoading || !!workspacesError || workspaces.length === 0}
+                          >
+                            Create a folder
+                          </button>
+                        </div>
                       </div>
-                      <button
-                        type="button"
-                        className="flex flex-shrink-0 items-center justify-center"
-                        aria-label="Workspace help"
-                      >
-                        <img src={WORKSPACE_HELP_ICON} alt="Help" className="h-3 w-3" />
-                      </button>
+                      {folderStatusMessage && (
+                        <div
+                          className={`rounded-[8px] px-3 py-2 font-nunito text-sm ${
+                            folderStatusMessage.type === 'success'
+                              ? 'border border-green-200 bg-green-50 text-green-700'
+                              : 'border border-red-200 bg-red-50 text-red-700'
+                          }`}
+                        >
+                          {folderStatusMessage.text}
+                        </div>
+                      )}
                     </div>
-                    <div className="flex flex-1 items-center justify-end">
-                      <button
-                        type="button"
-                        onClick={openCreateModal}
-                        className="inline-flex h-[40px] items-center justify-center rounded-[5px] bg-[#327AAD] px-6 font-nunito text-sm font-extrabold text-white transition hover:bg-[#286996] disabled:cursor-not-allowed disabled:opacity-60"
-                        disabled={isWorkspacesLoading || !!workspacesError || workspaces.length === 0}
-                      >
-                        Create a folder
-                      </button>
+                    <div className="flex items-center justify-between gap-4">
+                      <label htmlFor="folder-search" className="font-nunito text-[20px] font-semibold text-[#25324B] whitespace-nowrap">
+                        Folder name
+                      </label>
+                      <div className="flex items-center gap-3 ml-auto">
+                        <div className="relative h-[60px] w-full max-w-[300px]">
+                          <span className="pointer-events-none absolute left-5 top-1/2 -translate-y-1/2 text-[#327AAD]">
+                            <svg
+                              aria-hidden
+                              className="h-6 w-6"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth={2}
+                              viewBox="0 0 24 24"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M11 18a7 7 0 100-14 7 7 0 000 14z" />
+                            </svg>
+                          </span>
+                          <input
+                            id="folder-search"
+                            type="text"
+                            placeholder="Search by folder name"
+                            value={folderSearch}
+                            onChange={(event) => setFolderSearch(event.target.value)}
+                            className="h-full w-full rounded-[5px] border border-[#7964A0] bg-white pl-14 pr-5 font-nunito text-[20px] font-semibold text-[#25324B] placeholder:text-[#25324B]/40 focus:border-[#327AAD] focus:outline-none focus:ring-2 focus:ring-[#327AAD]/20"
+                          />
+                        </div>
+                        {/* View Toggle Button */}
+                        <button
+                          type="button"
+                          onClick={() => setViewMode((prev) => (prev === 'list' ? 'grid' : 'list'))}
+                          className="flex h-[39px] w-[79px] flex-shrink-0 items-center overflow-hidden rounded-[3.58px] border-none p-0 focus:outline-none focus:ring-2 focus:ring-[#327AAD]/20"
+                          aria-label={`Switch to ${viewMode === 'list' ? 'grid' : 'list'} view`}
+                        >
+                          {/* List/Hamburger Button */}
+                          <div
+                            className={`flex h-full w-1/2 items-center justify-center transition-colors ${
+                              viewMode === 'list'
+                                ? 'bg-[#327AAD]'
+                                : 'bg-[rgba(217,217,217,0.3)]'
+                            }`}
+                          >
+                            <svg
+                              className={`h-[17.64px] w-[18.13px] ${
+                                viewMode === 'list' ? 'text-[#D9D9D9]' : 'text-[#327AAD]'
+                              }`}
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth={2}
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              viewBox="0 0 24 24"
+                            >
+                              <path d="M3 12h18M3 6h18M3 18h18" />
+                            </svg>
+                          </div>
+                          {/* Grid/Box Button */}
+                          <div
+                            className={`flex h-full w-1/2 items-center justify-center transition-colors ${
+                              viewMode === 'grid'
+                                ? 'bg-[#327AAD]'
+                                : 'bg-[rgba(217,217,217,0.3)]'
+                            }`}
+                          >
+                            <svg
+                              className={`h-[16.13px] w-[20.94px] ${
+                                viewMode === 'grid' ? 'text-[#D9D9D9]' : 'text-[#327AAD]'
+                              }`}
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth={2}
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              viewBox="0 0 24 24"
+                            >
+                              <rect x="3" y="3" width="7" height="7" rx="1" />
+                              <rect x="14" y="3" width="7" height="7" rx="1" />
+                              <rect x="3" y="14" width="7" height="7" rx="1" />
+                              <rect x="14" y="14" width="7" height="7" rx="1" />
+                            </svg>
+                          </div>
+                        </button>
+                      </div>
                     </div>
                   </div>
-                  {folderStatusMessage && (
-                    <div
-                      className={`rounded-[8px] px-3 py-2 font-nunito text-sm ${
-                        folderStatusMessage.type === 'success'
-                          ? 'border border-green-200 bg-green-50 text-green-700'
-                          : 'border border-red-200 bg-red-50 text-red-700'
-                      }`}
-                    >
-                      {folderStatusMessage.text}
-                    </div>
-                  )}
-                </div>
-                <div className="flex items-center justify-between gap-4">
-                  <label htmlFor="folder-search" className="font-nunito text-[20px] font-semibold text-[#25324B] whitespace-nowrap">
-                    Folder name
-                  </label>
-                  <div className="flex items-center gap-3 ml-auto">
-                    <div className="relative h-[60px] w-full max-w-[300px]">
-                      <span className="pointer-events-none absolute left-5 top-1/2 -translate-y-1/2 text-[#327AAD]">
-                        <svg
-                          aria-hidden
-                          className="h-6 w-6"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth={2}
-                          viewBox="0 0 24 24"
-                        >
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M11 18a7 7 0 100-14 7 7 0 000 14z" />
-                        </svg>
-                      </span>
-                      <input
-                        id="folder-search"
-                        type="text"
-                        placeholder="Search by folder name"
-                        value={folderSearch}
-                        onChange={(event) => setFolderSearch(event.target.value)}
-                        className="h-full w-full rounded-[5px] border border-[#7964A0] bg-white pl-14 pr-5 font-nunito text-[20px] font-semibold text-[#25324B] placeholder:text-[#25324B]/40 focus:border-[#327AAD] focus:outline-none focus:ring-2 focus:ring-[#327AAD]/20"
-                      />
-                    </div>
-                    {/* View Toggle Button */}
-                    <button
-                      type="button"
-                      onClick={() => setViewMode((prev) => (prev === 'list' ? 'grid' : 'list'))}
-                      className="flex h-[39px] w-[79px] flex-shrink-0 items-center overflow-hidden rounded-[3.58px] border-none p-0 focus:outline-none focus:ring-2 focus:ring-[#327AAD]/20"
-                      aria-label={`Switch to ${viewMode === 'list' ? 'grid' : 'list'} view`}
-                    >
-                      {/* List/Hamburger Button */}
-                      <div
-                        className={`flex h-full w-1/2 items-center justify-center transition-colors ${
-                          viewMode === 'list'
-                            ? 'bg-[#327AAD]'
-                            : 'bg-[rgba(217,217,217,0.3)]'
-                        }`}
-                      >
-                        <svg
-                          className={`h-[17.64px] w-[18.13px] ${
-                            viewMode === 'list' ? 'text-[#D9D9D9]' : 'text-[#327AAD]'
-                          }`}
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth={2}
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          viewBox="0 0 24 24"
-                        >
-                          <path d="M3 12h18M3 6h18M3 18h18" />
-                        </svg>
-                      </div>
-                      {/* Grid/Box Button */}
-                      <div
-                        className={`flex h-full w-1/2 items-center justify-center transition-colors ${
-                          viewMode === 'grid'
-                            ? 'bg-[#327AAD]'
-                            : 'bg-[rgba(217,217,217,0.3)]'
-                        }`}
-                      >
-                        <svg
-                          className={`h-[16.13px] w-[20.94px] ${
-                            viewMode === 'grid' ? 'text-[#D9D9D9]' : 'text-[#327AAD]'
-                          }`}
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth={2}
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          viewBox="0 0 24 24"
-                        >
-                          <rect x="3" y="3" width="7" height="7" rx="1" />
-                          <rect x="14" y="3" width="7" height="7" rx="1" />
-                          <rect x="3" y="14" width="7" height="7" rx="1" />
-                          <rect x="14" y="14" width="7" height="7" rx="1" />
-                        </svg>
-                      </div>
-                    </button>
-                  </div>
-                </div>
-              </div>
 
-              {selectedWorkspace && (
-                <p className="text-sm font-nunito text-[#6B7A96]">
-                  Showing folders for <span className="font-semibold text-[#25324B]">{selectedWorkspace.name}</span>
-                </p>
+                  {selectedWorkspace && (
+                    <p className="text-sm font-nunito text-[#6B7A96]">
+                      Showing folders for <span className="font-semibold text-[#25324B]">{selectedWorkspace.name}</span>
+                    </p>
+                  )}
+                </>
               )}
+              <div
+                className={`transition-transform duration-300 ease-in-out ${
+                  isDetailViewOpen ? 'translate-x-full opacity-0' : 'translate-x-0 opacity-100'
+                }`}
+              >
               {viewMode === 'grid' ? (
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {isFoldersLoading ? (
@@ -635,7 +656,8 @@ export function DashboardPage(): JSX.Element {
                     displayedFolders.map((folder) => (
                       <div
                         key={folder.id}
-                        className="relative flex flex-col items-center gap-4 rounded-[12px] bg-[rgba(50,122,173,0.05)] px-6 py-6 text-center"
+                        onClick={() => handleFolderClick(folder)}
+                        className="relative flex cursor-pointer flex-col items-center gap-4 rounded-[12px] bg-[rgba(50,122,173,0.05)] px-6 py-6 text-center transition hover:bg-[rgba(50,122,173,0.1)]"
                       >
                         {/* Pin indicator in top right */}
                         {folder.is_pinned && (
@@ -660,7 +682,10 @@ export function DashboardPage(): JSX.Element {
                         <div className="absolute bottom-3 right-3">
                           <button
                             type="button"
-                            onClick={(e) => handleMenuClick(folder.id, e)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleMenuClick(folder.id, e);
+                            }}
                             className="flex items-center justify-center border-none bg-transparent p-0 transition-opacity hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-[#327AAD]/20"
                             aria-label={`More options for ${folder.name}`}
                           >
@@ -706,35 +731,36 @@ export function DashboardPage(): JSX.Element {
                     ))
                   )}
                 </div>
-              ) : (
-                <div className="flex flex-col gap-2">
-                  {isFoldersLoading ? (
-                    Array.from({ length: 6 }).map((_, index) => (
-                      <div
-                        key={`folder-list-skeleton-${index}`}
-                        className="flex animate-pulse items-center gap-4 rounded-[10px] bg-[rgba(50,122,173,0.05)] px-5 py-3"
-                      >
-                        <div className="h-8 w-8 rounded bg-white/60" />
-                        <div className="flex-1 space-y-2">
-                          <div className="h-4 w-32 rounded bg-white/70" />
-                          <div className="h-3 w-24 rounded bg-white/60" />
-                        </div>
-                      </div>
-                    ))
-                  ) : foldersError ? (
-                    <div className="rounded-[10px] border border-red-100 bg-red-50 px-5 py-4 font-nunito text-sm text-red-600">
-                      {foldersError}
-                    </div>
-                  ) : displayedFolders.length === 0 ? (
-                    <div className="rounded-[10px] border border-dashed border-[#327AAD]/30 px-5 py-4 text-center font-nunito text-sm text-[#25324B]">
-                      No folders found. Try a different search.
-                    </div>
                   ) : (
-                    displayedFolders.map((folder) => (
-                      <div
-                        key={folder.id}
-                        className="flex items-center justify-between gap-4 rounded-[10px] bg-[rgba(50,122,173,0.05)] px-5 py-[10px] transition hover:bg-[rgba(50,122,173,0.08)]"
-                      >
+                    <div className="flex flex-col gap-2">
+                      {isFoldersLoading ? (
+                        Array.from({ length: 6 }).map((_, index) => (
+                          <div
+                            key={`folder-list-skeleton-${index}`}
+                            className="flex animate-pulse items-center gap-4 rounded-[10px] bg-[rgba(50,122,173,0.05)] px-5 py-3"
+                          >
+                            <div className="h-8 w-8 rounded bg-white/60" />
+                            <div className="flex-1 space-y-2">
+                              <div className="h-4 w-32 rounded bg-white/70" />
+                              <div className="h-3 w-24 rounded bg-white/60" />
+                            </div>
+                          </div>
+                        ))
+                      ) : foldersError ? (
+                        <div className="rounded-[10px] border border-red-100 bg-red-50 px-5 py-4 font-nunito text-sm text-red-600">
+                          {foldersError}
+                        </div>
+                      ) : displayedFolders.length === 0 ? (
+                        <div className="rounded-[10px] border border-dashed border-[#327AAD]/30 px-5 py-4 text-center font-nunito text-sm text-[#25324B]">
+                          No folders found. Try a different search.
+                        </div>
+                      ) : (
+                        displayedFolders.map((folder) => (
+                          <div
+                            key={folder.id}
+                            onClick={() => handleFolderClick(folder)}
+                            className="relative flex cursor-pointer items-center justify-between gap-4 rounded-[10px] bg-[rgba(50,122,173,0.05)] px-5 py-[10px] transition hover:bg-[rgba(50,122,173,0.08)]"
+                          >
                         <div className="flex items-center gap-4">
                           <img
                             src={folderIcon}
@@ -742,23 +768,38 @@ export function DashboardPage(): JSX.Element {
                             className="h-[32.67px] w-[35.23px] object-contain opacity-40"
                           />
                           <div className="flex flex-col gap-0">
-                            <span className="font-nunito text-[20px] font-bold tracking-[-0.025em] text-[#000000] leading-[1.3639999389648438em]">
-                              {folder.name}
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="font-nunito text-[20px] font-bold tracking-[-0.025em] text-[#000000] leading-[1.3639999389648438em]">
+                                {folder.name}
+                              </span>
+                              {/* Pin indicator */}
+                              {folder.is_pinned && (
+                                <svg
+                                  className="h-4 w-4 text-amber-600 flex-shrink-0"
+                                  fill="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path d="M17 3H7C5.9 3 5 3.9 5 5V21L12 18L19 21V5C19 3.9 18.1 3 17 3Z" />
+                                </svg>
+                              )}
+                            </div>
                             <span className="font-nunito text-[16px] font-medium text-[#545454] leading-[1.3639999628067017em]">
                               {folder.id}
                             </span>
                           </div>
                         </div>
-                        <div className="relative flex items-center gap-[10px]">
-                          {/* Three dots button */}
-                          <div className="relative">
-                            <button
-                              type="button"
-                              onClick={(e) => handleMenuClick(folder.id, e)}
-                              className="flex items-center justify-center border-none bg-transparent p-0 transition-opacity hover:opacity-80 focus:outline-none"
-                              aria-label={`More options for ${folder.name}`}
-                            >
+                          <div className="relative flex items-center gap-[10px]">
+                            {/* Three dots button */}
+                            <div className="relative">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleMenuClick(folder.id, e);
+                                }}
+                                className="flex items-center justify-center border-none bg-transparent p-0 transition-opacity hover:opacity-80 focus:outline-none"
+                                aria-label={`More options for ${folder.name}`}
+                              >
                               <img src={threeDotIcon} alt="" className="h-6 w-6 object-contain" />
                             </button>
                             {/* Context Menu for list view - shows Rename, Pin (no Delete since X button exists) */}
@@ -787,12 +828,16 @@ export function DashboardPage(): JSX.Element {
                               </div>
                             )}
                           </div>
-                          {/* X/Delete button */}
-                          <button
-                            type="button"
-                            className="flex h-8 w-8 items-center justify-center rounded-lg bg-transparent text-[#FF0000] transition hover:bg-[rgba(255,0,0,0.1)]"
-                            aria-label={`Delete ${folder.name}`}
-                          >
+                            {/* X/Delete button */}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteFolder(folder);
+                              }}
+                              className="flex h-8 w-8 items-center justify-center rounded-lg bg-transparent text-[#FF0000] transition hover:bg-[rgba(255,0,0,0.1)]"
+                              aria-label={`Delete ${folder.name}`}
+                            >
                             <svg
                               className="h-4 w-4"
                               fill="none"
@@ -810,6 +855,16 @@ export function DashboardPage(): JSX.Element {
                     ))
                   )}
                 </div>
+              )}
+              </div>
+              
+              {/* Folder Detail View */}
+              {selectedFolder && (
+                <FolderDetailView
+                  folder={selectedFolder}
+                  onClose={handleCloseDetailView}
+                  isOpen={isDetailViewOpen}
+                />
               )}
             </div>
 

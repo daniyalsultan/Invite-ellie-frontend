@@ -74,10 +74,12 @@ export interface ListWorkspaceParams {
 
 export interface ListFolderParams {
   page?: number;
-  pageSize?: number;
+  pageSize?: number; // Note: Not in API spec, kept for backward compatibility
   search?: string;
   ordering?: string;
-  workspaceId?: string;
+  workspace?: string; // Changed from workspaceId to match API spec
+  created_at?: string; // Added to match API spec
+  name?: string; // Added to match API spec
 }
 
 export interface WorkspaceMutationPayload {
@@ -215,8 +217,14 @@ export async function listFolders(
   if (params?.ordering) {
     url.searchParams.set('ordering', params.ordering);
   }
-  if (params?.workspaceId) {
-    url.searchParams.set('workspace', params.workspaceId);
+  if (params?.workspace) {
+    url.searchParams.set('workspace', params.workspace);
+  }
+  if (params?.created_at) {
+    url.searchParams.set('created_at', params.created_at);
+  }
+  if (params?.name) {
+    url.searchParams.set('name', params.name);
   }
 
   const response = await fetch(url.toString(), {
@@ -266,20 +274,27 @@ export async function deleteFolder(token: string, folderId: string): Promise<voi
   await parseResponse<null>(response);
 }
 
-export async function pinFolder(token: string, folderId: string): Promise<FolderRecord> {
+export async function getFolder(token: string, folderId: string): Promise<FolderRecord> {
   const baseUrl = ensureApiBaseUrl();
-  const response = await fetch(`${baseUrl}/folders/${folderId}/pin/`, {
-    method: 'PATCH',
+  const response = await fetch(`${baseUrl}/folders/${folderId}/`, {
+    method: 'GET',
     headers: authHeaders(token),
   });
   return parseResponse<FolderRecord>(response);
 }
 
-export async function unpinFolder(token: string, folderId: string): Promise<FolderRecord> {
+export async function updateFolder(
+  token: string,
+  folderId: string,
+  payload: FolderMutationPayload,
+): Promise<FolderRecord> {
   const baseUrl = ensureApiBaseUrl();
-  const response = await fetch(`${baseUrl}/folders/${folderId}/unpin/`, {
-    method: 'PATCH',
-    headers: authHeaders(token),
+  const response = await fetch(`${baseUrl}/folders/${folderId}/`, {
+    method: 'PUT',
+    headers: authHeaders(token, {
+      'Content-Type': 'application/json',
+    }),
+    body: JSON.stringify(payload),
   });
   return parseResponse<FolderRecord>(response);
 }
