@@ -174,11 +174,14 @@ export function PreferencesPage(): JSX.Element {
 
       if (!response.ok) {
         let message = 'Unable to update your profile.';
-        if (responseData && typeof responseData === 'object') {
-          if (typeof responseData.error === 'string') {
-            message = responseData.error;
+        if (responseData && typeof responseData === 'object' && responseData !== null) {
+          const data = responseData as Record<string, unknown>;
+          if ('error' in data && typeof data.error === 'string') {
+            message = data.error;
+          } else if ('detail' in data && typeof data.detail === 'string') {
+            message = data.detail;
           } else {
-            const fieldErrors = Object.entries(responseData as Record<string, unknown>)
+            const fieldErrors = Object.entries(data)
               .map(([field, value]) => {
                 if (Array.isArray(value)) {
                   return `${field}: ${value.join(', ')}`;
@@ -199,10 +202,13 @@ export function PreferencesPage(): JSX.Element {
       }
 
       setStatusMessage({ type: 'success', text: 'Profile updated successfully.' });
-      if (responseData && typeof responseData === 'object' && typeof responseData.avatar_url === 'string') {
-        revokeObjectUrl();
-        setAvatarPreview(responseData.avatar_url);
-        setAvatarFile(null);
+      if (responseData && typeof responseData === 'object' && responseData !== null) {
+        const data = responseData as Record<string, unknown>;
+        if ('avatar_url' in data && typeof data.avatar_url === 'string') {
+          revokeObjectUrl();
+          setAvatarPreview(data.avatar_url);
+          setAvatarFile(null);
+        }
       }
       await refreshProfile();
     } catch (error) {
