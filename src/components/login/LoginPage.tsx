@@ -54,7 +54,15 @@ export function LoginPage(): JSX.Element {
 
     try {
       const providerSlug = provider === 'microsoft' ? 'azure' : provider;
-      const response = await fetch(`${apiBaseUrl}/accounts/sso/providers/${providerSlug}/`, {
+      // Get the current frontend URL for the redirect URI
+      const currentOrigin = typeof window !== 'undefined' ? window.location.origin : '';
+      const redirectUri = `${currentOrigin}/auth/callback`;
+      
+      // Pass redirect_uri as query parameter to backend
+      const url = new URL(`${apiBaseUrl}/accounts/sso/providers/${providerSlug}/`);
+      url.searchParams.set('redirect_uri', redirectUri);
+      
+      const response = await fetch(url.toString(), {
         method: 'GET',
         headers: {
           Accept: 'application/json',
