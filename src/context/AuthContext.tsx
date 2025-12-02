@@ -65,12 +65,24 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
       }
 
       const data = (await response.json()) as {
-        access_token?: string;
-        refresh_token?: string;
+        refresh_token: string;
+        access_token?: string; // May be included even if not in spec
         expires_in?: number;
       };
 
+      // API spec shows only refresh_token, but we need access_token for authentication
+      // Handle both cases: if only refresh_token is returned, we need to handle it differently
+      // However, typically token refresh endpoints return both tokens
+      // If access_token is not present, we cannot continue the session
+      if (!data.access_token && !data.refresh_token) {
+        clearSessionState();
+        return null;
+      }
+
+      // If only refresh_token is returned (per spec), we cannot get a new access token
+      // This would be an API design issue, but we'll handle it gracefully
       if (!data.access_token) {
+        console.warn('Token refresh returned only refresh_token, no access_token. Cannot refresh session.');
         clearSessionState();
         return null;
       }
@@ -133,31 +145,65 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
         body: JSON.stringify({ email, password }),
       });
 
-      const data = await response.json();
+      let responseData: unknown;
+      try {
+        responseData = await response.json();
+      } catch {
+        throw new Error('Invalid response from server. Please try again.');
+      }
 
       if (!response.ok) {
         const errorMessage =
-          typeof data === 'object' && data !== null && 'error' in data && typeof data.error === 'string'
-            ? data.error
-            : 'Unable to login. Please check your credentials.';
+          typeof responseData === 'object' &&
+          responseData !== null &&
+          'error' in responseData &&
+          typeof responseData.error === 'string'
+            ? responseData.error
+            : typeof responseData === 'object' &&
+                responseData !== null &&
+                'detail' in responseData &&
+                typeof responseData.detail === 'string'
+              ? responseData.detail
+              : 'Unable to login. Please check your credentials.';
         throw new Error(errorMessage);
       }
 
-      if (!data.access_token) {
-        throw new Error('Login succeeded but no access token was returned.');
+      // API spec shows { email: string }, but login typically returns tokens
+      // Handle both cases: if tokens are present, use them; otherwise, this is an error
+      const data = responseData as {
+        email?: string;
+        access_token?: string;
+        refresh_token?: string;
+        user_id?: string;
+        expires_in?: number;
+      };
+
+      // Check if response contains tokens (actual API behavior)
+      if (data.access_token) {
+        const expiresAt = data.expires_in ? Date.now() + data.expires_in * 1000 : null;
+
+        establishSession(
+          {
+            accessToken: data.access_token,
+            refreshToken: data.refresh_token ?? null,
+            userId: data.user_id ?? null,
+            expiresAt,
+          },
+          { rememberMe },
+        );
+        return;
       }
 
-      const expiresAt = data.expires_in ? Date.now() + data.expires_in * 1000 : null;
+      // If only email is returned (per spec), this indicates the API might use a different flow
+      // This would require a follow-up request to get tokens, which is unusual
+      // For now, treat this as an error since we cannot establish a session without tokens
+      if (data.email) {
+        throw new Error(
+          'Login response did not include authentication tokens. The API may require an additional step.',
+        );
+      }
 
-      establishSession(
-        {
-          accessToken: data.access_token,
-          refreshToken: data.refresh_token ?? null,
-          userId: data.user_id ?? null,
-          expiresAt,
-        },
-        { rememberMe },
-      );
+      throw new Error('Login succeeded but no access token or email was returned.');
     },
     [apiBaseUrl, establishSession],
   );

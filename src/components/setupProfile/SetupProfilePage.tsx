@@ -186,19 +186,36 @@ export function SetupProfilePage(): JSX.Element {
         method: 'PATCH',
         headers: {
           Authorization: `Bearer ${token}`,
+          // Don't set Content-Type header when using FormData - browser will set it with boundary
         },
         body: formData,
       });
 
-      const responseData = await response.json();
+      let responseData: unknown;
+      try {
+        const contentType = response.headers.get('content-type') ?? '';
+        if (contentType.includes('application/json')) {
+          responseData = await response.json();
+        } else {
+          // Handle non-JSON responses (unlikely but possible)
+          const text = await response.text();
+          responseData = text ? JSON.parse(text) : null;
+        }
+      } catch (parseError) {
+        console.error('Failed to parse response:', parseError);
+        responseData = null;
+      }
 
       if (!response.ok) {
         let message = 'Unable to save your profile.';
-        if (responseData && typeof responseData === 'object') {
-          if (typeof responseData.error === 'string') {
-            message = responseData.error;
+        if (responseData && typeof responseData === 'object' && responseData !== null) {
+          const data = responseData as Record<string, unknown>;
+          if ('error' in data && typeof data.error === 'string') {
+            message = data.error;
+          } else if ('detail' in data && typeof data.detail === 'string') {
+            message = data.detail;
           } else {
-            const fieldErrors = Object.entries(responseData as Record<string, unknown>)
+            const fieldErrors = Object.entries(data)
               .map(([field, value]) => {
                 if (Array.isArray(value)) {
                   return `${field}: ${value.join(', ')}`;
@@ -413,13 +430,17 @@ export function SetupProfilePage(): JSX.Element {
                       if (token) {
                         const formData = new FormData();
                         formData.append('first_login', 'false');
-                        await fetch(`${apiBaseUrl}/accounts/me/`, {
+                        const skipResponse = await fetch(`${apiBaseUrl}/accounts/me/`, {
                           method: 'PATCH',
                           headers: {
                             Authorization: `Bearer ${token}`,
+                            // Don't set Content-Type header when using FormData
                           },
                           body: formData,
                         });
+                        if (!skipResponse.ok) {
+                          console.warn('Failed to update first_login flag when skipping');
+                        }
                         await refreshProfile();
                       }
                     } catch {

@@ -1,3 +1,6 @@
 node_modules/
 dist/
 Invite-ellie-backend/
+bot/
+API_INTEGRATION_STATUS.md
+.env

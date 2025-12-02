@@ -61,6 +61,18 @@ export function DashboardPage(): JSX.Element {
   
   // Determine first-time tour state based on API flag
   const firstTimeTourOpen = profile?.show_tour === true;
+  
+  // Get display name for welcome message
+  const displayName = useMemo(() => {
+    if (profile?.first_name) {
+      return profile.first_name;
+    }
+    if (profile?.email) {
+      // Extract name from email (part before @)
+      return profile.email.split('@')[0];
+    }
+    return 'there';
+  }, [profile]);
   const [folders, setFolders] = useState<FolderRecord[]>([]);
   const [isFoldersLoading, setIsFoldersLoading] = useState(true);
   const [foldersError, setFoldersError] = useState<string | null>(null);
@@ -400,7 +412,7 @@ export function DashboardPage(): JSX.Element {
 
           {/* Page Title */}
           <h1 className="font-nunito text-xl md:text-2xl lg:text-3xl xl:text-4xl font-extrabold text-[#1F2A44] mb-4 md:mb-6 lg:mb-8">
-            Welcome, Mike!
+            Welcome, {displayName}!
           </h1>
 
           <section className="flex flex-col lg:flex-row gap-6 mb-6 lg:mb-8">

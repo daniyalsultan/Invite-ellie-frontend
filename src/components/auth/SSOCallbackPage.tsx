@@ -54,12 +54,31 @@ export function SSOCallbackPage(): JSX.Element {
       });
 
       if (errorParam) {
-        const message = errorDescription || 'SSO authentication failed. Please try again.';
+        // Handle specific OAuth errors
+        let message = errorDescription || 'SSO authentication failed. Please try again.';
+        
+        // Provide helpful error messages for common OAuth errors
+        if (errorParam === 'invalid_request' && errorDescription?.includes('redirect_uri')) {
+          message = 'Redirect URI mismatch. Please contact support or check your Azure AD app registration. The redirect URI must match exactly what is configured in Azure AD.';
+        } else if (errorParam === 'access_denied') {
+          message = 'Access was denied. Please try again or contact your administrator.';
+        } else if (errorParam === 'invalid_client') {
+          message = 'Invalid client configuration. Please contact support.';
+        } else if (errorParam === 'unauthorized_client') {
+          message = 'This application is not authorized. Please contact your administrator.';
+        }
+        
+        console.error('SSO OAuth Error:', {
+          error: errorParam,
+          description: errorDescription,
+          fullUrl: window.location.href,
+        });
+        
         setError(message);
         setIsProcessing(false);
         setTimeout(() => {
           navigate('/login', { replace: true });
-        }, 10000000);
+        }, 5000);
         return;
       }
 

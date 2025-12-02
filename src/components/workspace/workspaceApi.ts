@@ -101,6 +101,19 @@ function ensureApiBaseUrl(): string {
   return baseUrl;
 }
 
+function buildApiUrl(baseUrl: string, path: string): string {
+  // If baseUrl is a relative path (starts with /), construct absolute URL from current origin
+  if (baseUrl.startsWith('/')) {
+    const fullPath = path.startsWith('/') ? path : `/${path}`;
+    return `${baseUrl}${fullPath}`;
+  }
+  
+  // If baseUrl is absolute, use it directly
+  const base = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+  const fullPath = path.startsWith('/') ? path : `/${path}`;
+  return `${base}${fullPath}`;
+}
+
 async function parseResponse<T>(response: Response): Promise<T> {
   const contentType = response.headers.get('content-type') ?? '';
   let body: unknown = null;
@@ -165,33 +178,50 @@ function authHeaders(token: string, extra?: HeadersInit): HeadersInit {
   };
 }
 
+function buildUrl(baseUrl: string, path: string, params?: Record<string, string | number | undefined>): string {
+  // Build the base URL with path
+  const fullPath = buildApiUrl(baseUrl, path);
+  
+  // If baseUrl is a relative path, use current origin
+  if (baseUrl.startsWith('/')) {
+    const url = new URL(fullPath, window.location.origin);
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined) {
+          url.searchParams.set(key, String(value));
+        }
+      });
+    }
+    return url.toString();
+  }
+  
+  // If baseUrl is absolute, use URL constructor
+  const url = new URL(fullPath);
+  if (params) {
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined) {
+        url.searchParams.set(key, String(value));
+      }
+    });
+  }
+  return url.toString();
+}
+
 export async function listWorkspaces(
   token: string,
   params?: ListWorkspaceParams,
 ): Promise<PaginatedResponse<WorkspaceRecord>> {
   const baseUrl = ensureApiBaseUrl();
-  const url = new URL(`${baseUrl}/workspaces/`);
+  const url = buildUrl(baseUrl, '/workspaces/', {
+    page: params?.page,
+    page_size: params?.pageSize,
+    search: params?.search,
+    ordering: params?.ordering,
+    name: params?.name,
+    created_at: params?.createdAt,
+  });
 
-  if (params?.page) {
-    url.searchParams.set('page', String(params.page));
-  }
-  if (params?.pageSize) {
-    url.searchParams.set('page_size', String(params.pageSize));
-  }
-  if (params?.search) {
-    url.searchParams.set('search', params.search);
-  }
-  if (params?.ordering) {
-    url.searchParams.set('ordering', params.ordering);
-  }
-  if (params?.name) {
-    url.searchParams.set('name', params.name);
-  }
-  if (params?.createdAt) {
-    url.searchParams.set('created_at', params.createdAt);
-  }
-
-  const response = await fetch(url.toString(), {
+  const response = await fetch(url, {
     method: 'GET',
     headers: authHeaders(token),
   });
@@ -203,31 +233,17 @@ export async function listFolders(
   params?: ListFolderParams,
 ): Promise<PaginatedResponse<FolderRecord>> {
   const baseUrl = ensureApiBaseUrl();
-  const url = new URL(`${baseUrl}/folders/`);
+  const url = buildUrl(baseUrl, '/folders/', {
+    page: params?.page,
+    page_size: params?.pageSize,
+    search: params?.search,
+    ordering: params?.ordering,
+    workspace: params?.workspace,
+    created_at: params?.created_at,
+    name: params?.name,
+  });
 
-  if (params?.page) {
-    url.searchParams.set('page', String(params.page));
-  }
-  if (params?.pageSize) {
-    url.searchParams.set('page_size', String(params.pageSize));
-  }
-  if (params?.search) {
-    url.searchParams.set('search', params.search);
-  }
-  if (params?.ordering) {
-    url.searchParams.set('ordering', params.ordering);
-  }
-  if (params?.workspace) {
-    url.searchParams.set('workspace', params.workspace);
-  }
-  if (params?.created_at) {
-    url.searchParams.set('created_at', params.created_at);
-  }
-  if (params?.name) {
-    url.searchParams.set('name', params.name);
-  }
-
-  const response = await fetch(url.toString(), {
+  const response = await fetch(url, {
     method: 'GET',
     headers: authHeaders(token),
   });
@@ -239,7 +255,8 @@ export async function createFolder(
   payload: FolderMutationPayload,
 ): Promise<FolderRecord> {
   const baseUrl = ensureApiBaseUrl();
-  const response = await fetch(`${baseUrl}/folders/`, {
+  const url = buildApiUrl(baseUrl, '/folders/');
+  const response = await fetch(url, {
     method: 'POST',
     headers: authHeaders(token, {
       'Content-Type': 'application/json',
@@ -255,7 +272,8 @@ export async function patchFolder(
   payload: Partial<FolderMutationPayload>,
 ): Promise<FolderRecord> {
   const baseUrl = ensureApiBaseUrl();
-  const response = await fetch(`${baseUrl}/folders/${folderId}/`, {
+  const url = buildApiUrl(baseUrl, `/folders/${folderId}/`);
+  const response = await fetch(url, {
     method: 'PATCH',
     headers: authHeaders(token, {
       'Content-Type': 'application/json',
@@ -267,7 +285,8 @@ export async function patchFolder(
 
 export async function deleteFolder(token: string, folderId: string): Promise<void> {
   const baseUrl = ensureApiBaseUrl();
-  const response = await fetch(`${baseUrl}/folders/${folderId}/`, {
+  const url = buildApiUrl(baseUrl, `/folders/${folderId}/`);
+  const response = await fetch(url, {
     method: 'DELETE',
     headers: authHeaders(token),
   });
@@ -276,7 +295,8 @@ export async function deleteFolder(token: string, folderId: string): Promise<voi
 
 export async function getFolder(token: string, folderId: string): Promise<FolderRecord> {
   const baseUrl = ensureApiBaseUrl();
-  const response = await fetch(`${baseUrl}/folders/${folderId}/`, {
+  const url = buildApiUrl(baseUrl, `/folders/${folderId}/`);
+  const response = await fetch(url, {
     method: 'GET',
     headers: authHeaders(token),
   });
@@ -289,7 +309,8 @@ export async function updateFolder(
   payload: FolderMutationPayload,
 ): Promise<FolderRecord> {
   const baseUrl = ensureApiBaseUrl();
-  const response = await fetch(`${baseUrl}/folders/${folderId}/`, {
+  const url = buildApiUrl(baseUrl, `/folders/${folderId}/`);
+  const response = await fetch(url, {
     method: 'PUT',
     headers: authHeaders(token, {
       'Content-Type': 'application/json',
@@ -304,7 +325,8 @@ export async function createWorkspace(
   payload: WorkspaceMutationPayload,
 ): Promise<WorkspaceRecord> {
   const baseUrl = ensureApiBaseUrl();
-  const response = await fetch(`${baseUrl}/workspaces/`, {
+  const url = buildApiUrl(baseUrl, '/workspaces/');
+  const response = await fetch(url, {
     method: 'POST',
     headers: authHeaders(token, {
       'Content-Type': 'application/json',
@@ -316,7 +338,8 @@ export async function createWorkspace(
 
 export async function getWorkspace(token: string, workspaceId: string): Promise<WorkspaceRecord> {
   const baseUrl = ensureApiBaseUrl();
-  const response = await fetch(`${baseUrl}/workspaces/${workspaceId}/`, {
+  const url = buildApiUrl(baseUrl, `/workspaces/${workspaceId}/`);
+  const response = await fetch(url, {
     method: 'GET',
     headers: authHeaders(token),
   });
@@ -329,7 +352,8 @@ export async function updateWorkspace(
   payload: WorkspaceMutationPayload,
 ): Promise<WorkspaceRecord> {
   const baseUrl = ensureApiBaseUrl();
-  const response = await fetch(`${baseUrl}/workspaces/${workspaceId}/`, {
+  const url = buildApiUrl(baseUrl, `/workspaces/${workspaceId}/`);
+  const response = await fetch(url, {
     method: 'PUT',
     headers: authHeaders(token, {
       'Content-Type': 'application/json',
@@ -345,7 +369,8 @@ export async function patchWorkspace(
   payload: Partial<WorkspaceMutationPayload>,
 ): Promise<WorkspaceRecord> {
   const baseUrl = ensureApiBaseUrl();
-  const response = await fetch(`${baseUrl}/workspaces/${workspaceId}/`, {
+  const url = buildApiUrl(baseUrl, `/workspaces/${workspaceId}/`);
+  const response = await fetch(url, {
     method: 'PATCH',
     headers: authHeaders(token, {
       'Content-Type': 'application/json',
@@ -357,7 +382,8 @@ export async function patchWorkspace(
 
 export async function deleteWorkspace(token: string, workspaceId: string): Promise<void> {
   const baseUrl = ensureApiBaseUrl();
-  const response = await fetch(`${baseUrl}/workspaces/${workspaceId}/`, {
+  const url = buildApiUrl(baseUrl, `/workspaces/${workspaceId}/`);
+  const response = await fetch(url, {
     method: 'DELETE',
     headers: authHeaders(token),
   });

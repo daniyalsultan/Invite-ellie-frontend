@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import logo from '../../assets/logo.svg';
 
 export function ChatBot(): JSX.Element {
@@ -15,7 +15,18 @@ export function ChatBot(): JSX.Element {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const CHAT_API_URL = import.meta.env.VITE_CHAT_API_URL || 'http://localhost:5000/api/chat';
+  // Get chat API URL - append /api/chat if base URL is provided
+  const CHAT_API_URL = useMemo(() => {
+    const baseUrl = import.meta.env.VITE_CHAT_API_URL;
+    if (!baseUrl) {
+      console.warn('VITE_CHAT_API_URL is not configured');
+      return null;
+    }
+    // Remove trailing slash if present
+    const cleanBaseUrl = baseUrl.trim().replace(/\/$/, '');
+    // Append /api/chat endpoint
+    return `${cleanBaseUrl}/api/chat`;
+  }, []);
 
   const formatMessageText = (text: string): JSX.Element => {
     const lines = text.split('\n');
@@ -82,6 +93,11 @@ export function ChatBot(): JSX.Element {
           sender: msg.sender,
           text: msg.text,
         }));
+
+      // Check if API URL is configured
+      if (!CHAT_API_URL) {
+        throw new Error('Chat API URL is not configured');
+      }
 
       // Call the chatbot API
       const response = await fetch(CHAT_API_URL, {
@@ -270,7 +286,7 @@ export function ChatBot(): JSX.Element {
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth={2}
-                      d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+                      d="M13 7l5 5m0 0l-5 5m5-5H6"
                     />
                   </svg>
                 </button>

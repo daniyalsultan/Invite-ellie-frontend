@@ -152,11 +152,25 @@ export function PreferencesPage(): JSX.Element {
         method: 'PATCH',
         headers: {
           Authorization: `Bearer ${token}`,
+          // Don't set Content-Type header when using FormData - browser will set it with boundary
         },
         body: formData,
       });
 
-      const responseData = await response.json();
+      let responseData: unknown;
+      try {
+        const contentType = response.headers.get('content-type') ?? '';
+        if (contentType.includes('application/json')) {
+          responseData = await response.json();
+        } else {
+          // Handle non-JSON responses (unlikely but possible)
+          const text = await response.text();
+          responseData = text ? JSON.parse(text) : null;
+        }
+      } catch (parseError) {
+        console.error('Failed to parse response:', parseError);
+        responseData = null;
+      }
 
       if (!response.ok) {
         let message = 'Unable to update your profile.';
