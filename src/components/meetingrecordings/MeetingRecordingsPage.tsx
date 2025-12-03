@@ -605,47 +605,7 @@
 // }
 
 // -------------------------------------------------------------------------------------------------
-import { useState, useMemo } from 'react';
 import { DashboardLayout } from '../sidebar';
-import zoomLogo from '../../assets/logos_zoom.png';
-import searchIcon from '../../assets/Vector.png';
-import { useMeetings } from '../../hooks/useMeetings';
-
-/* 
- * HELPER FUNCTIONS - FULLY COMMENTED
- * These functions format dates, times, durations, and select platform icons 
- */
-function formatDate(dateString?: string): string {
-  /* Returns a formatted date string e.g., "December 3, 2025" */
-  if (!dateString) return 'N/A';
-  const date = new Date(dateString);
-  return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-}
-
-function formatTime(dateString?: string): string {
-  /* Returns formatted time string e.g., "10:33 PM" */
-  if (!dateString) return 'N/A';
-  const date = new Date(dateString);
-  return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-}
-
-function formatDuration(seconds?: number): string {
-  /* Converts seconds to "X H Y M" or "Y M" */
-  if (!seconds) return 'N/A';
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  if (hours > 0) {
-    return `${hours} H ${minutes} M`;
-  }
-  return `${minutes} M`;
-}
-
-function getPlatformIcon(platform?: string): string {
-  /* Maps platform name to icon, defaults to Zoom */
-  if (platform?.toLowerCase().includes('zoom')) return zoomLogo;
-  // Add other platforms as needed
-  return zoomLogo;
-}
 
 export function MeetingRecordingsPage(): JSX.Element {
   /* 

@@ -5,7 +5,6 @@ import illustrationUrl from '../../assets/create-workspace/create-workspace-illu
 import { useAuth } from '../../context/AuthContext';
 import {
   createWorkspace,
-  WORKSPACE_CATEGORY_OPTIONS,
   WorkspaceCategory,
 } from './workspaceApi';
 

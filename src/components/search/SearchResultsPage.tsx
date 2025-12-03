@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { DashboardLayout } from '../sidebar';
 import workspaceIcon from '../../assets/workspace.png';

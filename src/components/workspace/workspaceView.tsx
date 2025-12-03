@@ -87,7 +87,6 @@ export function WorkspaceViewPage(): JSX.Element {
   const [isDeleting, setIsDeleting] = useState(false);
   const [folderSearch, setFolderSearch] = useState('');
   const [meetingSearch, setMeetingSearch] = useState('');
-  const [transcriptionSearch, setTranscriptionSearch] = useState('');
   const [selectedMeetingId, setSelectedMeetingId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid');
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -193,28 +192,6 @@ export function WorkspaceViewPage(): JSX.Element {
     () => filteredMeetings.find((meeting) => meeting.id === selectedMeetingId) ?? allMeetings[0],
     [allMeetings, filteredMeetings, selectedMeetingId],
   );
-
-  const transcriptSegments = useMemo(() => {
-    if (!selectedMeeting?.transcript) {
-      return [];
-    }
-    return selectedMeeting.transcript
-      .split(/\n+/)
-      .map((line) => line.trim())
-      .filter(Boolean)
-      .map((line, index) => ({
-        id: `${selectedMeeting.id}-${index}`,
-        text: line,
-      }));
-  }, [selectedMeeting]);
-
-  const filteredTranscriptSegments = useMemo(() => {
-    const query = transcriptionSearch.trim().toLowerCase();
-    if (!query) {
-      return transcriptSegments;
-    }
-    return transcriptSegments.filter((segment) => segment.text.toLowerCase().includes(query));
-  }, [transcriptSegments, transcriptionSearch]);
 
   const handleUpdateWorkspace = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();

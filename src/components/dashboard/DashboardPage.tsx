@@ -942,7 +942,7 @@ export function DashboardPage(): JSX.Element {
                     </tr>
                   </thead>
                   <tbody className="bg-white font-nunito text-[#25324B]">
-                    {recentActivity.map((item, index) => (
+                    {recentActivity.map((item) => (
                       <tr key={item.id} className="border-b border-[rgba(102,0,255,0.2)] last:border-0">
                         <td className="px-3 py-3 align-top">
                           <div className="flex flex-col gap-1">

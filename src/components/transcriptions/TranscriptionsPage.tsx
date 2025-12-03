@@ -506,41 +506,9 @@
 // }
 // ---------------------------------------------------------------------------------------------
 
-import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '../sidebar';
-import zoomLogo from '../../assets/logos_zoom.png';
-import searchIcon from '../../assets/Vector.png';
-import setupProfileAvatar from '../../assets/setup-profile-avatar.png';
-import threeDotsIcon from '../../assets/3dotsinrow.png';
-import { useMeetings, useTranscripts } from '../../hooks/useMeetings';
-
-/* 
- * HELPER FUNCTIONS - FULLY COMMENTED (PRESERVED FOR FUTURE USE)
- * These utility functions handle date/time formatting and platform icon selection
- */
-function formatDate(dateString?: string): string {
-  /* Formats date string to readable format: "December 3, 2025" */
-  if (!dateString) return 'N/A';
-  const date = new Date(dateString);
-  return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-}
-
-function formatTime(dateString?: string): string {
-  /* Formats time string to 12-hour format: "10:33 PM" */
-  if (!dateString) return 'N/A';
-  const date = new Date(dateString);
-  return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-}
-
-function getPlatformIcon(platform?: string): string {
-  /* Returns appropriate platform logo (currently defaults to Zoom) */
-  if (platform?.toLowerCase().includes('zoom')) return zoomLogo;
-  return zoomLogo;
-}
 
 export function TranscriptionsPage(): JSX.Element {
-  const navigate = useNavigate();
   
   /* 
    * STATE & HOOKS - FULLY COMMENTED (ORIGINAL FUNCTIONALITY PRESERVED)

@@ -306,7 +306,7 @@ export function IntegrationsPage(): JSX.Element {
           {/* Error Message */}
           {error && (
             <div className="mb-4 md:mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 font-nunito text-sm text-red-600">
-              {error}
+              {/* {error} */}
             </div>
           )}
 

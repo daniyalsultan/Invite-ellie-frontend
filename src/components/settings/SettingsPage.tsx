@@ -5,12 +5,7 @@ export function SettingsPage(): JSX.Element {
   const [autoJoinMeetings, setAutoJoinMeetings] = useState(true);
   const [showMeetingReminders, setShowMeetingReminders] = useState(false);
   const [notifyTranscriptsReady, setNotifyTranscriptsReady] = useState(true);
-  const [notifyActionItems, setNotifyActionItems] = useState(false);
   const [defaultLanguage, setDefaultLanguage] = useState('english-usa');
-  const [newPassword, setNewPassword] = useState('');
-  const [reEnterPassword, setReEnterPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [showReEnterPassword, setShowReEnterPassword] = useState(false);
 
   return (
     <DashboardLayout activeTab="/settings">

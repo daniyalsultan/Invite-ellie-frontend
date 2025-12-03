@@ -5,7 +5,6 @@ import { useAuth } from '../../context/AuthContext';
 import {
   WorkspaceRecord,
   deleteWorkspace,
-  getWorkspaceCategoryLabel,
   listWorkspaces,
   patchWorkspace,
 } from './workspaceApi';
@@ -116,11 +115,6 @@ export function WorkspacePage(): JSX.Element {
     setActiveSearch(searchInput.trim());
   };
 
-  const handleResetFilters = () => {
-    setSearchInput('');
-    setActiveSearch('');
-    setPage(1);
-  };
 
   const deleteWorkspaceEntry = async (workspace: WorkspaceRecord) => {
     try {

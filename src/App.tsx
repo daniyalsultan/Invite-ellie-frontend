@@ -139,7 +139,7 @@ function App(): JSX.Element {
         <Route path="/new-password" element={<NewPasswordPage />} />
         <Route path="/search-results" element={<SearchResultsPage />} />
         <Route path="/auth/callback" element={<SSOCallbackPage />} />
-        {/* <Route element={<ProtectedRoute />}> */}
+        <Route element={<ProtectedRoute />}>
           <Route path="/setup-profile" element={<SetupProfilePage />} />
           <Route path="/integrations" element={<IntegrationsPage />} />
           <Route path="/preferences" element={<PreferencesPage />} />
@@ -152,7 +152,7 @@ function App(): JSX.Element {
           <Route path="/transcriptions" element={<TranscriptionsPage />} />
           <Route path="/meeting-recordings" element={<MeetingRecordingsPage />} />
           <Route path="/meeting-view" element={<MeetingViewPage />} />
-        {/* </Route> */}
+        </Route>
         
         <Route path="*" element={<LandingPage />} />
       </Routes>
