@@ -101,7 +101,7 @@ export function DashboardPage(): JSX.Element {
   const [isDeletingFolder, setIsDeletingFolder] = useState(false);
   const [selectedFolder, setSelectedFolder] = useState<FolderRecord | null>(null);
   const [isDetailViewOpen, setIsDetailViewOpen] = useState(false);
-  const [recentActivity, setRecentActivity] = useState<ActivityItem[]>(RECENT_ACTIVITY);
+  const [recentActivity] = useState<ActivityItem[]>(RECENT_ACTIVITY);
 
   useEffect(() => {
     let isMounted = true;
@@ -249,9 +249,9 @@ export function DashboardPage(): JSX.Element {
     }
   };
 
-  const handleCopyLink = (link: string): void => {
-    navigator.clipboard.writeText(link);
-  };
+  // const handleCopyLink = (link: string): void => {
+  //   navigator.clipboard.writeText(link);
+  // };
 
   const handleMenuClick = (folderId: string, event: React.MouseEvent): void => {
     event.stopPropagation();
@@ -388,15 +388,15 @@ export function DashboardPage(): JSX.Element {
     }
   };
 
-  const handleViewActivity = (item: ActivityItem): void => {
-    // Navigate to meeting view with the link
-    navigate(`/meeting-view?link=${encodeURIComponent(item.link)}`);
-  };
+  // const handleViewActivity = (item: ActivityItem): void => {
+  //   // Navigate to meeting view with the link
+  //   navigate(`/meeting-view?link=${encodeURIComponent(item.link)}`);
+  // };
 
-  const handleDeleteActivity = (itemId: string): void => {
-    // Remove the activity item from the list
-    setRecentActivity((prev) => prev.filter((item) => item.id !== itemId));
-  };
+  // const handleDeleteActivity = (itemId: string): void => {
+  //   // Remove the activity item from the list
+  //   setRecentActivity((prev) => prev.filter((item) => item.id !== itemId));
+  // };
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -958,7 +958,7 @@ export function DashboardPage(): JSX.Element {
                               </a>
                               <button
                                 type="button"
-                                onClick={() => handleCopyLink(item.link)}
+                                // onClick={() => handleCopyLink(item.link)}
                                 className="flex h-4 w-4 flex-shrink-0 items-center justify-center text-[#0B5CFF]"
                                 aria-label="Copy link"
                               >
@@ -989,7 +989,7 @@ export function DashboardPage(): JSX.Element {
                           <div className="flex items-center justify-center gap-2">
                             <button
                               type="button"
-                              onClick={() => handleViewActivity(item)}
+                              // onClick={() => handleViewActivity(item)}
                               className="flex h-8 w-8 items-center justify-center rounded-full bg-[#E6F0FA] text-[#327AAD] transition hover:bg-[#D0E5F5]"
                               aria-label="View"
                             >
@@ -1009,7 +1009,7 @@ export function DashboardPage(): JSX.Element {
                             </button>
                             <button
                               type="button"
-                              onClick={() => handleDeleteActivity(item.id)}
+                              // onClick={() => handleDeleteActivity(item.id)}
                               className="flex h-8 w-8 items-center justify-center rounded-full bg-[#FFEAEA] text-[#E45A5A] transition hover:bg-[#FFD5D5]"
                               aria-label="Remove"
                             >
