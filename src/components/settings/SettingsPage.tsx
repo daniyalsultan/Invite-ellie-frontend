@@ -1,6 +1,5 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { DashboardLayout } from '../sidebar';
-import greenTickIcon from '../../assets/green white tick.png';
 
 export function SettingsPage(): JSX.Element {
   const [autoJoinMeetings, setAutoJoinMeetings] = useState(true);
@@ -8,32 +7,10 @@ export function SettingsPage(): JSX.Element {
   const [notifyTranscriptsReady, setNotifyTranscriptsReady] = useState(true);
   const [notifyActionItems, setNotifyActionItems] = useState(false);
   const [defaultLanguage, setDefaultLanguage] = useState('english-usa');
-  const [driveUrl, setDriveUrl] = useState('https://www.figma.com/design/pflejRyGUKnFHsWlyCYzws/Invite-Ellie?...');
-  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [newPassword, setNewPassword] = useState('');
   const [reEnterPassword, setReEnterPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showReEnterPassword, setShowReEnterPassword] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files) {
-      setUploadedFiles((prev) => [...prev, ...Array.from(files)]);
-    }
-  };
-
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    const files = e.dataTransfer.files;
-    if (files) {
-      setUploadedFiles((prev) => [...prev, ...Array.from(files)]);
-    }
-  };
-
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-  };
 
   return (
     <DashboardLayout activeTab="/settings">
@@ -141,22 +118,23 @@ export function SettingsPage(): JSX.Element {
                   <label className="block font-nunito text-sm md:text-base font-semibold text-ellieBlack mb-2">
                     Default Language
                   </label>
-                  <p className="font-nunito text-xs md:text-sm text-ellieGray mb-3">
+                  {/* <p className="font-nunito text-xs md:text-sm text-ellieGray mb-3">
                     Please choose your default language.
-                  </p>
+                  </p> */}
                   <div className="relative">
                     <select
                       value={defaultLanguage}
                       onChange={(e) => setDefaultLanguage(e.target.value)}
                       className="w-full px-4 py-2.5 md:py-3 rounded-lg border border-gray-300 bg-white text-ellieBlack focus:outline-none focus:ring-2 focus:ring-ellieBlue focus:border-transparent font-nunito text-sm md:text-base appearance-none pr-10"
+                      disabled
                     >
                       <option value="english-usa">English USA</option>
-                      <option value="english-uk">English UK</option>
+                      {/* <option value="english-uk">English UK</option>
                       <option value="spanish">Spanish</option>
                       <option value="french">French</option>
                       <option value="german">German</option>
                       <option value="chinese">Chinese</option>
-                      <option value="japanese">Japanese</option>
+                      <option value="japanese">Japanese</option> */}
                     </select>
                     <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
                       <span className="text-xl">🇺🇸</span>
@@ -201,7 +179,7 @@ export function SettingsPage(): JSX.Element {
                 </div>
 
                 {/* Notify for assigned action items */}
-                <div className="flex items-start justify-between gap-4">
+                {/* <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
                     <h3 className="font-nunito text-sm md:text-base font-semibold text-ellieBlack mb-2">
                       Notify for assigned action items
@@ -225,14 +203,14 @@ export function SettingsPage(): JSX.Element {
                       }`}
                     />
                   </button>
-                </div>
+                </div> */}
               </div>
             </div>
 
-            {/* Security Settings */}
+            {/* Password Reset */}
             <div className="bg-white border border-gray-200 rounded-lg p-4 md:p-6 shadow-sm lg:order-4">
               <h2 className="font-nunito text-lg md:text-xl font-bold text-ellieBlack mb-4 md:mb-6">
-                Security Settings
+                Password Reset
               </h2>
               
               <div className="space-y-4">
@@ -240,10 +218,10 @@ export function SettingsPage(): JSX.Element {
                   type="button"
                   className="w-full px-4 py-2.5 md:py-3 rounded-lg bg-ellieBlue text-white font-nunito text-sm md:text-base font-semibold hover:opacity-90 transition-opacity"
                 >
-                  Send via email
+                  Reset via email
                 </button>
                 
-                <div>
+                {/* <div>
                   <label className="block font-nunito text-sm md:text-base font-semibold text-ellieBlack mb-2">
                     New Password
                   </label>
@@ -336,144 +314,10 @@ export function SettingsPage(): JSX.Element {
                   className="w-full px-4 py-2.5 md:py-3 rounded-lg bg-ellieBlue text-white font-nunito text-sm md:text-base font-semibold hover:opacity-90 transition-opacity"
                 >
                   Continue and Login
-                </button>
+                </button> */}
               </div>
             </div>
 
-            {/* Connected Drive for Recorded Meetings */}
-            <div className="bg-white border border-gray-200 rounded-lg p-4 md:p-6 shadow-sm">
-              <h2 className="font-nunito text-lg md:text-xl font-bold text-ellieBlack mb-4 md:mb-6">
-                Connected Drive for Recorded Meetings
-              </h2>
-              
-              <div className="space-y-4">
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={driveUrl}
-                    onChange={(e) => setDriveUrl(e.target.value)}
-                    className="w-full px-4 py-2.5 md:py-3 pr-10 rounded-lg border border-gray-300 bg-white text-ellieBlack focus:outline-none focus:ring-2 focus:ring-ellieBlue focus:border-transparent font-nunito text-sm md:text-base"
-                    placeholder="Enter drive URL"
-                  />
-                  {driveUrl && (
-                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                      <img
-                        src={greenTickIcon}
-                        alt="Connected"
-                        className="w-5 h-5 object-contain"
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Upload documents/files */}
-            <div className="bg-white border border-gray-200 rounded-lg p-4 md:p-6 shadow-sm lg:col-span-2">
-              <h2 className="font-nunito text-lg md:text-xl font-bold text-ellieBlack mb-4 md:mb-6">
-                Upload documents/files
-              </h2>
-              
-              <div className="space-y-4">
-                <p className="font-nunito text-xs md:text-sm text-ellieGray leading-relaxed">
-                  This would help Ellie understand and give relevant insights based of what you upload.
-                </p>
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleFileUpload}
-                  multiple
-                  className="hidden"
-                  id="file-upload"
-                />
-                <div
-                  onDrop={handleDrop}
-                  onDragOver={handleDragOver}
-                  onClick={() => fileInputRef.current?.click()}
-                  className="border-2 border-dashed border-gray-300 rounded-lg p-8 md:p-12 text-center cursor-pointer hover:border-ellieBlue transition-colors"
-                >
-                  <svg
-                    className="w-12 h-12 md:w-16 md:h-16 mx-auto mb-4 text-[#7864A0]"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
-                    />
-                  </svg>
-                  <p className="font-nunito text-sm md:text-base text-ellieBlack font-medium">
-                    Drop files here for Upload from computer
-                  </p>
-                </div>
-                {uploadedFiles.length > 0 && (
-                  <div className="mt-4">
-                    <div className="grid grid-cols-3 md:grid-cols-6 gap-2 md:gap-4">
-                      {uploadedFiles.map((file, index) => (
-                        <div
-                          key={index}
-                          className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden group"
-                        >
-                          {file.type.startsWith('image/') ? (
-                            <img
-                              src={URL.createObjectURL(file)}
-                              alt={file.name}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <svg
-                                className="w-8 h-8 text-gray-400"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                                xmlns="http://www.w3.org/2000/svg"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                                />
-                              </svg>
-                            </div>
-                          )}
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const newFiles = [...uploadedFiles];
-                              newFiles.splice(index, 1);
-                              setUploadedFiles(newFiles);
-                            }}
-                            className="absolute top-1 right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <svg
-                              className="w-3 h-3 text-white"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                              xmlns="http://www.w3.org/2000/svg"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M6 18L18 6M6 6l12 12"
-                              />
-                            </svg>
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
           </div>
         </div>
       </div>

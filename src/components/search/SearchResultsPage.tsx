@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useMemo } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { DashboardLayout } from '../sidebar';
 import workspaceIcon from '../../assets/workspace.png';
 import transcriptionIcon from '../../assets/transcription.png';
@@ -44,6 +44,8 @@ const SEARCH_RESULTS: SearchResult[] = [
 type ContentType = 'all' | 'workspace' | 'transcription' | 'recording';
 
 export function SearchResultsPage(): JSX.Element {
+  const [searchParams] = useSearchParams();
+  const searchQuery = searchParams.get('q') || '';
   const [selectedContentType, setSelectedContentType] = useState<ContentType>('all');
   const [showDateRange, setShowDateRange] = useState(true);
 
@@ -81,7 +83,11 @@ export function SearchResultsPage(): JSX.Element {
           {/* Subtitle and Filters Row */}
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
             <p className="font-nunito text-base md:text-lg lg:text-xl font-medium text-[#25324B]">
-              Search results for "Keyword"
+              {searchQuery ? (
+                <>Search results for &quot;{searchQuery}&quot;</>
+              ) : (
+                'Search results'
+              )}
             </p>
             <div className="flex items-center gap-3 flex-wrap">
               {showDateRange && (
