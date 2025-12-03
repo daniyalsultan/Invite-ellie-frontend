@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '../sidebar';
 import d1Icon from '../../assets/d1.jpg';
 import folderIcon from '../../assets/folder.png';
@@ -22,6 +22,7 @@ import { DemoTour } from '../demo';
 import { FolderDetailView } from '../folder/FolderDetailView';
 
 interface ActivityItem {
+  id: string;
   type: string;
   link: string;
   date: string;
@@ -30,18 +31,21 @@ interface ActivityItem {
 
 const RECENT_ACTIVITY: ActivityItem[] = [
   {
+    id: '1',
     type: 'Meeting Recording',
     link: 'https://www.figma.com/proto/pflejRyGUKnFHsWlyCYzws/Invite-Ellie?node-id=37-5569&t=wtIfIXx2Kfam6tFh-1',
     date: 'October 12, 2025',
     time: '05:02 PM',
   },
   {
+    id: '2',
     type: 'Meeting Recording',
     link: 'https://www.figma.com/proto/pflejRyGUKnFHsWlyCYzws/Invite-Ellie?node-id=37-5569&t=wtIfIXx2Kfam6tFh-1',
     date: 'October 12, 2025',
     time: '05:02 PM',
   },
   {
+    id: '3',
     type: 'Meeting Recording',
     link: 'https://www.figma.com/proto/pflejRyGUKnFHsWlyCYzws/Invite-Ellie?node-id=37-5569&t=wtIfIXx2Kfam6tFh-1',
     date: 'October 12, 2025',
@@ -55,9 +59,11 @@ const WORKSPACE_HELP_ICON = '/assets/dashboard/workspace-help-icon.svg';
 
 export function DashboardPage(): JSX.Element {
   const location = useLocation();
+  const navigate = useNavigate();
   const { ensureFreshAccessToken } = useAuth();
   const { profile, refreshProfile } = useProfile();
   const apiBaseUrl = getApiBaseUrl();
+  const [meetingId, setMeetingId] = useState('');
   
   // Determine first-time tour state based on API flag
   const firstTimeTourOpen = profile?.show_tour === true;
@@ -95,6 +101,7 @@ export function DashboardPage(): JSX.Element {
   const [isDeletingFolder, setIsDeletingFolder] = useState(false);
   const [selectedFolder, setSelectedFolder] = useState<FolderRecord | null>(null);
   const [isDetailViewOpen, setIsDetailViewOpen] = useState(false);
+  const [recentActivity, setRecentActivity] = useState<ActivityItem[]>(RECENT_ACTIVITY);
 
   useEffect(() => {
     let isMounted = true;
@@ -358,6 +365,39 @@ export function DashboardPage(): JSX.Element {
     }, 300);
   };
 
+  const handleJoinMeeting = (): void => {
+    const trimmedId = meetingId.trim();
+    if (!trimmedId) {
+      return;
+    }
+    // Check if it's a URL or just an ID
+    if (trimmedId.startsWith('http://') || trimmedId.startsWith('https://')) {
+      // If it's a URL, try to extract meeting ID from it or navigate to meeting-view
+      // For now, we'll try to navigate to meeting-view with the URL as a parameter
+      navigate(`/meeting-view?link=${encodeURIComponent(trimmedId)}`);
+    } else {
+      // If it's just an ID, navigate to meeting-view
+      navigate(`/meeting-view?id=${encodeURIComponent(trimmedId)}`);
+    }
+  };
+
+  const handleJoinMeetingKeyDown = (e: React.KeyboardEvent<HTMLInputElement>): void => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleJoinMeeting();
+    }
+  };
+
+  const handleViewActivity = (item: ActivityItem): void => {
+    // Navigate to meeting view with the link
+    navigate(`/meeting-view?link=${encodeURIComponent(item.link)}`);
+  };
+
+  const handleDeleteActivity = (itemId: string): void => {
+    // Remove the activity item from the list
+    setRecentActivity((prev) => prev.filter((item) => item.id !== itemId));
+  };
+
   // Close menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (): void => {
@@ -422,13 +462,19 @@ export function DashboardPage(): JSX.Element {
                 alt="Illustration of a person creating a workspace"
                 className="h-[77px] w-[109px]"
               />
-              <div className="space-y-2">
+              <div className="space-y-2 flex-1">
                 <h2 className="font-nunito text-[25px] font-bold tracking-[-0.02em] text-[#25324B]">
                   Create a Workspace
                 </h2>
                 <p className="max-w-[280px] font-nunito text-[20px] font-medium leading-[1.36] text-[#545454]">
                   Start with creating a workspace for office, a project or an idea.
                 </p>
+                <Link
+                  to="/create-workspace"
+                  className="inline-flex mt-4 items-center justify-center rounded-[5px] bg-[#327AAD] px-6 py-3 font-nunito text-base font-extrabold text-white transition hover:bg-[#286996]"
+                >
+                  Create Workspace
+                </Link>
               </div>
             </article>
 
@@ -450,11 +496,15 @@ export function DashboardPage(): JSX.Element {
                       id="meeting-id"
                       type="text"
                       placeholder="Enter meeting ID"
+                      value={meetingId}
+                      onChange={(e) => setMeetingId(e.target.value)}
+                      onKeyDown={handleJoinMeetingKeyDown}
                       className="h-[60px] w-full rounded-[5px] border border-[#7964A0] bg-white px-6 font-nunito text-[20px] font-semibold text-[#25324B] placeholder:text-[#25324B]/40 focus:border-[#327AAD] focus:outline-none focus:ring-2 focus:ring-[#327AAD]/20"
                     />
                   </div>
                   <button
                     type="button"
+                    onClick={handleJoinMeeting}
                     className="inline-flex h-[60px] items-center justify-center rounded-[5px] bg-[#327AAD] px-12 font-nunito text-[20px] font-extrabold text-white transition hover:bg-[#286996]"
                   >
                     Join now
@@ -472,7 +522,7 @@ export function DashboardPage(): JSX.Element {
                     <div className="flex flex-col gap-4">
                       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                         <div className="flex items-center gap-2">
-                          <div className="relative h-[45px] min-w-[220px] flex-1">
+                          <div className="relative h-[45px] w-[180px]">
                             <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2">
                               <img src={d1Icon} alt="" className="h-5 w-5 object-contain" />
                             </span>
@@ -524,7 +574,7 @@ export function DashboardPage(): JSX.Element {
                           <button
                             type="button"
                             onClick={openCreateModal}
-                            className="inline-flex h-[40px] items-center justify-center rounded-[5px] bg-[#327AAD] px-6 font-nunito text-sm font-extrabold text-white transition hover:bg-[#286996] disabled:cursor-not-allowed disabled:opacity-60"
+                            className="inline-flex h-[50px] items-center justify-center rounded-[5px] bg-[#327AAD] px-8 font-nunito text-base font-extrabold text-white transition hover:bg-[#286996] disabled:cursor-not-allowed disabled:opacity-60"
                             disabled={isWorkspacesLoading || !!workspacesError || workspaces.length === 0}
                           >
                             Create a folder
@@ -892,8 +942,8 @@ export function DashboardPage(): JSX.Element {
                     </tr>
                   </thead>
                   <tbody className="bg-white font-nunito text-[#25324B]">
-                    {RECENT_ACTIVITY.map((item, index) => (
-                      <tr key={`${item.type}-${index}`} className="border-b border-[rgba(102,0,255,0.2)] last:border-0">
+                    {recentActivity.map((item, index) => (
+                      <tr key={item.id} className="border-b border-[rgba(102,0,255,0.2)] last:border-0">
                         <td className="px-3 py-3 align-top">
                           <div className="flex flex-col gap-1">
                             <span className="font-nunito text-sm font-bold tracking-[-0.02em] text-[#25324B]">
@@ -939,7 +989,8 @@ export function DashboardPage(): JSX.Element {
                           <div className="flex items-center justify-center gap-2">
                             <button
                               type="button"
-                              className="flex h-8 w-8 items-center justify-center rounded-full bg-[#E6F0FA] text-[#327AAD]"
+                              onClick={() => handleViewActivity(item)}
+                              className="flex h-8 w-8 items-center justify-center rounded-full bg-[#E6F0FA] text-[#327AAD] transition hover:bg-[#D0E5F5]"
                               aria-label="View"
                             >
                               <svg
@@ -958,7 +1009,8 @@ export function DashboardPage(): JSX.Element {
                             </button>
                             <button
                               type="button"
-                              className="flex h-8 w-8 items-center justify-center rounded-full bg-[#FFEAEA] text-[#E45A5A]"
+                              onClick={() => handleDeleteActivity(item.id)}
+                              className="flex h-8 w-8 items-center justify-center rounded-full bg-[#FFEAEA] text-[#E45A5A] transition hover:bg-[#FFD5D5]"
                               aria-label="Remove"
                             >
                               <svg

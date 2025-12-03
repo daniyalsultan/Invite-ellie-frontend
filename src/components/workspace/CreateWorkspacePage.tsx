@@ -120,6 +120,8 @@ export function CreateWorkspacePage(): JSX.Element {
                   />
                 </div>
 
+                {/* Workspace type section - hidden */}
+                {/*
                 <div className="flex w-full flex-col items-center gap-3">
                   <span className="font-nunito text-[20px] font-bold leading-[1.17] text-black sm:text-[25px]">
                     Workspace type
@@ -157,6 +159,7 @@ export function CreateWorkspacePage(): JSX.Element {
                     })}
                   </div>
                 </div>
+                */}
 
                 {statusMessage && (
                   <div

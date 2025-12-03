@@ -363,6 +363,8 @@ export function WorkspacePage(): JSX.Element {
                   >
                     Search
                   </button>
+                  {/* Reset button - hidden */}
+                  {/*
                   <button
                     type="button"
                     onClick={handleResetFilters}
@@ -371,6 +373,7 @@ export function WorkspacePage(): JSX.Element {
                   >
                     Reset
                   </button>
+                  */}
                 </div>
               </form>
               <Link
@@ -446,9 +449,12 @@ export function WorkspacePage(): JSX.Element {
                         <th className="w-[45%] px-4 py-3 text-left font-nunito text-base font-semibold text-[#25324B]">
                           Workspace
                         </th>
+                        {/* Workspace type column header - hidden */}
+                        {/*
                         <th className="w-[15%] px-2 py-3 text-right font-nunito text-base font-semibold text-[#25324B]">
                           Type
                         </th>
+                        */}
                         <th className="w-[25%] px-2 py-3 text-right font-nunito text-base font-semibold text-[#25324B]">
                           Created
                         </th>
@@ -469,7 +475,10 @@ export function WorkspacePage(): JSX.Element {
                             className="border-b border-[#EEE9FE] transition hover:bg-[#F6F7FB]"
                           >
                             <td className="px-4 py-4">
-                              <div className="flex items-center gap-4">
+                              <Link
+                                to={`/workspaces/${workspace.id}`}
+                                className="flex items-center gap-4 transition-opacity hover:opacity-80"
+                              >
                                 <div
                                   className="flex h-14 w-14 items-center justify-center rounded-xl text-lg font-extrabold text-white shadow-[0_10px_20px_rgba(39,62,99,0.15)]"
                                   style={{ background: gradient }}
@@ -480,17 +489,23 @@ export function WorkspacePage(): JSX.Element {
                                   <span className="font-nunito text-base font-bold text-[#25324B]">
                                     {workspace.name}
                                   </span>
+                                  {/* Workspace ID - hidden */}
+                                  {/*
                                   <span className="font-nunito text-sm text-[#6B7A96]">
                                     ID: {workspace.id}
                                   </span>
+                                  */}
                                 </div>
-                              </div>
+                              </Link>
                             </td>
+                            {/* Workspace type column - hidden */}
+                            {/*
                             <td className="px-2 py-4 text-right">
                               <span className="inline-flex w-fit max-w-full flex-wrap break-words rounded-full bg-[#E6EDFF] px-3 py-1 text-center font-nunito text-sm font-semibold text-[#1F6FB5]">
                                 {getWorkspaceCategoryLabel(workspace.category)}
                               </span>
                             </td>
+                            */}
                             <td className="px-2 py-4 text-right">
                               <div className="flex flex-col items-end">
                                 <span className="font-nunito text-base font-semibold text-[#25324B]">
@@ -580,22 +595,29 @@ export function WorkspacePage(): JSX.Element {
                         className="rounded-2xl border border-[#E6E9F2] p-4 shadow-[0_12px_24px_rgba(39,62,99,0.05)]"
                       >
                         <div className="mb-4 flex items-center gap-4">
-                          <div
-                            className="flex h-14 w-14 items-center justify-center rounded-xl text-lg font-extrabold text-white shadow-[0_10px_20px_rgba(39,62,99,0.15)]"
+                          <Link
+                            to={`/workspaces/${workspace.id}`}
+                            className="flex h-14 w-14 items-center justify-center rounded-xl text-lg font-extrabold text-white shadow-[0_10px_20px_rgba(39,62,99,0.15)] transition-opacity hover:opacity-80"
                             style={{ background: gradient }}
                           >
                             {initials}
-                          </div>
+                          </Link>
                           <div className="flex-1">
                             <div className="flex items-center justify-between">
-                              <div>
+                              <Link
+                                to={`/workspaces/${workspace.id}`}
+                                className="transition-opacity hover:opacity-80"
+                              >
                                 <h2 className="font-nunito text-base font-bold text-[#25324B]">
                                   {workspace.name}
                                 </h2>
+                                {/* Workspace ID - hidden */}
+                                {/*
                                 <p className="font-nunito text-xs text-[#6B7A96]">
                                   ID: {workspace.id}
                                 </p>
-                              </div>
+                                */}
+                              </Link>
                               <div className="flex items-center gap-2">
                                 <Link
                                   to={`/workspaces/${workspace.id}`}
@@ -658,15 +680,19 @@ export function WorkspacePage(): JSX.Element {
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="flex flex-col gap-1">
-                            <span className="font-nunito text-[11px] font-semibold uppercase tracking-wide text-[#6B7A96]">
-                              Type
-                            </span>
-                            <span className="inline-flex w-fit max-w-full flex-wrap break-words rounded-full bg-[#E6EDFF] px-3 py-1 text-center font-nunito text-sm font-semibold text-[#1F6FB5]">
-                              {getWorkspaceCategoryLabel(workspace.category)}
-                            </span>
-                          </div>
+                        <div className="flex flex-col gap-4">
+                          {/* Workspace type block - hidden */}
+                          {/*
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="flex flex-col gap-1">
+                              <span className="font-nunito text-[11px] font-semibold uppercase tracking-wide text-[#6B7A96]">
+                                Type
+                              </span>
+                              <span className="inline-flex w-fit max-w-full flex-wrap break-words rounded-full bg-[#E6EDFF] px-3 py-1 text-center font-nunito text-sm font-semibold text-[#1F6FB5]">
+                                {getWorkspaceCategoryLabel(workspace.category)}
+                              </span>
+                            </div>
+                          */}
                           <div className="flex flex-col gap-1">
                             <span className="font-nunito text-[11px] font-semibold uppercase tracking-wide text-[#6B7A96]">
                               Created

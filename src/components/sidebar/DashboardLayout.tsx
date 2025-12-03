@@ -1,4 +1,5 @@
-import { ReactNode } from 'react';
+import { ReactNode, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { DashboardHeader } from './DashboardHeader';
 import { Sidebar } from './Sidebar';
 import searchIcon from '../../assets/Vector.png';
@@ -21,6 +22,24 @@ export function DashboardLayout({
   userAvatar,
 }: DashboardLayoutProps): JSX.Element {
   const { profile } = useProfile();
+  const [searchQuery, setSearchQuery] = useState('');
+  const navigate = useNavigate();
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      navigate(`/search-results?q=${encodeURIComponent(searchQuery.trim())}`);
+    }
+  };
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (searchQuery.trim()) {
+        navigate(`/search-results?q=${encodeURIComponent(searchQuery.trim())}`);
+      }
+    }
+  };
 
   const derivedName =
     userName ??
@@ -34,18 +53,21 @@ export function DashboardLayout({
       
       {/* Mobile Search Bar */}
       <div className="lg:hidden px-4 py-3 bg-white">
-        <div className="relative">
+        <form onSubmit={handleSearch} className="relative">
           <input
             type="text"
             placeholder="Search for meetings, notes, transcriptions....."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={handleSearchKeyDown}
             className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-300 bg-white text-ellieBlack placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-ellieBlue focus:border-transparent font-nunito text-sm"
           />
           <img
             src={searchIcon}
             alt="Search"
-            className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 object-contain"
+            className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 object-contain pointer-events-none"
           />
-        </div>
+        </form>
       </div>
 
       <div className="flex flex-1 overflow-hidden">

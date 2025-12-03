@@ -1003,6 +1003,8 @@ export function WorkspaceViewPage(): JSX.Element {
                   )}
                 </div>
 
+                {/* Select a meeting and Meeting transcription sections - hidden */}
+                {/*
                 <div className="space-y-6 lg:pl-3">
                   <div className="rounded-[12px] bg-white p-4 shadow-[0px_18px_30px_rgba(15,23,42,0.05)] md:rounded-[18px] md:p-6 lg:p-8">
                     <div className="mb-4 flex items-center justify-between">
@@ -1156,6 +1158,7 @@ export function WorkspaceViewPage(): JSX.Element {
                     )}
                   </div>
                 </div>
+                */}
               </div>
             </>
           ) : null}
