@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { DashboardLayout } from '../sidebar';
-import { useAuth } from '../../context/AuthContext';
 import { useProfile } from '../../context/ProfileContext';
 import {
   getConnectedCalendars,
@@ -10,6 +10,7 @@ import {
   updateCalendarPreferences,
   syncCalendarEvents,
   setEventManualRecord,
+  createBotForEvent,
   CalendarConnection,
   CalendarDetails,
 } from '../../services/calendarApi';
@@ -42,8 +43,8 @@ const CALENDAR_INTEGRATIONS: CalendarIntegration[] = [
 ];
 
 export function IntegrationsPage(): JSX.Element {
-  const { ensureFreshAccessToken, session } = useAuth();
   const { profile } = useProfile();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [calendars, setCalendars] = useState<CalendarConnection[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [connecting, setConnecting] = useState<'google' | 'microsoft' | null>(null);
@@ -52,36 +53,175 @@ export function IntegrationsPage(): JSX.Element {
   const [selectedCalendar, setSelectedCalendar] = useState<CalendarDetails | null>(null);
   const [loadingCalendarDetails, setLoadingCalendarDetails] = useState<string | null>(null);
   const [syncingCalendar, setSyncingCalendar] = useState<string | null>(null);
+  const [creatingBot, setCreatingBot] = useState<string | null>(null);
+  const [allMeetings, setAllMeetings] = useState<Array<{
+    calendarId: string;
+    calendarName: string;
+    calendarPlatform: string;
+    events: CalendarDetails['events'];
+  }>>([]);
+  const [wsConnection, setWsConnection] = useState<WebSocket | null>(null);
+  const selectedCalendarIdRef = useRef<string | null>(null);
+
+  // Handle OAuth callback redirects
+  useEffect(() => {
+    const connected = searchParams.get('connected');
+    const email = searchParams.get('email');
+    
+    if (connected) {
+      const platform = connected === 'google' ? 'Google Calendar' : 'Microsoft Calendar';
+      setSuccessMessage(`${platform} connected successfully${email ? ` for ${email}` : ''}`);
+      // Remove query params
+      setSearchParams({});
+      // Refresh calendars
+      if (profile?.id) {
+        void fetchCalendars();
+      }
+    }
+  }, [searchParams, setSearchParams, profile?.id]);
+
+  const fetchCalendars = async () => {
+    if (!profile?.id) {
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      console.log('Fetching calendars for userId:', profile.id);
+      const connected = await getConnectedCalendars(profile.id);
+      console.log('Calendars fetched:', connected);
+      setCalendars(connected);
+      
+      // Fetch all meetings from all calendars
+      if (connected.length > 0) {
+        const meetingsPromises = connected.map(async (cal) => {
+          try {
+            const details = await getCalendarDetails(cal.id, profile.id);
+            return {
+              calendarId: cal.id,
+              calendarName: cal.email || cal.platform,
+              calendarPlatform: cal.platform,
+              events: details.events,
+            };
+          } catch (err) {
+            console.error(`Error fetching details for calendar ${cal.id}:`, err);
+            return null;
+          }
+        });
+        
+        const meetings = await Promise.all(meetingsPromises);
+        setAllMeetings(meetings.filter((m) => m !== null) as typeof allMeetings);
+      } else {
+        setAllMeetings([]);
+      }
+    } catch (error) {
+      console.error('Error fetching calendars:', error);
+      setError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to load calendar connections. Please check if VITE_RECALLAI_BASE_URL is configured.'
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchCalendars = async () => {
-      if (!session?.accessToken) {
-        setIsLoading(false);
-        return;
-      }
+    void fetchCalendars();
+  }, [profile?.id]);
 
+  // WebSocket connection for real-time calendar updates
+  useEffect(() => {
+    if (!profile?.id) {
+      return;
+    }
+
+    // Get WebSocket URL from environment
+    const recallaiBaseUrl = import.meta.env.VITE_RECALLAI_BASE_URL;
+    if (!recallaiBaseUrl) {
+      console.warn('VITE_RECALLAI_BASE_URL not set, WebSocket updates disabled');
+      return;
+    }
+
+    // Convert https to wss, http to ws
+    const wsUrl = recallaiBaseUrl
+      .replace(/^https:/, 'wss:')
+      .replace(/^http:/, 'ws:')
+      .replace(/\/$/, '') + `/ws/calendar-updates?userId=${profile.id}`;
+
+    console.log('Connecting to WebSocket for calendar updates:', wsUrl);
+    const ws = new WebSocket(wsUrl);
+
+    ws.onopen = () => {
+      console.log('WebSocket connected for calendar updates');
+      setWsConnection(ws);
+    };
+
+    ws.onmessage = (event) => {
       try {
-        const token = await ensureFreshAccessToken();
-        if (token) {
-          console.log('Fetching calendars with token...');
-          const connected = await getConnectedCalendars(token, profile?.id);
-          console.log('Calendars fetched:', connected);
-          setCalendars(connected);
+        const data = JSON.parse(event.data);
+        if (data.type === 'calendar_update') {
+          console.log('Received calendar update:', data.data);
+          const updatedCalendarId = data.data?.calendar_id;
+          
+          // Refresh calendars and meetings when update is received
+          void fetchCalendars().then(() => {
+            // If viewing a calendar that was updated, refresh its details
+            // Use ref to get the latest selected calendar ID (avoid stale closure)
+            const currentSelectedId = selectedCalendarIdRef.current;
+            if (currentSelectedId && updatedCalendarId === currentSelectedId) {
+              console.log('Refreshing calendar details for:', currentSelectedId);
+              // Small delay to ensure fetchCalendars completes
+              setTimeout(() => {
+                void handleViewCalendar(currentSelectedId);
+              }, 300);
+            }
+          });
+        } else if (data.type === 'pong') {
+          // Keepalive response
         }
       } catch (error) {
-        console.error('Error fetching calendars:', error);
-        setError(
-          error instanceof Error
-            ? error.message
-            : 'Failed to load calendar connections. Please check if VITE_RECALLAI_BASE_URL is configured.'
-        );
-      } finally {
-        setIsLoading(false);
+        console.error('Error parsing WebSocket message:', error);
       }
     };
 
-    void fetchCalendars();
-  }, [session, ensureFreshAccessToken, profile?.id]);
+    ws.onerror = (error) => {
+      console.error('WebSocket error:', error);
+    };
+
+    ws.onclose = () => {
+      console.log('WebSocket disconnected, attempting reconnect...');
+      setWsConnection(null);
+      // Attempt to reconnect after 3 seconds
+      setTimeout(() => {
+        if (profile?.id) {
+          // Reconnect will be handled by useEffect
+        }
+      }, 3000);
+    };
+
+    // Cleanup on unmount
+    return () => {
+      if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+        ws.close();
+      }
+    };
+  }, [profile?.id]);
+
+  // Keepalive ping every 30 seconds
+  useEffect(() => {
+    if (!wsConnection || wsConnection.readyState !== WebSocket.OPEN) {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      if (wsConnection.readyState === WebSocket.OPEN) {
+        wsConnection.send(JSON.stringify({ type: 'ping' }));
+      }
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [wsConnection]);
 
   const isConnected = (platform: 'google_calendar' | 'microsoft_outlook'): boolean => {
     return calendars.some((cal) => cal.platform === platform && cal.connected);
@@ -94,7 +234,7 @@ export function IntegrationsPage(): JSX.Element {
   };
 
   const handleConnect = async (integration: CalendarIntegration) => {
-    if (!session?.accessToken || !profile?.id) {
+    if (!profile?.id) {
       setError('Please login to connect calendars');
       return;
     }
@@ -104,13 +244,8 @@ export function IntegrationsPage(): JSX.Element {
     setSuccessMessage(null);
 
     try {
-      const token = await ensureFreshAccessToken();
-      if (!token) {
-        throw new Error('Unable to authenticate');
-      }
-
       // Get both URLs at once - simple like root_view
-      const connectUrls = await getCalendarConnectUrls(token, profile.id);
+      const connectUrls = await getCalendarConnectUrls(profile.id);
       
       // Redirect to the appropriate OAuth provider
       const authUrl =
@@ -131,7 +266,7 @@ export function IntegrationsPage(): JSX.Element {
   };
 
   const handleViewCalendar = async (calendarId: string) => {
-    if (!session?.accessToken) {
+    if (!profile?.id) {
       setError('Please login to view calendar details');
       return;
     }
@@ -141,13 +276,9 @@ export function IntegrationsPage(): JSX.Element {
     setSuccessMessage(null);
 
     try {
-      const token = await ensureFreshAccessToken();
-      if (!token) {
-        throw new Error('Unable to authenticate');
-      }
-
-      const details = await getCalendarDetails(token, calendarId);
+      const details = await getCalendarDetails(calendarId, profile.id);
       setSelectedCalendar(details);
+      selectedCalendarIdRef.current = calendarId; // Update ref when calendar is viewed
     } catch (error) {
       console.error('Error fetching calendar details:', error);
       setError(error instanceof Error ? error.message : 'Failed to load calendar details');
@@ -158,13 +289,14 @@ export function IntegrationsPage(): JSX.Element {
 
   const handleCloseCalendarDetails = () => {
     setSelectedCalendar(null);
+    selectedCalendarIdRef.current = null; // Clear ref when calendar details are closed
   };
 
   const handleUpdatePreferences = async (calendarId: string, preferences: {
     autoRecordExternalEvents: boolean;
     autoRecordOnlyConfirmedEvents: boolean;
   }) => {
-    if (!session?.accessToken) {
+    if (!profile?.id) {
       setError('Please login to update preferences');
       return;
     }
@@ -173,15 +305,10 @@ export function IntegrationsPage(): JSX.Element {
     setSuccessMessage(null);
 
     try {
-      const token = await ensureFreshAccessToken();
-      if (!token) {
-        throw new Error('Unable to authenticate');
-      }
-
-      await updateCalendarPreferences(token, calendarId, preferences);
+      await updateCalendarPreferences(calendarId, preferences, profile.id);
 
       // Refresh calendar details
-      const details = await getCalendarDetails(token, calendarId);
+      const details = await getCalendarDetails(calendarId, profile.id);
       setSelectedCalendar(details);
       setSuccessMessage('Recording preferences updated successfully');
     } catch (error) {
@@ -191,7 +318,7 @@ export function IntegrationsPage(): JSX.Element {
   };
 
   const handleSyncEvents = async (calendarId: string) => {
-    if (!session?.accessToken) {
+    if (!profile?.id) {
       setError('Please login to sync events');
       return;
     }
@@ -201,16 +328,11 @@ export function IntegrationsPage(): JSX.Element {
     setSuccessMessage(null);
 
     try {
-      const token = await ensureFreshAccessToken();
-      if (!token) {
-        throw new Error('Unable to authenticate');
-      }
-
-      const result = await syncCalendarEvents(token, calendarId);
+      const result = await syncCalendarEvents(calendarId, profile.id);
       setSuccessMessage(result.message);
 
       // Refresh calendar details
-      const details = await getCalendarDetails(token, calendarId);
+      const details = await getCalendarDetails(calendarId, profile.id);
       setSelectedCalendar(details);
     } catch (error) {
       console.error('Error syncing events:', error);
@@ -221,24 +343,55 @@ export function IntegrationsPage(): JSX.Element {
   };
 
   const handleSetManualRecord = async (eventId: string, manualRecord: boolean | null) => {
-    if (!session?.accessToken || !selectedCalendar) {
+    if (!profile?.id || !selectedCalendar) {
       return;
     }
 
     try {
-      const token = await ensureFreshAccessToken();
-      if (!token) {
-        throw new Error('Unable to authenticate');
-      }
-
-      await setEventManualRecord(token, eventId, manualRecord);
+      await setEventManualRecord(eventId, manualRecord, profile.id);
 
       // Refresh calendar details
-      const details = await getCalendarDetails(token, selectedCalendar.id);
+      const details = await getCalendarDetails(selectedCalendar.id, profile.id);
       setSelectedCalendar(details);
+      
+      // Refresh all meetings
+      await fetchCalendars();
     } catch (error) {
       console.error('Error setting manual record:', error);
       setError(error instanceof Error ? error.message : 'Failed to set manual record');
+    }
+  };
+
+  const handleCreateBotForEvent = async (eventId: string) => {
+    if (!profile?.id) {
+      setError('Please login to create bots');
+      return;
+    }
+
+    setCreatingBot(eventId);
+    setError(null);
+    setSuccessMessage(null);
+
+    try {
+      const result = await createBotForEvent(eventId, profile.id);
+      
+      if (result.success) {
+        setSuccessMessage(result.message || 'Bot created successfully');
+        // Refresh calendar details if viewing a calendar
+        if (selectedCalendar) {
+          const details = await getCalendarDetails(selectedCalendar.id, profile.id);
+          setSelectedCalendar(details);
+        }
+        // Refresh all meetings
+        await fetchCalendars();
+      } else {
+        setError(result.error || 'Failed to create bot');
+      }
+    } catch (error) {
+      console.error('Error creating bot:', error);
+      setError(error instanceof Error ? error.message : 'Failed to create bot');
+    } finally {
+      setCreatingBot(null);
     }
   };
 
@@ -246,7 +399,7 @@ export function IntegrationsPage(): JSX.Element {
     const connection = getCalendarConnection(integration.platform);
     if (!connection) return;
 
-    if (!session?.accessToken) {
+    if (!profile?.id) {
       setError('Please login to disconnect calendars');
       return;
     }
@@ -259,21 +412,16 @@ export function IntegrationsPage(): JSX.Element {
     setSuccessMessage(null);
 
     try {
-      const token = await ensureFreshAccessToken();
-      if (!token) {
-        throw new Error('Unable to authenticate');
-      }
+      await disconnectCalendar(connection.id, profile.id);
 
-      await disconnectCalendar(token, connection.id);
-
-      // Refresh calendar list
-      const connected = await getConnectedCalendars(token);
-      setCalendars(connected);
+      // Refresh calendar list and meetings
+      await fetchCalendars();
       setSuccessMessage(`${integration.name} disconnected successfully`);
       
       // Close calendar details if it was open
       if (selectedCalendar?.id === connection.id) {
         setSelectedCalendar(null);
+        selectedCalendarIdRef.current = null; // Clear ref when calendar is closed
       }
     } catch (error) {
       console.error('Error disconnecting calendar:', error);
@@ -306,7 +454,7 @@ export function IntegrationsPage(): JSX.Element {
           {/* Error Message */}
           {error && (
             <div className="mb-4 md:mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 font-nunito text-sm text-red-600">
-              {/* {error} */}
+              {error}
             </div>
           )}
 
@@ -410,6 +558,152 @@ export function IntegrationsPage(): JSX.Element {
               );
             })}
           </div>
+
+          {/* All Meetings from All Calendars */}
+          {allMeetings.length > 0 && (
+            <div className="mt-8 md:mt-10">
+              <h2 className="font-spaceGrotesk text-xl md:text-2xl font-bold text-ellieBlack mb-4 md:mb-6">
+                All Meetings
+              </h2>
+              <div className="space-y-6">
+                {allMeetings.map((calendarMeetings) => (
+                  <div key={calendarMeetings.calendarId} className="bg-white border border-gray-200 rounded-lg p-4 md:p-6 shadow-md">
+                    <h3 className="font-nunito text-lg font-bold text-ellieBlack mb-4">
+                      {calendarMeetings.calendarName} ({calendarMeetings.calendarPlatform === 'google_calendar' ? 'Google' : 'Microsoft'})
+                    </h3>
+                    {calendarMeetings.events.length > 0 ? (
+                      <div className="overflow-x-auto">
+                        <table className="w-full border-collapse border border-gray-300">
+                          <thead>
+                            <tr className="bg-gray-50">
+                              <th className="border border-gray-300 px-3 py-2 text-left font-nunito text-xs font-semibold text-ellieBlack">
+                                Title
+                              </th>
+                              <th className="border border-gray-300 px-3 py-2 text-left font-nunito text-xs font-semibold text-ellieBlack">
+                                Start Time
+                              </th>
+                              <th className="border border-gray-300 px-3 py-2 text-left font-nunito text-xs font-semibold text-ellieBlack">
+                                End Time
+                              </th>
+                              <th className="border border-gray-300 px-3 py-2 text-left font-nunito text-xs font-semibold text-ellieBlack">
+                                Meeting URL
+                              </th>
+                              <th className="border border-gray-300 px-3 py-2 text-left font-nunito text-xs font-semibold text-ellieBlack">
+                                Status
+                              </th>
+                              <th className="border border-gray-300 px-3 py-2 text-left font-nunito text-xs font-semibold text-ellieBlack">
+                                Actions
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {calendarMeetings.events.map((event) => {
+                              const startTime = event.start_time ? new Date(event.start_time) : null;
+                              const endTime = event.end_time ? new Date(event.end_time) : null;
+                              const now = new Date();
+                              let status = '-';
+                              let statusColor = 'text-ellieGray';
+                              const isPast = startTime && endTime && endTime < now;
+                              const isFuture = startTime && startTime > now;
+                              const hasBot = (event as any).bots && Array.isArray((event as any).bots) && (event as any).bots.length > 0;
+
+                              if (startTime && endTime) {
+                                if (startTime > now) {
+                                  status = 'Upcoming';
+                                  statusColor = 'text-blue-600 font-bold';
+                                } else if (endTime > now) {
+                                  status = '🔴 Live Now';
+                                  statusColor = 'text-green-600 font-bold';
+                                } else {
+                                  status = 'Completed';
+                                  statusColor = 'text-gray-500';
+                                }
+                              }
+
+                              return (
+                                <tr key={event.id} className="hover:bg-gray-50">
+                                  <td className="border border-gray-300 px-3 py-2 font-nunito text-xs text-ellieBlack font-semibold">
+                                    {event.title}
+                                  </td>
+                                  <td className="border border-gray-300 px-3 py-2 font-nunito text-xs text-ellieGray">
+                                    {startTime
+                                      ? startTime.toLocaleString('en-US', {
+                                          year: 'numeric',
+                                          month: '2-digit',
+                                          day: '2-digit',
+                                          hour: '2-digit',
+                                          minute: '2-digit',
+                                        })
+                                      : 'N/A'}
+                                  </td>
+                                  <td className="border border-gray-300 px-3 py-2 font-nunito text-xs text-ellieGray">
+                                    {endTime
+                                      ? endTime.toLocaleString('en-US', {
+                                          year: 'numeric',
+                                          month: '2-digit',
+                                          day: '2-digit',
+                                          hour: '2-digit',
+                                          minute: '2-digit',
+                                        })
+                                      : 'N/A'}
+                                  </td>
+                                  <td className="border border-gray-300 px-3 py-2 font-nunito text-xs">
+                                    {event.meeting_url ? (
+                                      <a
+                                        href={event.meeting_url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-ellieBlue hover:underline"
+                                      >
+                                        Join
+                                      </a>
+                                    ) : (
+                                      'N/A'
+                                    )}
+                                  </td>
+                                  <td className={`border border-gray-300 px-3 py-2 font-nunito text-xs ${statusColor}`}>
+                                    {status}
+                                  </td>
+                                  <td className="border border-gray-300 px-3 py-2 font-nunito text-xs">
+                                    {/* Only show Create Bot for past/completed meetings without bots */}
+                                    {event.meeting_url && isPast && !hasBot && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleCreateBotForEvent(event.id)}
+                                        disabled={creatingBot === event.id}
+                                        className="px-2 py-1 rounded bg-ellieBlue text-white font-nunito text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                                      >
+                                        {creatingBot === event.id ? 'Creating...' : 'Create Bot'}
+                                      </button>
+                                    )}
+                                    {/* Show status for future meetings (bots are auto-created) */}
+                                    {isFuture && hasBot && (
+                                      <span className="text-green-600 font-semibold">Bot Scheduled</span>
+                                    )}
+                                    {isFuture && !hasBot && (
+                                      <span className="text-blue-600">Bot will be created automatically</span>
+                                    )}
+                                    {/* Show status for past meetings */}
+                                    {isPast && hasBot && (
+                                      <span className="text-green-600 font-semibold">Bot Created</span>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <p className="font-nunito text-sm text-ellieGray">
+                        No events found. Click "View Details" and then "Sync Events" to fetch events from this calendar.
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Calendar Details Modal/Expanded View */}
           {selectedCalendar && (
@@ -541,6 +835,9 @@ export function IntegrationsPage(): JSX.Element {
                           const now = new Date();
                           let status = '-';
                           let statusColor = 'text-ellieGray';
+                          const isPast = startTime && endTime && endTime < now;
+                          const isFuture = startTime && startTime > now;
+                          const hasBot = (event as any).bots && Array.isArray((event as any).bots) && (event as any).bots.length > 0;
 
                           if (startTime && endTime) {
                             if (startTime > now) {
@@ -600,27 +897,51 @@ export function IntegrationsPage(): JSX.Element {
                                 {status}
                               </td>
                               <td className="border border-gray-300 px-3 py-2 font-nunito text-xs">
-                                <select
-                                  value={
-                                    event.should_record_manual === true
-                                      ? 'true'
-                                      : event.should_record_manual === false
-                                        ? 'false'
-                                        : ''
-                                  }
-                                  onChange={(e) => {
-                                    const value = e.target.value;
-                                    handleSetManualRecord(
-                                      event.id,
-                                      value === 'true' ? true : value === 'false' ? false : null
-                                    );
-                                  }}
-                                  className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
-                                >
-                                  <option value="">Not Set</option>
-                                  <option value="true">Record</option>
-                                  <option value="false">Don't Record</option>
-                                </select>
+                                <div className="flex flex-col gap-2">
+                                  <select
+                                    value={
+                                      event.should_record_manual === true
+                                        ? 'true'
+                                        : event.should_record_manual === false
+                                          ? 'false'
+                                          : ''
+                                    }
+                                    onChange={(e) => {
+                                      const value = e.target.value;
+                                      handleSetManualRecord(
+                                        event.id,
+                                        value === 'true' ? true : value === 'false' ? false : null
+                                      );
+                                    }}
+                                    className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
+                                  >
+                                    <option value="">Not Set</option>
+                                    <option value="true">Record</option>
+                                    <option value="false">Don't Record</option>
+                                  </select>
+                                  {/* Only show Create Bot for past/completed meetings without bots */}
+                                  {event.meeting_url && isPast && !hasBot && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleCreateBotForEvent(event.id)}
+                                      disabled={creatingBot === event.id}
+                                      className="px-2 py-1 rounded bg-ellieBlue text-white font-nunito text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                      {creatingBot === event.id ? 'Creating...' : 'Create Bot'}
+                                    </button>
+                                  )}
+                                  {/* Show status for future meetings (bots are auto-created) */}
+                                  {isFuture && hasBot && (
+                                    <span className="text-green-600 font-semibold text-xs">Bot Scheduled</span>
+                                  )}
+                                  {isFuture && !hasBot && (
+                                    <span className="text-blue-600 text-xs">Bot will be created automatically</span>
+                                  )}
+                                  {/* Show status for past meetings */}
+                                  {isPast && hasBot && (
+                                    <span className="text-green-600 font-semibold text-xs">Bot Created</span>
+                                  )}
+                                </div>
                               </td>
                             </tr>
                           );

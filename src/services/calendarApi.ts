@@ -15,6 +15,12 @@ export interface CalendarEvent {
   end_time: string | null;
   meeting_url?: string;
   should_record_manual: boolean | null;
+  bots?: Array<{
+    bot_id: string;
+    join_at: string;
+    created_at: string;
+    status: string;
+  }>;
 }
 
 export interface CalendarWebhook {
@@ -36,13 +42,13 @@ export interface CalendarDetails {
 
 /**
  * Get the recallai backend base URL from environment variable
- * Should be set to your ngrok public URL (e.g., https://xxxx-xx-xx-xx-xx.ngrok.io)
+ * Should be set to your backend server URL (e.g., http://16.16.183.96:3003)
  */
 function getRecallaiBaseUrl(): string | null {
   const raw = import.meta.env.VITE_RECALLAI_BASE_URL;
   if (typeof raw !== 'string' || !raw.trim()) {
     console.warn(
-      'VITE_RECALLAI_BASE_URL is not configured. Please set it in your .env file to your ngrok public URL (e.g., https://xxxx-xx-xx-xx-xx.ngrok.io)'
+      'VITE_RECALLAI_BASE_URL is not configured. Please set it in your .env file to your backend server URL (e.g., http://16.16.183.96:3003)'
     );
     return null;
   }
@@ -68,8 +74,7 @@ function buildRecallaiUrl(path: string): string | null {
  * Checks both main API and recallai backend
  */
 export async function getConnectedCalendars(
-  token: string,
-  userId?: string
+  userId: string
 ): Promise<CalendarConnection[]> {
   // Check recallai backend first (primary source for calendar data)
   const recallaiUrl = buildRecallaiUrl('/api/calendars');
@@ -88,8 +93,8 @@ export async function getConnectedCalendars(
         response = await fetch(url, {
           method: 'GET',
           headers: {
-            Authorization: `Bearer ${token}`,
             Accept: 'application/json',
+            'ngrok-skip-browser-warning': 'true', // Bypass ngrok interstitial page
           },
           // Don't include credentials to avoid CORS issues
           // credentials: 'include',
@@ -99,7 +104,7 @@ export async function getConnectedCalendars(
       } catch (fetchError) {
         console.error('Fetch error (network/CORS issue):', fetchError);
         throw new Error(
-          `Failed to fetch calendars. This might be a CORS issue. Check browser console and ensure VITE_RECALLAI_BASE_URL is set to your ngrok URL. Error: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`
+          `Failed to fetch calendars. This might be a CORS issue. Check browser console and ensure VITE_RECALLAI_BASE_URL is set to your backend server URL. Error: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`
         );
       }
       
@@ -110,8 +115,32 @@ export async function getConnectedCalendars(
       if (contentType.includes('text/html')) {
         const text = await response.text();
         console.error('Server returned HTML instead of JSON. Response:', text.substring(0, 500));
+        console.error('Request URL was:', url);
+        console.error('Response URL was:', response.url);
+        
+        // Check if it's ngrok's interstitial page (legacy support)
+        if (text.includes('ngrok') && (text.includes('Visit Site') || text.includes('Continue'))) {
+          throw new Error(
+            `Ngrok interstitial page detected. You need to visit the URL in your browser first to bypass the warning page, or add the ngrok-skip-browser-warning header.\n\nURL: ${url}\n\nTo fix: Visit ${getRecallaiBaseUrl()} in your browser and click "Visit Site", then try again.`
+          );
+        }
+        
+        // Check if it's a redirect to a login page or error page
+        if (text.includes('sign-in') || text.includes('login') || text.includes('Sign In')) {
+          throw new Error(
+            'Authentication failed. Please check your access token. The server redirected to a login page.'
+          );
+        }
+        
+        // Check if it's a 404 page
+        if (text.includes('404') || text.includes('Not Found')) {
+          throw new Error(
+            `API endpoint not found. Check if the URL is correct: ${url}. Make sure VITE_RECALLAI_BASE_URL is set to your backend server URL (e.g., http://16.16.183.96:3003)`
+          );
+        }
+        
         throw new Error(
-          `Server returned HTML (likely an error page). Status: ${response.status}. Check if VITE_RECALLAI_BASE_URL is configured correctly.`
+          `Server returned HTML instead of JSON. Status: ${response.status}. This usually means:\n1. VITE_RECALLAI_BASE_URL is incorrect\n2. The API endpoint path is wrong\n3. Authentication failed and server redirected to a login page\n4. Server returned an error page\n\nRequest URL: ${url}\nResponse URL: ${response.url}\n\nCheck your .env file and ensure VITE_RECALLAI_BASE_URL is set to your backend server URL (e.g., http://16.16.183.96:3003).`
         );
       }
 
@@ -164,18 +193,19 @@ export async function getConnectedCalendars(
     }
   } else {
     console.warn(
-      'VITE_RECALLAI_BASE_URL is not configured. Please set it in your .env file to your ngrok public URL.'
+      'VITE_RECALLAI_BASE_URL is not configured. Please set it in your .env file to your backend server URL.'
     );
   }
 
   // Fallback: Try main API (if it has calendar endpoints)
+  // Note: This fallback is not used since we removed authentication
+  // Keeping it for potential future use
   const apiBaseUrl = getApiBaseUrl();
   if (apiBaseUrl) {
     try {
       const response = await fetch(`${apiBaseUrl}/calendars/`, {
         method: 'GET',
         headers: {
-          Authorization: `Bearer ${token}`,
           Accept: 'application/json',
         },
       });
@@ -207,13 +237,12 @@ export async function getConnectedCalendars(
  * Returns both URLs at once
  */
 export async function getCalendarConnectUrls(
-  token: string,
   userId: string
 ): Promise<{ googleCalendar: string; microsoftOutlook: string }> {
   const recallaiUrl = buildRecallaiUrl('/api/calendar/connect-urls');
   if (!recallaiUrl) {
     throw new Error(
-      'Recallai backend URL is not configured. Set VITE_RECALLAI_BASE_URL in your .env file to your ngrok public URL (e.g., https://xxxx-xx-xx-xx-xx.ngrok.io)'
+      'Recallai backend URL is not configured. Set VITE_RECALLAI_BASE_URL in your .env file to your backend server URL (e.g., http://16.16.183.96:3003)'
     );
   }
 
@@ -224,8 +253,8 @@ export async function getCalendarConnectUrls(
     const response = await fetch(url, {
       method: 'GET',
       headers: {
-        Authorization: `Bearer ${token}`,
         Accept: 'application/json',
+        'ngrok-skip-browser-warning': 'true', // Bypass ngrok interstitial page
       },
     });
 
@@ -288,10 +317,10 @@ export async function getCalendarConnectUrls(
  * Get calendar details with events and webhooks
  */
 export async function getCalendarDetails(
-  token: string,
-  calendarId: string
+  calendarId: string,
+  userId?: string
 ): Promise<CalendarDetails> {
-  const recallaiUrl = buildRecallaiUrl(`/api/calendar/${calendarId}`);
+  const recallaiUrl = buildRecallaiUrl(`/api/calendar/${calendarId}${userId ? `?userId=${userId}` : ''}`);
   if (!recallaiUrl) {
     throw new Error('Recallai backend URL is not configured.');
   }
@@ -299,8 +328,8 @@ export async function getCalendarDetails(
   const response = await fetch(recallaiUrl, {
     method: 'GET',
     headers: {
-      Authorization: `Bearer ${token}`,
       Accept: 'application/json',
+      'ngrok-skip-browser-warning': 'true', // Bypass ngrok interstitial page
     },
   });
 
@@ -316,14 +345,14 @@ export async function getCalendarDetails(
  * Update calendar preferences
  */
 export async function updateCalendarPreferences(
-  token: string,
   calendarId: string,
   preferences: {
     autoRecordExternalEvents: boolean;
     autoRecordOnlyConfirmedEvents: boolean;
-  }
+  },
+  userId?: string
 ): Promise<void> {
-  const recallaiUrl = buildRecallaiUrl(`/api/calendar/${calendarId}/update`);
+  const recallaiUrl = buildRecallaiUrl(`/api/calendar/${calendarId}/update${userId ? `?userId=${userId}` : ''}`);
   if (!recallaiUrl) {
     throw new Error('Recallai backend URL is not configured.');
   }
@@ -331,9 +360,9 @@ export async function updateCalendarPreferences(
   const response = await fetch(recallaiUrl, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
       Accept: 'application/json',
+      'ngrok-skip-browser-warning': 'true', // Bypass ngrok interstitial page
     },
     body: JSON.stringify(preferences),
   });
@@ -348,10 +377,10 @@ export async function updateCalendarPreferences(
  * Sync calendar events
  */
 export async function syncCalendarEvents(
-  token: string,
-  calendarId: string
+  calendarId: string,
+  userId?: string
 ): Promise<{ success: boolean; message: string; upserted: number; deleted: number }> {
-  const recallaiUrl = buildRecallaiUrl(`/api/calendar/${calendarId}/sync`);
+  const recallaiUrl = buildRecallaiUrl(`/api/calendar/${calendarId}/sync${userId ? `?userId=${userId}` : ''}`);
   if (!recallaiUrl) {
     throw new Error('Recallai backend URL is not configured.');
   }
@@ -359,8 +388,8 @@ export async function syncCalendarEvents(
   const response = await fetch(recallaiUrl, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${token}`,
       Accept: 'application/json',
+      'ngrok-skip-browser-warning': 'true', // Bypass ngrok interstitial page
     },
   });
 
@@ -376,11 +405,11 @@ export async function syncCalendarEvents(
  * Set manual record preference for an event
  */
 export async function setEventManualRecord(
-  token: string,
   eventId: string,
-  manualRecord: boolean | null
+  manualRecord: boolean | null,
+  userId?: string
 ): Promise<void> {
-  const recallaiUrl = buildRecallaiUrl(`/api/calendar-event/${eventId}/set-manual-record`);
+  const recallaiUrl = buildRecallaiUrl(`/api/calendar-event/${eventId}/set-manual-record${userId ? `?userId=${userId}` : ''}`);
   if (!recallaiUrl) {
     throw new Error('Recallai backend URL is not configured.');
   }
@@ -388,9 +417,9 @@ export async function setEventManualRecord(
   const response = await fetch(recallaiUrl, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
       Accept: 'application/json',
+      'ngrok-skip-browser-warning': 'true', // Bypass ngrok interstitial page
     },
     body: JSON.stringify({ manualRecord: manualRecord }),
   });
@@ -404,8 +433,8 @@ export async function setEventManualRecord(
 /**
  * Disconnect a calendar
  */
-export async function disconnectCalendar(token: string, calendarId: string): Promise<void> {
-  const recallaiUrl = buildRecallaiUrl(`/api/calendar/${calendarId}/delete`);
+export async function disconnectCalendar(calendarId: string, userId?: string): Promise<void> {
+  const recallaiUrl = buildRecallaiUrl(`/api/calendar/${calendarId}/delete${userId ? `?userId=${userId}` : ''}`);
   if (!recallaiUrl) {
     throw new Error('Recallai backend URL is not configured.');
   }
@@ -413,8 +442,8 @@ export async function disconnectCalendar(token: string, calendarId: string): Pro
   const response = await fetch(recallaiUrl, {
     method: 'DELETE',
     headers: {
-      Authorization: `Bearer ${token}`,
       Accept: 'application/json',
+      'ngrok-skip-browser-warning': 'true', // Bypass ngrok interstitial page
     },
   });
 
@@ -422,5 +451,33 @@ export async function disconnectCalendar(token: string, calendarId: string): Pro
     const errorText = await response.text();
     throw new Error(`Failed to disconnect calendar: ${errorText}`);
   }
+}
+
+/**
+ * Create a bot for a calendar event (for previous meetings)
+ */
+export async function createBotForEvent(
+  eventId: string,
+  userId?: string
+): Promise<{ success: boolean; message: string; bot_id?: string; join_at?: string; error?: string }> {
+  const recallaiUrl = buildRecallaiUrl(`/api/calendar-event/${eventId}/create-bot${userId ? `?userId=${userId}` : ''}`);
+  if (!recallaiUrl) {
+    throw new Error('Recallai backend URL is not configured.');
+  }
+
+  const response = await fetch(recallaiUrl, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'ngrok-skip-browser-warning': 'true', // Bypass ngrok interstitial page
+    },
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: 'Failed to create bot' }));
+    throw new Error(errorData.error || 'Failed to create bot');
+  }
+
+  return await response.json();
 }
 
