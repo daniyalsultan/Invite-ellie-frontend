@@ -50,6 +50,21 @@ function AuthRedirectHandler(): null {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Handle SSO callback code parameter - redirect to /auth/callback if code is present
+    // This handles cases where OAuth providers redirect to root or other pages instead of /auth/callback
+    if (location.pathname !== '/auth/callback') {
+      const searchParams = new URLSearchParams(location.search);
+      const code = searchParams.get('code');
+      
+      // If we have a code parameter and we're not already on the callback page, redirect there
+      if (code) {
+        // Preserve all query parameters when redirecting
+        const params = new URLSearchParams(location.search);
+        navigate(`/auth/callback?${params.toString()}`, { replace: true });
+        return;
+      }
+    }
+
     // Handle Supabase email confirmation redirect from /auth/confirm
     if (location.pathname === '/auth/confirm' && location.hash) {
       const hashParams = new URLSearchParams(location.hash.substring(1));
