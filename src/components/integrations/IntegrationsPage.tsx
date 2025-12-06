@@ -62,6 +62,9 @@ export function IntegrationsPage(): JSX.Element {
   }>>([]);
   const [wsConnection, setWsConnection] = useState<WebSocket | null>(null);
   const selectedCalendarIdRef = useRef<string | null>(null);
+  // Refs to store latest function references for WebSocket handler
+  const fetchCalendarsRef = useRef<(() => Promise<void>) | null>(null);
+  const handleViewCalendarRef = useRef<((calendarId: string) => Promise<void>) | null>(null);
 
   // Handle OAuth callback redirects
   useEffect(() => {
@@ -126,6 +129,15 @@ export function IntegrationsPage(): JSX.Element {
     }
   };
 
+  // Update refs with latest function references on every render
+  useEffect(() => {
+    fetchCalendarsRef.current = fetchCalendars;
+  });
+  
+  useEffect(() => {
+    handleViewCalendarRef.current = handleViewCalendar;
+  });
+
   useEffect(() => {
     void fetchCalendars();
   }, [profile?.id]);
@@ -143,66 +155,103 @@ export function IntegrationsPage(): JSX.Element {
       return;
     }
 
-    // Convert https to wss, http to ws
-    const wsUrl = recallaiBaseUrl
-      .replace(/^https:/, 'wss:')
-      .replace(/^http:/, 'ws:')
-      .replace(/\/$/, '') + `/ws/calendar-updates?userId=${profile.id}`;
+    let ws: WebSocket | null = null;
+    let reconnectTimeout: number | null = null;
+    let isManualClose = false;
 
-    console.log('Connecting to WebSocket for calendar updates:', wsUrl);
-    const ws = new WebSocket(wsUrl);
+    const connectWebSocket = () => {
+      // Convert https to wss, http to ws
+      const wsUrl = recallaiBaseUrl
+        .replace(/^https:/, 'wss:')
+        .replace(/^http:/, 'ws:')
+        .replace(/\/$/, '') + `/ws/calendar-updates?userId=${profile.id}`;
 
-    ws.onopen = () => {
-      console.log('WebSocket connected for calendar updates');
-      setWsConnection(ws);
-    };
+      console.log('Connecting to WebSocket for calendar updates:', wsUrl);
+      ws = new WebSocket(wsUrl);
 
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data.type === 'calendar_update') {
-          console.log('Received calendar update:', data.data);
-          const updatedCalendarId = data.data?.calendar_id;
+      ws.onopen = () => {
+        console.log('WebSocket connected for calendar updates');
+        setWsConnection(ws);
+        // Clear any pending reconnect timeout
+        if (reconnectTimeout) {
+          clearTimeout(reconnectTimeout);
+          reconnectTimeout = null;
+        }
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          console.log('WebSocket message received:', data);
           
-          // Refresh calendars and meetings when update is received
-          void fetchCalendars().then(() => {
-            // If viewing a calendar that was updated, refresh its details
-            // Use ref to get the latest selected calendar ID (avoid stale closure)
-            const currentSelectedId = selectedCalendarIdRef.current;
-            if (currentSelectedId && updatedCalendarId === currentSelectedId) {
-              console.log('Refreshing calendar details for:', currentSelectedId);
-              // Small delay to ensure fetchCalendars completes
-              setTimeout(() => {
-                void handleViewCalendar(currentSelectedId);
-              }, 300);
+          if (data.type === 'calendar_update') {
+            console.log('Received calendar update:', data.data);
+            const updatedCalendarId = data.data?.calendar_id;
+            
+            // Refresh calendars and meetings when update is received
+            // Use ref to get latest function reference (avoids stale closure)
+            const fetchCalendarsFn = fetchCalendarsRef.current;
+            const handleViewCalendarFn = handleViewCalendarRef.current;
+            
+            if (fetchCalendarsFn) {
+              void fetchCalendarsFn().then(() => {
+                // If viewing a calendar that was updated, refresh its details
+                // Use ref to get the latest selected calendar ID (avoid stale closure)
+                const currentSelectedId = selectedCalendarIdRef.current;
+                if (currentSelectedId && updatedCalendarId === currentSelectedId && handleViewCalendarFn) {
+                  console.log('Refreshing calendar details for:', currentSelectedId);
+                  // Small delay to ensure fetchCalendars completes
+                  setTimeout(() => {
+                    void handleViewCalendarFn(currentSelectedId);
+                  }, 300);
+                }
+              });
             }
-          });
-        } else if (data.type === 'pong') {
-          // Keepalive response
+          } else if (data.type === 'pong') {
+            // Keepalive response
+            console.log('Received pong from server');
+          } else {
+            console.log('Unknown WebSocket message type:', data.type);
+          }
+        } catch (error) {
+          console.error('Error parsing WebSocket message:', error);
         }
-      } catch (error) {
-        console.error('Error parsing WebSocket message:', error);
-      }
+      };
+
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+      };
+
+      ws.onclose = (event) => {
+        console.log('WebSocket disconnected', {
+          code: event.code,
+          reason: event.reason,
+          wasClean: event.wasClean,
+        });
+        setWsConnection(null);
+        
+        // Only reconnect if it wasn't a manual close and we still have a profile
+        if (!isManualClose && profile?.id) {
+          console.log('Attempting to reconnect WebSocket in 3 seconds...');
+          reconnectTimeout = setTimeout(() => {
+            if (profile?.id && !isManualClose) {
+              connectWebSocket();
+            }
+          }, 3000);
+        }
+      };
     };
 
-    ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
-    };
-
-    ws.onclose = () => {
-      console.log('WebSocket disconnected, attempting reconnect...');
-      setWsConnection(null);
-      // Attempt to reconnect after 3 seconds
-      setTimeout(() => {
-        if (profile?.id) {
-          // Reconnect will be handled by useEffect
-        }
-      }, 3000);
-    };
+    // Initial connection
+    connectWebSocket();
 
     // Cleanup on unmount
     return () => {
-      if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+      isManualClose = true;
+      if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout);
+      }
+      if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
         ws.close();
       }
     };
