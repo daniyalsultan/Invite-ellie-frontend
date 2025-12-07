@@ -6,6 +6,7 @@ import {
   SessionStorageType,
   StoredSession,
 } from '../utils/authStorage';
+import { getApiBaseUrl } from '../utils/apiBaseUrl';
 
 type Session = StoredSession;
 
@@ -31,7 +32,7 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
   const [session, setSession] = useState<SessionWithStorage | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
 
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+  const apiBaseUrl = useMemo(() => getApiBaseUrl(), []);
 
   const persistSession = useCallback((nextSession: Session, storage: SessionStorageType = 'local') => {
     setSession({ ...nextSession, storage });

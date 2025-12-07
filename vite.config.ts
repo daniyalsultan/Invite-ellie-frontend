@@ -8,7 +8,8 @@ export default defineConfig({
     host: true,
     proxy: {
       '/api': {
-        target: 'https://18.208.38.235',
+        target: 'http://18.208.38.235',
+        // target: 'http://localhost:8000',
         changeOrigin: true,
         secure: false, // Allow self-signed certificates
         cookieDomainRewrite: 'localhost',

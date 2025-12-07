@@ -54,20 +54,26 @@ export function LoginPage(): JSX.Element {
 
     try {
       const providerSlug = provider === 'microsoft' ? 'azure' : provider;
-      // Get the current frontend URL for the redirect URI
-      const currentOrigin = typeof window !== 'undefined' ? window.location.origin : '';
-      const redirectUri = `${currentOrigin}/auth/callback`;
       
-      // Pass redirect_uri as query parameter to backend
-      const url = new URL(`${apiBaseUrl}/accounts/sso/providers/${providerSlug}/`);
-      url.searchParams.set('redirect_uri', redirectUri);
+      // Construct the API URL - handle both relative and absolute URLs
+      let apiUrl: string;
+      if (apiBaseUrl.startsWith('http://') || apiBaseUrl.startsWith('https://')) {
+        // Absolute URL
+        apiUrl = `${apiBaseUrl}/accounts/sso/providers/${providerSlug}/`;
+      } else {
+        // Relative URL - prepend current origin
+        const currentOrigin = typeof window !== 'undefined' ? window.location.origin : '';
+        apiUrl = `${currentOrigin}${apiBaseUrl}/accounts/sso/providers/${providerSlug}/`;
+      }
       
-      const response = await fetch(url.toString(), {
+      // Backend uses FRONTEND_CONFIG['FRONTEND_URL'] for redirect, so we don't need to pass redirect_uri
+      // Important: credentials: 'include' is required to send session cookies
+      const response = await fetch(apiUrl, {
         method: 'GET',
         headers: {
           Accept: 'application/json',
         },
-        credentials: 'include',
+        credentials: 'include', // Required for session cookies
       });
 
       let responseData: unknown = null;

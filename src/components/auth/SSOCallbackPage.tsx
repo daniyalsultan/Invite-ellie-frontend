@@ -95,12 +95,15 @@ export function SSOCallbackPage(): JSX.Element {
         // POST /api/accounts/sso/callback/
         // Request body: {"code": "string"}
         // Response: {"access_token": "string", "refresh_token": "string", "expires_in": 0, "user_id": "string"}
-        const apiUrl = `${apiBaseUrl}/accounts/sso/callback/`;
+        // Construct the API URL properly, avoiding double slashes
+        const baseUrl = apiBaseUrl.endsWith('/') ? apiBaseUrl.slice(0, -1) : apiBaseUrl;
+        const apiUrl = `${baseUrl}/accounts/sso/callback/`;
         
         console.log('Making SSO callback request:', {
           url: apiUrl,
           method: 'POST',
           code: code ? `${code.substring(0, 10)}...` : null,
+          requestBody: { code },
         });
         
         const response = await fetch(apiUrl, {
@@ -109,7 +112,7 @@ export function SSOCallbackPage(): JSX.Element {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
           },
-          credentials: 'include',
+          credentials: 'include', // This is crucial for sending cookies in cross-origin requests
           body: JSON.stringify({ code }),
         });
 
@@ -127,28 +130,38 @@ export function SSOCallbackPage(): JSX.Element {
         }
 
         if (!response.ok) {
+          // Extract error message from response
           let message = 'Unable to complete SSO authentication.';
           
-          // Try to extract error message from response
           if (responseData && typeof responseData === 'object') {
+            // Try common error field names
             if ('error' in responseData && typeof responseData.error === 'string') {
               message = responseData.error;
             } else if ('detail' in responseData && typeof responseData.detail === 'string') {
               message = responseData.detail;
-            } else if (Array.isArray(responseData) && responseData.length > 0) {
-              message = String(responseData[0]);
+            } else if ('message' in responseData && typeof responseData.message === 'string') {
+              message = responseData.message;
+            }
+          } else if (responseText) {
+            message = responseText;
+          }
+          
+          // Log error for debugging
+          console.error('SSO callback error:', {
+            status: response.status,
+            message,
+            responseData,
+          });
+          
+          // Provide user-friendly error message
+          if (response.status === 400) {
+            const lowerMessage = message.toLowerCase();
+            if (lowerMessage.includes('pkce') || lowerMessage.includes('verifier')) {
+              message = 'Session expired. Please try signing in again.';
             }
           }
           
-          // Add status code info for debugging
-          console.error('SSO callback error:', {
-            status: response.status,
-            statusText: response.statusText,
-            responseData,
-            apiUrl,
-          });
-          
-          setError(`${message} (Status: ${response.status})`);
+          setError(message);
           setIsProcessing(false);
           setTimeout(() => {
             navigate('/login', { replace: true });

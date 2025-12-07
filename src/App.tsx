@@ -57,10 +57,11 @@ function AuthRedirectHandler(): null {
       const code = searchParams.get('code');
       
       // If we have a code parameter and we're not already on the callback page, redirect there
+      // Use window.location.href for full page reload to ensure session cookies are preserved
       if (code) {
         // Preserve all query parameters when redirecting
         const params = new URLSearchParams(location.search);
-        navigate(`/auth/callback?${params.toString()}`, { replace: true });
+        window.location.href = `/auth/callback?${params.toString()}`;
         return;
       }
     }
