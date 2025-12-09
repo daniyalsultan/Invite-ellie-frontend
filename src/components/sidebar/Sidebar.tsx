@@ -3,10 +3,12 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import dashboardIcon from '../../assets/dashboard.png';
 import workspaceIcon from '../../assets/workspace.png';
 import transcriptionIcon from '../../assets/transcription.png';
+import logo from '../../assets/logo.svg';
 // import manageRecordingsIcon from '../../assets/manage recordings.png';
 import notificationsIcon from '../../assets/notifications.png';
 import preferencesIcon from '../../assets/preferences.png';
 import integrationsIcon from '../../assets/integrations.png';
+import exportIcon from '../../assets/icon-share.png';
 import settingsIcon from '../../assets/settings.png';
 import { useAuth } from '../../context/AuthContext';
 
@@ -40,6 +42,7 @@ export function Sidebar({ activeTab }: SidebarProps): JSX.Element {
     { label: 'Dashboard', path: '/dashboard', icon: dashboardIcon },
     { label: 'Work Spaces', path: '/workspaces', icon: workspaceIcon },
     { label: 'Transcriptions', path: '/transcriptions', icon: transcriptionIcon },
+    { label: 'Ellie Meeting Assistant', path: '/ask-ellie', icon: logo },
     // { label: 'Meeting Recordings', path: '/meeting-recordings', icon: manageRecordingsIcon },
   ];
 
@@ -48,6 +51,7 @@ export function Sidebar({ activeTab }: SidebarProps): JSX.Element {
     { label: 'Notifications', path: '/notifications', icon: notificationsIcon, hasNotification: true },
     { label: 'Preferences', path: '/preferences', icon: preferencesIcon },
     { label: 'Integrations', path: '/integrations', icon: integrationsIcon },
+    { label: 'Slack Notion Export', path: '/slack-notion-export', icon: exportIcon },
     { label: 'Settings', path: '/settings', icon: settingsIcon },
   ];
 

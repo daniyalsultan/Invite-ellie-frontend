@@ -11,6 +11,7 @@ import { ResetPasswordPage } from './components/resetpassword/ResetPasswordPage'
 import { NewPasswordPage } from './components/resetpassword/NewPasswordPage';
 import { SSOCallbackPage } from './components/auth/SSOCallbackPage';
 import { IntegrationsPage } from './components/integrations';
+import { SlackNotionExportPage } from './components/slackNotionExport';
 import { PreferencesPage } from './components/preferences';
 import { SettingsPage } from './components/settings';
 import { NotificationsPage } from './components/notifications';
@@ -22,6 +23,7 @@ import { MeetingViewPage } from './components/meetingView';
 import { SearchResultsPage } from './components/search';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { ChatBot } from './components/chatbot';
+import { AskElliePage } from './components/askEllie';
 
 function ScrollToHash(): null {
   const location = useLocation();
@@ -130,12 +132,14 @@ function App(): JSX.Element {
     location.pathname === '/coming-soon' ||
     location.pathname.startsWith('/dashboard') ||
     location.pathname.startsWith('/integrations') ||
+    location.pathname.startsWith('/slack-notion-export') ||
     location.pathname.startsWith('/preferences') ||
     location.pathname.startsWith('/settings') ||
     location.pathname.startsWith('/notifications') ||
     location.pathname.startsWith('/workspaces') ||
     location.pathname.startsWith('/create-workspace') ||
     location.pathname.startsWith('/transcriptions') ||
+    location.pathname.startsWith('/ask-ellie') ||
     location.pathname.startsWith('/meeting-recordings') ||
     location.pathname.startsWith('/meeting-view') ||
     location.pathname.startsWith('/search-results');
@@ -158,6 +162,7 @@ function App(): JSX.Element {
         <Route element={<ProtectedRoute />}>
           <Route path="/setup-profile" element={<SetupProfilePage />} />
           <Route path="/integrations" element={<IntegrationsPage />} />
+          <Route path="/slack-notion-export" element={<SlackNotionExportPage />} />
           <Route path="/preferences" element={<PreferencesPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/notifications" element={<NotificationsPage />} />
@@ -166,6 +171,7 @@ function App(): JSX.Element {
           <Route path="/create-workspace" element={<CreateWorkspacePage />} />
           <Route path="/workspaces/:workspaceId" element={<WorkspaceViewPage />} />
           <Route path="/transcriptions" element={<TranscriptionsPage />} />
+          <Route path="/ask-ellie" element={<AskElliePage />} />
           <Route path="/meeting-recordings" element={<MeetingRecordingsPage />} />
           <Route path="/meeting-view" element={<MeetingViewPage />} />
         </Route>
