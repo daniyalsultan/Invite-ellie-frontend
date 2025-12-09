@@ -9,6 +9,7 @@ export default defineConfig({
     proxy: {
       '/api': {
         target: 'http://18.208.38.235',
+        
         // target: 'http://localhost:8000',
         changeOrigin: true,
         secure: false, // Allow self-signed certificates
