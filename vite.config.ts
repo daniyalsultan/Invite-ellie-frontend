@@ -10,6 +10,7 @@ export default defineConfig({
       '/api': {
         target: 'https://api.stage.inviteellie.ai',
 
+        
         // target: 'http://localhost:8000',
         changeOrigin: true,
         secure: false, // Allow self-signed certificates
