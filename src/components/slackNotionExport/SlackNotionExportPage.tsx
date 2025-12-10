@@ -52,6 +52,20 @@ export function SlackNotionExportPage(): JSX.Element {
     }
   }, [profile?.id]);
 
+  // Also check status when coming back from OAuth callback (in case profile wasn't loaded yet)
+  useEffect(() => {
+    const connected = searchParams.get('connected');
+    if ((connected === 'slack' || connected === 'notion') && profile?.id) {
+      // If we have a connection callback and profile is now loaded, refresh status
+      console.log('Profile loaded after OAuth callback, refreshing status...');
+      if (connected === 'slack') {
+        void fetchSlackStatus();
+      } else if (connected === 'notion') {
+        void fetchNotionStatus();
+      }
+    }
+  }, [profile?.id, searchParams]);
+
   // Handle OAuth callback redirects
   useEffect(() => {
     const connected = searchParams.get('connected');
@@ -72,12 +86,23 @@ export function SlackNotionExportPage(): JSX.Element {
     } else if (connected === 'notion') {
       setSuccessMessage(`Notion connected successfully${workspace ? ` to ${workspace}` : ''}`);
       setSearchParams({});
+      console.log('Notion connection callback received, workspace:', workspace);
+      console.log('Current profile.id:', profile?.id);
       // Refresh status after connection - use profile.id if available
       if (profile?.id) {
         // Small delay to ensure backend has processed the connection
+        console.log('Refreshing Notion status in 500ms...');
         setTimeout(() => {
           void fetchNotionStatus();
         }, 500);
+      } else {
+        console.warn('Profile ID not available when Notion callback received, will retry when profile loads');
+        // If profile isn't loaded yet, wait a bit and try again
+        setTimeout(() => {
+          if (profile?.id) {
+            void fetchNotionStatus();
+          }
+        }, 2000);
       }
     } else if (error) {
       setError(`Failed to connect: ${error}`);
@@ -112,7 +137,9 @@ export function SlackNotionExportPage(): JSX.Element {
 
     try {
       setError(null);
+      console.log('Fetching Notion status for user_id:', profile.id);
       const status = await getNotionStatus(profile.id);
+      console.log('Notion status response:', status);
       setNotionStatus(status);
     } catch (err) {
       console.error('Error fetching Notion status:', err);
