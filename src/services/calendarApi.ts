@@ -481,3 +481,100 @@ export async function createBotForEvent(
   return await response.json();
 }
 
+/**
+ * Get all meetings for the authenticated user (from both connected and disconnected calendars)
+ */
+export async function getAllUserMeetings(userId: string): Promise<Array<{
+  id: string;
+  calendar_id: string;
+  calendar_email: string | null;
+  calendar_platform: string;
+  calendar_status: 'connected' | 'disconnected';
+  title: string;
+  start_time: string | null;
+  end_time: string | null;
+  meeting_url: string | null;
+  platform: string;
+  should_record_manual: boolean | null;
+  bots: Array<{
+    bot_id: string;
+    join_at: string;
+    created_at: string;
+    status: string;
+  }>;
+  has_transcription: boolean;
+  has_summary: boolean;
+  has_action_items: boolean;
+  created_at: string | null;
+  updated_at: string | null;
+}>> {
+  const recallaiUrl = buildRecallaiUrl(`/api/user/meetings${userId ? `?userId=${userId}` : ''}`);
+  if (!recallaiUrl) {
+    throw new Error('Recallai backend URL is not configured.');
+  }
+
+  const response = await fetch(recallaiUrl, {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+      'ngrok-skip-browser-warning': 'true',
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to get user meetings: ${errorText}`);
+  }
+
+  return await response.json();
+}
+
+/**
+ * Get all transcriptions for the authenticated user (from both connected and disconnected calendars)
+ */
+export async function getAllUserTranscriptions(userId: string): Promise<Array<{
+  id: string;
+  event_id: string;
+  calendar_id: string | null;
+  calendar_email: string | null;
+  calendar_platform: string | null;
+  calendar_status: string;
+  bot_id: string;
+  assemblyai_transcript_id: string;
+  meeting_title: string;
+  meeting_url: string | null;
+  start_time: string | null;
+  end_time: string | null;
+  platform: string | null;
+  transcript_text: string;
+  summary: string;
+  action_items: Array<any>;
+  status: string;
+  language: string;
+  duration: number | null;
+  utterances: Array<any>;
+  words: Array<any>;
+  created_at: string | null;
+  updated_at: string | null;
+}>> {
+  const recallaiUrl = buildRecallaiUrl(`/api/user/transcriptions${userId ? `?userId=${userId}` : ''}`);
+  if (!recallaiUrl) {
+    throw new Error('Recallai backend URL is not configured.');
+  }
+
+  const response = await fetch(recallaiUrl, {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+      'ngrok-skip-browser-warning': 'true',
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to get user transcriptions: ${errorText}`);
+  }
+
+  return await response.json();
+}
+

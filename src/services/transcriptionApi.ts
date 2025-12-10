@@ -32,14 +32,17 @@ export interface ActionItem {
 export interface Transcription {
   id: string;
   event_id: string;
-  calendar_id: string;
+  calendar_id: string | null;
+  calendar_email?: string | null;
+  calendar_platform?: string | null;
+  calendar_status?: 'connected' | 'disconnected' | string;
   bot_id: string;
   assemblyai_transcript_id: string;
   meeting_title: string;
   meeting_url: string | null;
   start_time: string | null;
   end_time: string | null;
-  platform: string;
+  platform: string | null;
   transcript_text: string | null;
   summary: string | null;
   action_items: ActionItem[] | null;
@@ -78,15 +81,17 @@ export async function getTranscription(transcriptionId: string, userId: string):
 }
 
 /**
- * Get all transcriptions for meetings from connected calendars
+ * Get all transcriptions for the logged-in user (from both connected and disconnected calendars)
+ * Uses the new user API endpoint that shows all transcriptions regardless of calendar status
  */
 export async function getTranscriptions(userId: string): Promise<Transcription[]> {
-  const recallaiUrl = buildRecallaiUrl(`/api/transcriptions?userId=${userId}`);
+  // Use the new user endpoint that shows all transcriptions regardless of calendar status
+  const recallaiUrl = buildRecallaiUrl(`/api/user/transcriptions?userId=${userId}`);
   if (!recallaiUrl) {
     throw new Error('Recallai backend URL is not configured.');
   }
 
-  console.log('Fetching transcriptions from:', recallaiUrl);
+  console.log('Fetching all user transcriptions from:', recallaiUrl);
   
   const response = await fetch(recallaiUrl, {
     method: 'GET',
@@ -113,6 +118,32 @@ export async function getTranscriptions(userId: string): Promise<Transcription[]
 
   const data = await response.json();
   console.log('Transcriptions fetched successfully:', data.length, 'items');
-  return data;
+  
+  // Map the response to match the Transcription interface
+  return data.map((item: any) => ({
+    id: item.id,
+    event_id: item.event_id,
+    calendar_id: item.calendar_id || null,
+    calendar_email: item.calendar_email || null,
+    calendar_platform: item.calendar_platform || null,
+    calendar_status: item.calendar_status || 'connected',
+    bot_id: item.bot_id,
+    assemblyai_transcript_id: item.assemblyai_transcript_id || '',
+    meeting_title: item.meeting_title || 'Untitled Meeting',
+    meeting_url: item.meeting_url,
+    start_time: item.start_time,
+    end_time: item.end_time,
+    platform: item.platform || null,
+    transcript_text: item.transcript_text || '',
+    summary: item.summary || '',
+    action_items: item.action_items || [],
+    status: item.status || 'unknown',
+    language: item.language || 'en',
+    duration: item.duration,
+    utterances: item.utterances || [],
+    words: item.words || [],
+    created_at: item.created_at,
+    updated_at: item.updated_at,
+  }));
 }
 

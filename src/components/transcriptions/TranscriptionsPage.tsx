@@ -138,6 +138,64 @@ export function TranscriptionsPage(): JSX.Element {
     navigator.clipboard.writeText(link);
   };
 
+  const handleExport = async (transcriptionId: string, exportType: 'slack' | 'notion'): Promise<void> => {
+    if (!profile?.id) {
+      console.error('User not logged in');
+      return;
+    }
+
+    try {
+      console.log(`[Export ${exportType.toUpperCase()}] Fetching transcription data for ID: ${transcriptionId}`);
+      
+      // Fetch full transcription data from recall API
+      const fullTranscription = await getTranscription(transcriptionId, profile.id);
+      
+      console.log(`[Export ${exportType.toUpperCase()}] ==========================================`);
+      console.log(`[Export ${exportType.toUpperCase()}] Meeting: ${fullTranscription.meeting_title}`);
+      console.log(`[Export ${exportType.toUpperCase()}] Transcription ID: ${transcriptionId}`);
+      console.log(`[Export ${exportType.toUpperCase()}] ==========================================`);
+      
+      // Log Transcript
+      console.log(`[Export ${exportType.toUpperCase()}] --- TRANSCRIPT ---`);
+      if (fullTranscription.transcript_text) {
+        console.log(fullTranscription.transcript_text);
+      } else if (fullTranscription.utterances && fullTranscription.utterances.length > 0) {
+        const transcriptText = fullTranscription.utterances
+          .map((u: any) => `${u.speaker || 'Unknown'}: ${u.text || ''}`)
+          .join('\n');
+        console.log(transcriptText);
+      } else {
+        console.log('No transcript available');
+      }
+      
+      // Log Summary
+      console.log(`[Export ${exportType.toUpperCase()}] --- SUMMARY ---`);
+      if (fullTranscription.summary) {
+        console.log(fullTranscription.summary);
+      } else {
+        console.log('No summary available');
+      }
+      
+      // Log Action Items
+      console.log(`[Export ${exportType.toUpperCase()}] --- ACTION ITEMS ---`);
+      if (fullTranscription.action_items && fullTranscription.action_items.length > 0) {
+        fullTranscription.action_items.forEach((item: any, index: number) => {
+          const actionText = typeof item === 'string' ? item : item.text || item;
+          const speaker = item.speaker ? ` (${item.speaker})` : '';
+          console.log(`${index + 1}. ${actionText}${speaker}`);
+        });
+      } else {
+        console.log('No action items available');
+      }
+      
+      console.log(`[Export ${exportType.toUpperCase()}] ==========================================`);
+      console.log(`[Export ${exportType.toUpperCase()}] Export completed successfully`);
+      
+    } catch (error) {
+      console.error(`[Export ${exportType.toUpperCase()}] Error fetching transcription:`, error);
+    }
+  };
+
   return (
     <DashboardLayout activeTab="/transcriptions">
       <div className="w-full min-h-full bg-white">
@@ -156,9 +214,14 @@ export function TranscriptionsPage(): JSX.Element {
           </nav>
 
           {/* Page Title */}
-          <h1 className="font-nunito text-xl md:text-2xl lg:text-3xl xl:text-4xl font-extrabold text-[#1F2A44] mb-4 md:mb-6 lg:mb-8">
-            Transcriptions
-          </h1>
+          <div className="mb-4 md:mb-6 lg:mb-8">
+            <h1 className="font-nunito text-xl md:text-2xl lg:text-3xl xl:text-4xl font-extrabold text-[#1F2A44] mb-2">
+              Transcriptions
+            </h1>
+            <p className="font-nunito text-sm text-ellieGray">
+              All your meeting transcriptions, summaries, and action items - including those from disconnected calendars
+            </p>
+          </div>
 
           {error && (
             <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
@@ -210,12 +273,24 @@ export function TranscriptionsPage(): JSX.Element {
                         `}
                       >
                         <div className="mb-3 md:mb-4">
-                          <label className="font-nunito text-[10px] md:text-xs text-ellieGray uppercase tracking-wider mb-1 block">
-                            Meeting Title
-                          </label>
+                          <div className="flex items-center gap-2 mb-1">
+                            <label className="font-nunito text-[10px] md:text-xs text-ellieGray uppercase tracking-wider block">
+                              Meeting Title
+                            </label>
+                            {transcription.calendar_status === 'disconnected' && (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-nunito font-semibold bg-yellow-100 text-yellow-800">
+                                Disconnected
+                              </span>
+                            )}
+                          </div>
                           <p className="font-nunito text-sm md:text-base font-medium text-[#25324B] line-clamp-2">
                             {transcription.meeting_title || 'Untitled Meeting'}
                           </p>
+                          {transcription.calendar_email && (
+                            <p className="font-nunito text-xs text-ellieGray mt-1">
+                              {transcription.calendar_email}
+                            </p>
+                          )}
                         </div>
 
                         <div className="pb-3 md:pb-4 border-b border-[#DEE1E6]">
@@ -265,18 +340,21 @@ export function TranscriptionsPage(): JSX.Element {
                         <th className="text-left py-3 px-4 font-nunito text-base font-semibold text-[#25324B] whitespace-nowrap">
                           Status
                         </th>
+                        <th className="text-left py-3 px-4 font-nunito text-base font-semibold text-[#25324B] whitespace-nowrap">
+                          Export
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
                       {loading ? (
                         <tr>
-                          <td colSpan={4} className="py-8 text-center text-gray-500">
+                          <td colSpan={5} className="py-8 text-center text-gray-500">
                             Loading transcriptions...
                           </td>
                         </tr>
                       ) : filteredTranscriptions.length === 0 ? (
                         <tr>
-                          <td colSpan={4} className="py-8 text-center text-gray-500">
+                          <td colSpan={5} className="py-8 text-center text-gray-500">
                             No transcriptions found
                           </td>
                         </tr>
@@ -296,6 +374,11 @@ export function TranscriptionsPage(): JSX.Element {
                                   <span className="font-nunito text-base font-semibold text-[#25324B]">
                                     {transcription.meeting_title || 'Untitled Meeting'}
                                   </span>
+                                  {transcription.calendar_status === 'disconnected' && (
+                                    <span className="px-2 py-0.5 rounded text-xs font-nunito font-semibold bg-yellow-100 text-yellow-800">
+                                      Disconnected
+                                    </span>
+                                  )}
                                   {transcription.meeting_url && (
                                     <button
                                       type="button"
@@ -322,6 +405,11 @@ export function TranscriptionsPage(): JSX.Element {
                                     </button>
                                   )}
                                 </div>
+                                {transcription.calendar_email && (
+                                  <span className="font-nunito text-xs text-ellieGray">
+                                    {transcription.calendar_email}
+                                  </span>
+                                )}
                               </div>
                             </td>
                             <td className="py-4 px-4 whitespace-nowrap">
@@ -347,6 +435,38 @@ export function TranscriptionsPage(): JSX.Element {
                               }`}>
                                 {transcription.status || 'unknown'}
                               </span>
+                            </td>
+                            <td className="py-4 px-4 whitespace-nowrap">
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    void handleExport(transcription.id, 'slack');
+                                  }}
+                                  className="px-3 py-1.5 rounded-lg bg-[#4A154B] text-white font-nunito text-xs font-semibold hover:opacity-90 transition-opacity flex items-center gap-1"
+                                  title="Export to Slack"
+                                >
+                                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 5.042a2.528 2.528 0 0 1-2.52-2.52A2.528 2.528 0 0 1 18.956 0a2.528 2.528 0 0 1 2.522 2.522v2.52h-2.522zM18.956 6.313a2.528 2.528 0 0 1 2.522 2.521 2.528 2.528 0 0 1-2.522 2.521h-6.313A2.528 2.528 0 0 1 10.121 8.834a2.528 2.528 0 0 1 2.522-2.521h6.313zM15.165 18.956a2.528 2.528 0 0 1 2.521 2.522A2.528 2.528 0 0 1 15.165 24a2.528 2.528 0 0 1-2.522-2.522v-2.52h2.522zM13.894 18.956a2.528 2.528 0 0 1-2.522-2.521 2.528 2.528 0 0 1 2.522-2.521h6.313A2.528 2.528 0 0 1 22.729 16.435a2.528 2.528 0 0 1-2.522 2.521h-6.313z"/>
+                                  </svg>
+                                  Slack
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    void handleExport(transcription.id, 'notion');
+                                  }}
+                                  className="px-3 py-1.5 rounded-lg bg-black text-white font-nunito text-xs font-semibold hover:opacity-90 transition-opacity flex items-center gap-1"
+                                  title="Export to Notion"
+                                >
+                                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M4.459 4.208c.746.606 1.026.56 2.428.466l13.215-.793c.28 0 .047-.28-.046-.326L17.86 1.968c-.42-.326-.981-.7-2.055-.607L3.01 2.295c-.466.046-.56.28-.374.466zm.793 3.08v13.904c0 .747.373 1.027 1.214.98l14.523-.84c.841-.046.935-.56.935-1.167V6.354c0-.606-.233-.933-.748-.887l-15.177.887c-.56.047-.747.327-.747.933zm14.337.745c.093.42 0 .841-.42.888l-.7.14v10.264c-.608.327-1.168.514-1.635.514-.748 0-.935-.234-1.495-.933l-4.577-7.186v6.952L12.21 19s0 .841-1.168.841l-3.222.186c-.093-.186 0-.653.327-.746l.84-.233V9.854L7.822 9.76c-.094-.42.14-1.026.793-1.073l3.456-.233 4.764 7.279v-6.44l-1.215-.139c-.093-.514.28-.887.747-.933z"/>
+                                  </svg>
+                                  Notion
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))

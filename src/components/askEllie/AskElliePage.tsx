@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { DashboardLayout } from '../sidebar';
+import { useProfile } from '../../context/ProfileContext';
 import logo from '../../assets/logo.svg';
 
 interface Message {
@@ -8,8 +9,28 @@ interface Message {
   sender: 'user' | 'ellie';
 }
 
+function getRecallaiBaseUrl(): string | null {
+  const raw = import.meta.env.VITE_RECALLAI_BASE_URL;
+  if (typeof raw !== 'string' || !raw.trim()) {
+    console.warn(
+      'VITE_RECALLAI_BASE_URL is not configured. Please set it in your .env file to your backend server URL (e.g., http://16.16.183.96:3003)'
+    );
+    return null;
+  }
+  const url = raw.trim().replace(/\/$/, ''); // Remove trailing slash
+  return url;
+}
+
+function buildRecallaiUrl(path: string): string | null {
+  const baseUrl = getRecallaiBaseUrl();
+  if (!baseUrl) {
+    return null;
+  }
+  return `${baseUrl}${path}`;
+}
+
 export function AskElliePage(): JSX.Element {
- // const { profile } = useProfile();
+  const { profile } = useProfile();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 1,
@@ -19,20 +40,14 @@ export function AskElliePage(): JSX.Element {
   ]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [hasLiveMeetings, setHasLiveMeetings] = useState(false);
+  const [liveMeetingCount, setLiveMeetingCount] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Get chat API URL - append /api/chat if base URL is provided
+  // Get chat API URL from recallai
   const CHAT_API_URL = useMemo(() => {
-    const baseUrl = import.meta.env.VITE_CHAT_API_URL;
-    if (!baseUrl) {
-      console.warn('VITE_CHAT_API_URL is not configured');
-      return null;
-    }
-    // Remove trailing slash if present
-    const cleanBaseUrl = baseUrl.trim().replace(/\/$/, '');
-    // Append /api/chat endpoint
-    return `${cleanBaseUrl}/api/chat`;
+    return buildRecallaiUrl('/api/chat');
   }, []);
 
   const formatMessageText = (text: string): JSX.Element => {
@@ -110,7 +125,11 @@ export function AskElliePage(): JSX.Element {
 
       // Check if API URL is configured
       if (!CHAT_API_URL) {
-        throw new Error('Chat API URL is not configured');
+        throw new Error('Chat API URL is not configured. Please set VITE_RECALLAI_BASE_URL');
+      }
+
+      if (!profile?.id) {
+        throw new Error('Please login to chat with Ellie');
       }
 
       // Call the chatbot API
@@ -118,18 +137,27 @@ export function AskElliePage(): JSX.Element {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': 'true',
         },
         body: JSON.stringify({
           message: currentInput,
           history: conversationHistory,
+          userId: profile.id,  // Add userId for authentication
         }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to get response from Ellie');
+        const errorData = await response.json().catch(() => ({ error: 'Failed to get response' }));
+        throw new Error(errorData.error || 'Failed to get response from Ellie');
       }
 
       const data = await response.json();
+
+      // Update live meeting status from response
+      if (data.has_live_meetings !== undefined) {
+        setHasLiveMeetings(data.has_live_meetings);
+        setLiveMeetingCount(data.live_meeting_count || 0);
+      }
 
       const ellieResponse: Message = {
         id: messages.length + 2,
@@ -235,6 +263,22 @@ export function AskElliePage(): JSX.Element {
                 <div ref={messagesEndRef} />
               </div>
             </div>
+
+            {/* Live Meeting Indicator */}
+            {hasLiveMeetings && (
+              <div className="border-b border-gray-200 bg-green-50 px-4 py-3 md:px-6 md:py-4">
+                <div className="max-w-4xl mx-auto flex items-center gap-2">
+                  <div className="flex-shrink-0">
+                    <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                  </div>
+                  <p className="font-nunito text-sm md:text-base text-green-700">
+                    {liveMeetingCount > 1 
+                      ? `Ellie is listening to ${liveMeetingCount} live meetings`
+                      : 'Ellie is listening to your live meeting'}
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Input Area */}
             <div className="border-t border-gray-200 bg-white px-4 py-4 md:px-6 md:py-5">

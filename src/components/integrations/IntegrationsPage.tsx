@@ -58,7 +58,24 @@ export function IntegrationsPage(): JSX.Element {
     calendarId: string;
     calendarName: string;
     calendarPlatform: string;
-    events: CalendarDetails['events'];
+    calendarStatus: 'connected' | 'disconnected';
+    events: Array<{
+      id: string;
+      title: string;
+      start_time: string | null;
+      end_time: string | null;
+      meeting_url: string | null;
+      should_record_manual: boolean | null;
+      bots?: Array<{
+        bot_id: string;
+        join_at: string;
+        created_at: string;
+        status: string;
+      }>;
+      has_transcription?: boolean;
+      has_summary?: boolean;
+      has_action_items?: boolean;
+    }>;
   }>>([]);
   const [wsConnection, setWsConnection] = useState<WebSocket | null>(null);
   const selectedCalendarIdRef = useRef<string | null>(null);
@@ -95,28 +112,70 @@ export function IntegrationsPage(): JSX.Element {
       console.log('Calendars fetched:', connected);
       setCalendars(connected);
       
-      // Fetch all meetings from all calendars
+      // Show ONLY live data for connected calendars (hide stored data from disconnected calendars)
+      // Stored data will be available on a different page in the future
+      const meetingsByCalendar = new Map<string, {
+        calendarId: string;
+        calendarName: string;
+        calendarPlatform: string;
+        calendarStatus: 'connected' | 'disconnected';
+        events: Array<{
+          id: string;
+          title: string;
+          start_time: string | null;
+          end_time: string | null;
+          meeting_url: string | null;
+          should_record_manual: boolean | null;
+          bots?: Array<{
+            bot_id: string;
+            join_at: string;
+            created_at: string;
+            status: string;
+          }>;
+          has_transcription?: boolean;
+          has_summary?: boolean;
+          has_action_items?: boolean;
+        }>;
+      }>();
+      
+      // Fetch LIVE data ONLY for connected calendars
       if (connected.length > 0) {
-        const meetingsPromises = connected.map(async (cal) => {
+        const liveMeetingsPromises = connected.map(async (cal) => {
           try {
             const details = await getCalendarDetails(cal.id, profile.id);
             return {
               calendarId: cal.id,
               calendarName: cal.email || cal.platform,
               calendarPlatform: cal.platform,
-              events: details.events,
+              calendarStatus: 'connected' as const,
+              events: details.events.map(event => ({
+                id: event.id,
+                title: event.title,
+                start_time: event.start_time,
+                end_time: event.end_time,
+                meeting_url: event.meeting_url || null,
+                should_record_manual: event.should_record_manual,
+                bots: event.bots,
+                has_transcription: false, // Live data doesn't include transcription flags
+                has_summary: false,
+                has_action_items: false,
+              })),
             };
           } catch (err) {
-            console.error(`Error fetching details for calendar ${cal.id}:`, err);
+            console.error(`Error fetching live details for calendar ${cal.id}:`, err);
             return null;
           }
         });
         
-        const meetings = await Promise.all(meetingsPromises);
-        setAllMeetings(meetings.filter((m) => m !== null) as typeof allMeetings);
-      } else {
-        setAllMeetings([]);
+        const liveMeetings = await Promise.all(liveMeetingsPromises);
+        for (const meeting of liveMeetings) {
+          if (meeting) {
+            meetingsByCalendar.set(meeting.calendarId, meeting);
+          }
+        }
       }
+      
+      setAllMeetings(Array.from(meetingsByCalendar.values()));
     } catch (error) {
       console.error('Error fetching calendars:', error);
       setError(
