@@ -9,6 +9,7 @@ interface Message {
 }
 
 export function AskElliePage(): JSX.Element {
+ // const { profile } = useProfile();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 1,
