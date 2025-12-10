@@ -14,17 +14,32 @@ const removeTrailingSlash = (value: string): string => {
  * and /api/accounts/sso/callback/ expect.
  * 
  * In development, uses the Vite proxy (/api) to ensure cookies are shared properly.
+ * In production, uses a proxy path (/api) which is handled by:
+ *   - Vercel: Uses Vercel rewrite rules (vercel.json)
+ *   - EC2/Other: Uses reverse proxy (Nginx/Apache) configured on the server
+ * 
+ * This approach avoids CORS issues by making API requests appear same-origin.
  */
 export function getApiBaseUrl(): string | null {
-  // In development, use the proxy path to ensure cookies are shared
-  if (import.meta.env.DEV && typeof window !== 'undefined') {
+  // Use proxy path in both development and production to avoid CORS issues
+  // - In development: Vite proxy handles /api -> backend
+  // - In production: Vercel rewrite handles /api -> backend
+  if (typeof window !== 'undefined') {
     const currentHostname = window.location.hostname;
-    if (LOOPBACK_HOSTS.has(currentHostname)) {
-      // Use proxy path in development for same-origin cookies
+    
+    // In development (localhost), use proxy path
+    if (import.meta.env.DEV && LOOPBACK_HOSTS.has(currentHostname)) {
+      return '/api';
+    }
+    
+    // In production (Vercel or other hosting), use proxy path to avoid CORS
+    // Vercel will rewrite /api/* to the backend URL
+    if (!import.meta.env.DEV) {
       return '/api';
     }
   }
 
+  // Fallback: if window is not available (SSR) or other cases, use env variable
   const raw = import.meta.env.VITE_API_BASE_URL;
   // Debug: log the raw value to help troubleshoot
   if (import.meta.env.DEV) {
