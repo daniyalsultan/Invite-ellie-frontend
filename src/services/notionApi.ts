@@ -1,21 +1,14 @@
 // Notion API service for OAuth integration
 
-// Get Notion API base URL from environment variable
-// Default to localhost:5002 for development
-function getNotionApiBaseUrl(): string | null {
-  const baseUrl = import.meta.env.VITE_NOTION_API_URL || 'http://localhost:5002';
-  if (!baseUrl) {
-    console.warn('VITE_NOTION_API_URL is not configured');
-    return null;
-  }
+// Get unified backend API base URL from environment variable
+// Default to Railway production URL
+function getNotionApiBaseUrl(): string {
+  const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://web-production-07092.up.railway.app';
   return baseUrl.trim().replace(/\/$/, '');
 }
 
-function buildNotionApiUrl(path: string): string | null {
+function buildNotionApiUrl(path: string): string {
   const baseUrl = getNotionApiBaseUrl();
-  if (!baseUrl) {
-    return null;
-  }
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
   return `${baseUrl}${cleanPath}`;
 }
@@ -32,9 +25,6 @@ export interface NotionConnectionStatus {
  */
 export async function getNotionConnectUrl(userId: string): Promise<string> {
   const apiUrl = buildNotionApiUrl('/api/notion/connect');
-  if (!apiUrl) {
-    throw new Error('Notion API URL is not configured. Set VITE_NOTION_API_URL in your .env file.');
-  }
 
   try {
     const url = `${apiUrl}?user_id=${userId}`;
@@ -66,9 +56,6 @@ export async function getNotionConnectUrl(userId: string): Promise<string> {
  */
 export async function getNotionStatus(userId: string): Promise<NotionConnectionStatus> {
   const apiUrl = buildNotionApiUrl('/api/notion/status');
-  if (!apiUrl) {
-    throw new Error('Notion API URL is not configured. Set VITE_NOTION_API_URL in your .env file.');
-  }
 
   try {
     const url = `${apiUrl}?user_id=${userId}`;
@@ -103,9 +90,6 @@ export async function getNotionStatus(userId: string): Promise<NotionConnectionS
  */
 export async function disconnectNotion(userId: string): Promise<void> {
   const apiUrl = buildNotionApiUrl('/api/notion/disconnect');
-  if (!apiUrl) {
-    throw new Error('Notion API URL is not configured. Set VITE_NOTION_API_URL in your .env file.');
-  }
 
   try {
     const response = await fetch(apiUrl, {

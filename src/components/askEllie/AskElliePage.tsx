@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { DashboardLayout } from '../sidebar';
-import { useProfile } from '../../context/ProfileContext';
 import logo from '../../assets/logo.svg';
 
 interface Message {

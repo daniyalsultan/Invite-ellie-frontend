@@ -39,12 +39,15 @@ export function SlackNotionExportPage(): JSX.Element {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Check connection status on mount
+  // Check connection status on mount - only when logged in
   useEffect(() => {
     if (profile?.id) {
       void fetchSlackStatus();
       void fetchNotionStatus();
     } else {
+      // Show as disconnected when not logged in
+      setSlackStatus({ connected: false });
+      setNotionStatus({ connected: false });
       setIsLoading(false);
     }
   }, [profile?.id]);
@@ -59,16 +62,22 @@ export function SlackNotionExportPage(): JSX.Element {
     if (connected === 'slack') {
       setSuccessMessage(`Slack connected successfully${team ? ` to ${team}` : ''}`);
       setSearchParams({});
-      // Refresh status
+      // Refresh status after connection - use profile.id if available
       if (profile?.id) {
-        void fetchSlackStatus();
+        // Small delay to ensure backend has processed the connection
+        setTimeout(() => {
+          void fetchSlackStatus();
+        }, 500);
       }
     } else if (connected === 'notion') {
       setSuccessMessage(`Notion connected successfully${workspace ? ` to ${workspace}` : ''}`);
       setSearchParams({});
-      // Refresh status
+      // Refresh status after connection - use profile.id if available
       if (profile?.id) {
-        void fetchNotionStatus();
+        // Small delay to ensure backend has processed the connection
+        setTimeout(() => {
+          void fetchNotionStatus();
+        }, 500);
       }
     } else if (error) {
       setError(`Failed to connect: ${error}`);
@@ -77,7 +86,9 @@ export function SlackNotionExportPage(): JSX.Element {
   }, [searchParams, setSearchParams, profile?.id]);
 
   const fetchSlackStatus = async (): Promise<void> => {
+    // Require login for status check
     if (!profile?.id) {
+      setSlackStatus({ connected: false });
       return;
     }
 
@@ -92,7 +103,9 @@ export function SlackNotionExportPage(): JSX.Element {
   };
 
   const fetchNotionStatus = async (): Promise<void> => {
+    // Require login for status check
     if (!profile?.id) {
+      setNotionStatus({ connected: false });
       setIsLoading(false);
       return;
     }
@@ -110,6 +123,7 @@ export function SlackNotionExportPage(): JSX.Element {
   };
 
   const handleConnect = async (integration: ExportIntegration): Promise<void> => {
+    // Require login for connect action
     if (!profile?.id) {
       setError(`Please log in to connect ${integration.name}`);
       return;
@@ -119,6 +133,7 @@ export function SlackNotionExportPage(): JSX.Element {
       setConnecting(integration.id);
       setError(null);
 
+      // Use profile.id for connecting
       if (integration.id === 'slack') {
         const authUrl = await getSlackConnectUrl(profile.id);
         // Redirect to Slack OAuth
@@ -136,6 +151,7 @@ export function SlackNotionExportPage(): JSX.Element {
   };
 
   const handleDisconnect = async (integration: ExportIntegration): Promise<void> => {
+    // Require login for disconnect action
     if (!profile?.id) {
       setError(`Please log in to disconnect ${integration.name}`);
       return;
@@ -148,14 +164,19 @@ export function SlackNotionExportPage(): JSX.Element {
     try {
       setError(null);
       
+      // Use profile.id for disconnecting
       if (integration.id === 'slack') {
         await disconnectSlack(profile.id);
         setSuccessMessage('Successfully disconnected from Slack');
         setSlackStatus({ connected: false });
+        // Refresh status to confirm disconnection
+        void fetchSlackStatus();
       } else if (integration.id === 'notion') {
         await disconnectNotion(profile.id);
         setSuccessMessage('Successfully disconnected from Notion');
         setNotionStatus({ connected: false });
+        // Refresh status to confirm disconnection
+        void fetchNotionStatus();
       }
       
       // Clear success message after 3 seconds
