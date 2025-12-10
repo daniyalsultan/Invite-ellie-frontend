@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { DashboardLayout } from '../sidebar';
-import { useProfile } from '../../context/ProfileContext';
 import logo from '../../assets/logo.svg';
 
 interface Message {
@@ -10,7 +9,6 @@ interface Message {
 }
 
 export function AskElliePage(): JSX.Element {
-  const { profile } = useProfile();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 1,

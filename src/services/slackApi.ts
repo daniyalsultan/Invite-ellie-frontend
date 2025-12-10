@@ -1,21 +1,14 @@
 // Slack API service for OAuth integration
 
-// Get Slack API base URL from environment variable
-// Default to localhost:5001 for development
-function getSlackApiBaseUrl(): string | null {
-  const baseUrl = import.meta.env.VITE_SLACK_API_URL || 'http://localhost:5001';
-  if (!baseUrl) {
-    console.warn('VITE_SLACK_API_URL is not configured');
-    return null;
-  }
+// Get unified backend API base URL from environment variable
+// Default to Railway production URL
+function getSlackApiBaseUrl(): string {
+  const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://web-production-07092.up.railway.app';
   return baseUrl.trim().replace(/\/$/, '');
 }
 
-function buildSlackApiUrl(path: string): string | null {
+function buildSlackApiUrl(path: string): string {
   const baseUrl = getSlackApiBaseUrl();
-  if (!baseUrl) {
-    return null;
-  }
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
   return `${baseUrl}${cleanPath}`;
 }
@@ -32,9 +25,6 @@ export interface SlackConnectionStatus {
  */
 export async function getSlackConnectUrl(userId: string): Promise<string> {
   const apiUrl = buildSlackApiUrl('/api/slack/connect');
-  if (!apiUrl) {
-    throw new Error('Slack API URL is not configured. Set VITE_SLACK_API_URL in your .env file.');
-  }
 
   try {
     const url = `${apiUrl}?user_id=${userId}`;
@@ -66,9 +56,6 @@ export async function getSlackConnectUrl(userId: string): Promise<string> {
  */
 export async function getSlackStatus(userId: string): Promise<SlackConnectionStatus> {
   const apiUrl = buildSlackApiUrl('/api/slack/status');
-  if (!apiUrl) {
-    throw new Error('Slack API URL is not configured. Set VITE_SLACK_API_URL in your .env file.');
-  }
 
   try {
     const url = `${apiUrl}?user_id=${userId}`;
@@ -103,9 +90,6 @@ export async function getSlackStatus(userId: string): Promise<SlackConnectionSta
  */
 export async function disconnectSlack(userId: string): Promise<void> {
   const apiUrl = buildSlackApiUrl('/api/slack/disconnect');
-  if (!apiUrl) {
-    throw new Error('Slack API URL is not configured. Set VITE_SLACK_API_URL in your .env file.');
-  }
 
   try {
     const response = await fetch(apiUrl, {
