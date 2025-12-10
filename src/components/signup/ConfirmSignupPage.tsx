@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, useRef } from 'react';
 import { Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { getApiBaseUrl } from '../../utils/apiBaseUrl';
 
 type ConfirmationState =
   | { status: 'idle' }
@@ -12,7 +13,7 @@ export function ConfirmSignupPage(): JSX.Element {
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const navigate = useNavigate();
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+  const apiBaseUrl = getApiBaseUrl();
   const { establishSession } = useAuth();
 
   // Extract token and email from both query params and hash (for Supabase redirects)

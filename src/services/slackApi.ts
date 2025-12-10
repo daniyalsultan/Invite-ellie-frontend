@@ -1,9 +1,11 @@
 // Slack API service for OAuth integration
 
-// Get unified backend API base URL from environment variable
-// Default to Railway production URL
+import { getApiBaseUrl } from '../utils/apiBaseUrl';
+
+// Get unified backend API base URL using the utility function
+// This ensures we use the /api proxy path to avoid CORS issues
 function getSlackApiBaseUrl(): string {
-  const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://web-production-07092.up.railway.app';
+  const baseUrl = getApiBaseUrl() || 'https://web-production-07092.up.railway.app';
   return baseUrl.trim().replace(/\/$/, '');
 }
 
