@@ -59,6 +59,7 @@ export async function getNotionStatus(userId: string): Promise<NotionConnectionS
 
   try {
     const url = `${apiUrl}?user_id=${userId}`;
+    console.log('Checking Notion status at:', url);
     const response = await fetch(url, {
       method: 'GET',
       headers: {
@@ -68,10 +69,12 @@ export async function getNotionStatus(userId: string): Promise<NotionConnectionS
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      console.error('Notion status API error:', errorData, 'Status:', response.status);
       throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
     }
 
     const data = await response.json();
+    console.log('Notion status API response data:', data);
     return {
       connected: data.connected || false,
       workspace_name: data.workspace_name,

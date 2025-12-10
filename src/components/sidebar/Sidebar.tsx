@@ -8,7 +8,7 @@ import logo from '../../assets/logo.svg';
 import notificationsIcon from '../../assets/notifications.png';
 import preferencesIcon from '../../assets/preferences.png';
 import integrationsIcon from '../../assets/integrations.png';
-import exportIcon from '../../assets/icon-share.png';
+import exportIcon from '../../assets/icon-slack-notion-export.svg';
 import settingsIcon from '../../assets/settings.png';
 import { useAuth } from '../../context/AuthContext';
 
