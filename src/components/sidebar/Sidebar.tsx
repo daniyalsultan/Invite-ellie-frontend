@@ -42,7 +42,7 @@ export function Sidebar({ activeTab }: SidebarProps): JSX.Element {
     { label: 'Dashboard', path: '/dashboard', icon: dashboardIcon },
     { label: 'Work Spaces', path: '/workspaces', icon: workspaceIcon },
     { label: 'Transcriptions', path: '/transcriptions', icon: transcriptionIcon },
-    { label: 'Ellie Meeting Assistant', path: '/ask-ellie', icon: logo },
+    { label: 'Live Meeting Assistant', path: '/ask-ellie', icon: logo },
     // { label: 'Meeting Recordings', path: '/meeting-recordings', icon: manageRecordingsIcon },
   ];
 

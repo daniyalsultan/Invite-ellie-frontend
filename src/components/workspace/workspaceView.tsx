@@ -654,7 +654,6 @@ export function WorkspaceViewPage(): JSX.Element {
                             <p className="font-nunito text-sm font-semibold text-[#25324B] md:text-base">
                               {folder.name}
                             </p>
-                            <p className="font-nunito text-xs text-[#6B7A96]">{folder.id}</p>
                           </div>
                           {/* Three dots button for grid view */}
                           <div className="absolute bottom-3 right-3">
@@ -738,9 +737,6 @@ export function WorkspaceViewPage(): JSX.Element {
                                   </svg>
                                 )}
                               </div>
-                              <span className="font-nunito text-[16px] font-medium text-[#545454] leading-[1.3639999628067017em]">
-                                {folder.id}
-                              </span>
                             </div>
                           </div>
                           <div className="relative flex items-center gap-[10px]">

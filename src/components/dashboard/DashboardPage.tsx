@@ -18,6 +18,7 @@ import {
   patchFolder,
   deleteFolder,
 } from '../workspace/workspaceApi';
+import { listActivities, ActivityRecord } from '../../services/activityApi';
 import { DemoTour } from '../demo';
 import { FolderDetailView } from '../folder/FolderDetailView';
 
@@ -27,31 +28,8 @@ interface ActivityItem {
   link: string;
   date: string;
   time: string;
+  description?: string;
 }
-
-const RECENT_ACTIVITY: ActivityItem[] = [
-  {
-    id: '1',
-    type: 'Meeting Recording',
-    link: 'https://www.figma.com/proto/pflejRyGUKnFHsWlyCYzws/Invite-Ellie?node-id=37-5569&t=wtIfIXx2Kfam6tFh-1',
-    date: 'October 12, 2025',
-    time: '05:02 PM',
-  },
-  {
-    id: '2',
-    type: 'Meeting Recording',
-    link: 'https://www.figma.com/proto/pflejRyGUKnFHsWlyCYzws/Invite-Ellie?node-id=37-5569&t=wtIfIXx2Kfam6tFh-1',
-    date: 'October 12, 2025',
-    time: '05:02 PM',
-  },
-  {
-    id: '3',
-    type: 'Meeting Recording',
-    link: 'https://www.figma.com/proto/pflejRyGUKnFHsWlyCYzws/Invite-Ellie?node-id=37-5569&t=wtIfIXx2Kfam6tFh-1',
-    date: 'October 12, 2025',
-    time: '05:02 PM',
-  },
-];
 
 const CREATE_WORKSPACE_ILLUSTRATION = '/assets/dashboard/create-workspace-illustration.svg';
 const JOIN_MEETING_ILLUSTRATION = '/assets/dashboard/join-meeting-illustration.svg';
@@ -101,7 +79,78 @@ export function DashboardPage(): JSX.Element {
   const [isDeletingFolder, setIsDeletingFolder] = useState(false);
   const [selectedFolder, setSelectedFolder] = useState<FolderRecord | null>(null);
   const [isDetailViewOpen, setIsDetailViewOpen] = useState(false);
-  const [recentActivity] = useState<ActivityItem[]>(RECENT_ACTIVITY);
+  const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([]);
+  const [isActivitiesLoading, setIsActivitiesLoading] = useState(true);
+  const [activitiesError, setActivitiesError] = useState<string | null>(null);
+
+  // Format activity from API to ActivityItem format
+  const formatActivity = (activity: ActivityRecord): ActivityItem => {
+    const date = new Date(activity.timestamp);
+    const formattedDate = date.toLocaleDateString('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+    });
+    const formattedTime = date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    });
+
+    return {
+      id: String(activity.id),
+      type: activity.activity_type_display || activity.activity_type,
+      link: '#',
+      date: formattedDate,
+      time: formattedTime,
+      description: activity.description || undefined,
+    };
+  };
+
+  // Fetch activities
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchActivities = async (): Promise<void> => {
+      setIsActivitiesLoading(true);
+      setActivitiesError(null);
+      try {
+        const token = await ensureFreshAccessToken();
+        if (!token) {
+          throw new Error('Unable to authenticate. Please login again.');
+        }
+        const response = await listActivities(token, {
+          ordering: '-timestamp', // Order by most recent first
+          page: 1,
+        });
+        if (isMounted) {
+          // Take only the first 3 activities and format them
+          const formattedActivities = response.results
+            .slice(0, 3)
+            .map((activity) => formatActivity(activity));
+          setRecentActivity(formattedActivities);
+        }
+      } catch (error) {
+        if (isMounted) {
+          const message =
+            error instanceof Error ? error.message : 'Unable to load activities. Please try again.';
+          setActivitiesError(message);
+          // Set empty array on error
+          setRecentActivity([]);
+        }
+      } finally {
+        if (isMounted) {
+          setIsActivitiesLoading(false);
+        }
+      }
+    };
+
+    void fetchActivities();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [ensureFreshAccessToken]);
 
   useEffect(() => {
     let isMounted = true;
@@ -738,7 +787,6 @@ export function DashboardPage(): JSX.Element {
                           <span className="block font-nunito text-[20px] font-bold tracking-[-0.02em] text-[#25324B] leading-[1.36]">
                             {folder.name}
                           </span>
-                          <span className="font-nunito text-[16px] text-[#545454]">{folder.id}</span>
                         </div>
                         {/* Three dots button for grid view */}
                         <div className="absolute bottom-3 right-3">
@@ -845,9 +893,6 @@ export function DashboardPage(): JSX.Element {
                                 </svg>
                               )}
                             </div>
-                            <span className="font-nunito text-[16px] font-medium text-[#545454] leading-[1.3639999628067017em]">
-                              {folder.id}
-                            </span>
                           </div>
                         </div>
                           <div className="relative flex items-center gap-[10px]">
@@ -933,105 +978,52 @@ export function DashboardPage(): JSX.Element {
             <aside className="flex w-full flex-col gap-6 rounded-[18px] bg-white px-8 py-8 shadow-[0px_18px_30px_rgba(15,23,42,0.05)] lg:w-[45%]">
               <h2 className="font-nunito text-[25px] font-bold tracking-[-0.02em] text-[#25324B]">Recent Activity</h2>
               <div className="overflow-hidden rounded-[14px]">
-                <table className="min-w-full table-fixed text-sm">
-                  <thead className="bg-[#F4F8FB]">
-                    <tr className="text-left font-nunito text-sm font-semibold tracking-[-0.02em] text-[#25324B]">
-                      <th className="px-3 py-2 w-[40%]">Activity Type</th>
-                      <th className="px-3 py-2 w-[30%]">Date/Time</th>
-                      <th className="px-3 py-2 w-[30%] text-center">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white font-nunito text-[#25324B]">
-                    {recentActivity.map((item) => (
-                      <tr key={item.id} className="border-b border-[rgba(102,0,255,0.2)] last:border-0">
-                        <td className="px-3 py-3 align-top">
-                          <div className="flex flex-col gap-1">
-                            <span className="font-nunito text-sm font-bold tracking-[-0.02em] text-[#25324B]">
-                              {item.type}
-                            </span>
-                            <div className="flex items-center gap-1">
-                              <a
-                                href={item.link}
-                                className="max-w-[180px] truncate font-nunito text-xs font-semibold tracking-[-0.02em] text-[#0B5CFF] underline decoration-transparent transition hover:decoration-current"
-                              >
-                                {item.link}
-                              </a>
-                              <button
-                                type="button"
-                                // onClick={() => handleCopyLink(item.link)}
-                                className="flex h-4 w-4 flex-shrink-0 items-center justify-center text-[#0B5CFF]"
-                                aria-label="Copy link"
-                              >
-                                <svg
-                                  aria-hidden
-                                  className="h-3 w-3"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  viewBox="0 0 24 24"
-                                >
-                                  <path d="M8 5.00005C7.01165 5.00005 6.49359 5.00005 6.09202 5.21799C5.71569 5.40973 5.40973 5.71569 5.21799 6.09202C5 6.49359 5 7.01165 5 8.00005V16C5 16.9885 5 17.5065 5.21799 17.908C5.40973 18.2843 5.71569 18.5903 6.09202 18.782C6.49359 19 7.01165 19 8 19H16C16.9885 19 17.5065 19 17.908 18.782C18.2843 18.5903 18.5903 18.2843 18.782 17.908C19 17.5065 19 16.9885 19 16V8.00005C19 7.01165 19 6.49359 18.782 6.09202C18.5903 5.71569 18.2843 5.40973 17.908 5.21799C17.5065 5.00005 16.9885 5.00005 16 5.00005H8Z" />
-                                  <path d="M8 14.0001H7.8C6.11984 14.0001 5.27976 14.0001 4.63803 13.5641C4.07354 13.1806 3.65338 12.6788 3.41421 12.1213C3 11.3804 3 10.5203 3 8.80005V8.00005C3 6.11441 3 5.17157 3.58579 4.58579C4.17157 4 5.11438 4 7 4H12C13.8856 4 14.8284 4 15.4142 4.58579C16 5.17157 16 6.11441 16 8.00005" />
-                                </svg>
-                              </button>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-3 py-3 align-top">
-                          <div className="flex flex-col gap-1 font-nunito text-xs font-medium text-[#545454]">
-                            <span className="tracking-[-0.02em] text-[#25324B]">{item.date}</span>
-                            <span>{item.time}</span>
-                          </div>
-                        </td>
-                        <td className="px-3 py-3">
-                          <div className="flex items-center justify-center gap-2">
-                            <button
-                              type="button"
-                              // onClick={() => handleViewActivity(item)}
-                              className="flex h-8 w-8 items-center justify-center rounded-full bg-[#E6F0FA] text-[#327AAD] transition hover:bg-[#D0E5F5]"
-                              aria-label="View"
-                            >
-                              <svg
-                                aria-hidden
-                                className="h-3 w-3"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                viewBox="0 0 24 24"
-                              >
-                                <path d="M1.5 12s3.75-7.5 10.5-7.5S22.5 12 22.5 12s-3.75 7.5-10.5 7.5S1.5 12 1.5 12z" />
-                                <circle cx="12" cy="12" r="3" />
-                              </svg>
-                            </button>
-                            <button
-                              type="button"
-                              // onClick={() => handleDeleteActivity(item.id)}
-                              className="flex h-8 w-8 items-center justify-center rounded-full bg-[#FFEAEA] text-[#E45A5A] transition hover:bg-[#FFD5D5]"
-                              aria-label="Remove"
-                            >
-                              <svg
-                                aria-hidden
-                                className="h-3 w-3"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                viewBox="0 0 24 24"
-                              >
-                                <path d="M6 18L18 6M6 6l12 12" />
-                              </svg>
-                            </button>
-                          </div>
-                        </td>
+                {isActivitiesLoading ? (
+                  <div className="px-3 py-6 text-center font-nunito text-sm text-[#545454]">
+                    Loading activities...
+                  </div>
+                ) : activitiesError ? (
+                  <div className="px-3 py-6 text-center font-nunito text-sm text-red-600">
+                    {activitiesError}
+                  </div>
+                ) : recentActivity.length === 0 ? (
+                  <div className="px-3 py-6 text-center font-nunito text-sm text-[#545454]">
+                    No recent activity
+                  </div>
+                ) : (
+                  <table className="min-w-full table-fixed text-sm">
+                    <thead className="bg-[#F4F8FB]">
+                      <tr className="text-left font-nunito text-sm font-semibold tracking-[-0.02em] text-[#25324B]">
+                        <th className="px-3 py-2 w-[60%]">Activity Type</th>
+                        <th className="px-3 py-2 w-[40%]">Date/Time</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="bg-white font-nunito text-[#25324B]">
+                      {recentActivity.map((item) => (
+                        <tr key={item.id} className="border-b border-[rgba(102,0,255,0.2)] last:border-0">
+                          <td className="px-3 py-3 align-top">
+                            <div className="flex flex-col gap-1">
+                              <span className="font-nunito text-sm font-bold tracking-[-0.02em] text-[#25324B]">
+                                {item.type}
+                              </span>
+                              {item.description && (
+                                <span className="font-nunito text-xs font-medium text-[#545454]">
+                                  {item.description}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-3 py-3 align-top">
+                            <div className="flex flex-col gap-1 font-nunito text-xs font-medium text-[#545454]">
+                              <span className="tracking-[-0.02em] text-[#25324B]">{item.date}</span>
+                              <span>{item.time}</span>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
               </div>
             </aside>
           </section>
