@@ -11,8 +11,23 @@ function getSlackApiBaseUrl(): string {
 
 function buildSlackApiUrl(path: string): string {
   const baseUrl = getSlackApiBaseUrl();
-  const cleanPath = path.startsWith('/') ? path : `/${path}`;
-  return `${baseUrl}${cleanPath}`;
+  let cleanPath = path.startsWith('/') ? path : `/${path}`;
+  
+  // If baseUrl is a relative path (/api), remove /api prefix from path if present
+  // If baseUrl is a full URL, ensure path has /api prefix
+  if (baseUrl.startsWith('http://') || baseUrl.startsWith('https://')) {
+    // Full URL - ensure path has /api prefix
+    if (!cleanPath.startsWith('/api/')) {
+      cleanPath = `/api${cleanPath}`;
+    }
+    return `${baseUrl}${cleanPath}`;
+  } else {
+    // Relative path (/api) - remove /api prefix from path if present to avoid double /api
+    if (cleanPath.startsWith('/api/')) {
+      cleanPath = cleanPath.replace(/^\/api/, '');
+    }
+    return `${baseUrl}${cleanPath}`;
+  }
 }
 
 export interface SlackConnectionStatus {

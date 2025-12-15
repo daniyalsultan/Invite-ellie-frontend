@@ -30,7 +30,7 @@ const EXPORT_INTEGRATIONS: ExportIntegration[] = [
 ];
 
 export function SlackNotionExportPage(): JSX.Element {
-  const { profile } = useProfile();
+  const { profile, isLoading: isProfileLoading } = useProfile();
   const [searchParams, setSearchParams] = useSearchParams();
   const [slackStatus, setSlackStatus] = useState<SlackConnectionStatus>({ connected: false });
   const [notionStatus, setNotionStatus] = useState<NotionConnectionStatus>({ connected: false });
@@ -41,16 +41,21 @@ export function SlackNotionExportPage(): JSX.Element {
 
   // Check connection status on mount - only when logged in
   useEffect(() => {
+    // Wait for profile to be loaded (or confirmed as not loading)
+    // This ensures we have the user ID before checking connection status
     if (profile?.id) {
+      setIsLoading(true);
       void fetchSlackStatus();
       void fetchNotionStatus();
-    } else {
-      // Show as disconnected when not logged in
+    } else if (!isProfileLoading) {
+      // Profile is not loading and we don't have a profile - user is not logged in
+      // The ProtectedRoute will handle redirecting to login if not authenticated
       setSlackStatus({ connected: false });
       setNotionStatus({ connected: false });
       setIsLoading(false);
     }
-  }, [profile?.id]);
+    // If isProfileLoading is true, keep loading state to show spinner
+  }, [profile?.id, isProfileLoading]);
 
   // Also check status when coming back from OAuth callback (in case profile wasn't loaded yet)
   useEffect(() => {
@@ -75,38 +80,68 @@ export function SlackNotionExportPage(): JSX.Element {
     
     if (connected === 'slack') {
       setSuccessMessage(`Slack connected successfully${team ? ` to ${team}` : ''}`);
-      setSearchParams({});
+      // Clear search params after a moment to show the success message
+      setTimeout(() => {
+        setSearchParams({});
+      }, 100);
+      
       // Refresh status after connection - use profile.id if available
-      if (profile?.id) {
-        // Small delay to ensure backend has processed the connection
-        setTimeout(() => {
-          void fetchSlackStatus();
-        }, 500);
-      }
+      const refreshStatus = () => {
+        if (profile?.id) {
+          console.log('Refreshing Slack status after connection...');
+          // Small delay to ensure backend has processed the connection
+          setTimeout(() => {
+            void fetchSlackStatus();
+          }, 500);
+        } else {
+          // If profile isn't loaded yet, wait and retry
+          setTimeout(() => {
+            if (profile?.id) {
+              void fetchSlackStatus();
+            } else {
+              refreshStatus(); // Retry once more
+            }
+          }, 1000);
+        }
+      };
+      
+      refreshStatus();
     } else if (connected === 'notion') {
       setSuccessMessage(`Notion connected successfully${workspace ? ` to ${workspace}` : ''}`);
-      setSearchParams({});
+      // Clear search params after a moment to show the success message
+      setTimeout(() => {
+        setSearchParams({});
+      }, 100);
+      
       console.log('Notion connection callback received, workspace:', workspace);
       console.log('Current profile.id:', profile?.id);
+      
       // Refresh status after connection - use profile.id if available
-      if (profile?.id) {
-        // Small delay to ensure backend has processed the connection
-        console.log('Refreshing Notion status in 500ms...');
-        setTimeout(() => {
-          void fetchNotionStatus();
-        }, 500);
-      } else {
-        console.warn('Profile ID not available when Notion callback received, will retry when profile loads');
-        // If profile isn't loaded yet, wait a bit and try again
-        setTimeout(() => {
-          if (profile?.id) {
+      const refreshStatus = () => {
+        if (profile?.id) {
+          console.log('Refreshing Notion status after connection...');
+          // Small delay to ensure backend has processed the connection
+          setTimeout(() => {
             void fetchNotionStatus();
-          }
-        }, 2000);
-      }
+          }, 500);
+        } else {
+          // If profile isn't loaded yet, wait and retry
+          setTimeout(() => {
+            if (profile?.id) {
+              void fetchNotionStatus();
+            } else {
+              refreshStatus(); // Retry once more
+            }
+          }, 1000);
+        }
+      };
+      
+      refreshStatus();
     } else if (error) {
       setError(`Failed to connect: ${error}`);
-      setSearchParams({});
+      setTimeout(() => {
+        setSearchParams({});
+      }, 100);
     }
   }, [searchParams, setSearchParams, profile?.id]);
 
