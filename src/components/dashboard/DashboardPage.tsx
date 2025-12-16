@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { DashboardLayout } from '../sidebar';
 import d1Icon from '../../assets/d1.jpg';
 import folderIcon from '../../assets/folder.png';
@@ -22,6 +22,33 @@ import { listActivities, ActivityRecord } from '../../services/activityApi';
 import { DemoTour } from '../demo';
 import { FolderDetailView } from '../folder/FolderDetailView';
 
+/**
+ * Get the recallai backend base URL from environment variable
+ */
+function getRecallaiBaseUrl(): string | null {
+  const raw = import.meta.env.VITE_RECALLAI_BASE_URL;
+  if (typeof raw !== 'string' || !raw.trim()) {
+    console.warn(
+      'VITE_RECALLAI_BASE_URL is not configured. Please set it in your .env file to your backend server URL (e.g., http://16.16.183.96:3003)'
+    );
+    return null;
+  }
+  const url = raw.trim().replace(/\/$/, ''); // Remove trailing slash
+  return url;
+}
+
+/**
+ * Build API URL for recallai backend
+ */
+function buildRecallaiUrl(path: string): string | null {
+  const baseUrl = getRecallaiBaseUrl();
+  if (!baseUrl) {
+    return null;
+  }
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  return `${baseUrl}${cleanPath}`;
+}
+
 interface ActivityItem {
   id: string;
   type: string;
@@ -37,7 +64,6 @@ const WORKSPACE_HELP_ICON = '/assets/dashboard/workspace-help-icon.svg';
 
 export function DashboardPage(): JSX.Element {
   const location = useLocation();
-  const navigate = useNavigate();
   const { ensureFreshAccessToken } = useAuth();
   const { profile, refreshProfile } = useProfile();
   const apiBaseUrl = getApiBaseUrl();
@@ -82,6 +108,9 @@ export function DashboardPage(): JSX.Element {
   const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([]);
   const [isActivitiesLoading, setIsActivitiesLoading] = useState(true);
   const [activitiesError, setActivitiesError] = useState<string | null>(null);
+  const [isJoiningMeeting, setIsJoiningMeeting] = useState(false);
+  const [joinMeetingError, setJoinMeetingError] = useState<string | null>(null);
+  const [joinMeetingSuccess, setJoinMeetingSuccess] = useState<string | null>(null);
 
   // Format activity from API to ActivityItem format
   const formatActivity = (activity: ActivityRecord): ActivityItem => {
@@ -414,19 +443,74 @@ export function DashboardPage(): JSX.Element {
     }, 300);
   };
 
-  const handleJoinMeeting = (): void => {
+  const handleJoinMeeting = async (): Promise<void> => {
     const trimmedId = meetingId.trim();
     if (!trimmedId) {
+      setJoinMeetingError('Please enter a meeting link or ID');
       return;
     }
-    // Check if it's a URL or just an ID
-    if (trimmedId.startsWith('http://') || trimmedId.startsWith('https://')) {
-      // If it's a URL, try to extract meeting ID from it or navigate to meeting-view
-      // For now, we'll try to navigate to meeting-view with the URL as a parameter
-      navigate(`/meeting-view?link=${encodeURIComponent(trimmedId)}`);
-    } else {
-      // If it's just an ID, navigate to meeting-view
-      navigate(`/meeting-view?id=${encodeURIComponent(trimmedId)}`);
+    
+    setIsJoiningMeeting(true);
+    setJoinMeetingError(null);
+    setJoinMeetingSuccess(null);
+    
+    try {
+      const token = await ensureFreshAccessToken();
+      if (!token) {
+        throw new Error('Unable to authenticate. Please login again.');
+      }
+      
+      // Determine if it's a URL or just an ID
+      let meetingUrl = trimmedId;
+      
+      // If it's not a full URL, try to construct one based on common patterns
+      if (!trimmedId.startsWith('http://') && !trimmedId.startsWith('https://')) {
+        // Could be a meeting ID - we'll send it as-is and let the backend handle it
+        // Or construct a URL if it looks like a specific platform ID
+        meetingUrl = trimmedId;
+      }
+      
+      // Call the recall server API to join meeting immediately
+      // The endpoint exists in the recall server, not in Invite-ellie-backend
+      const recallaiUrl = buildRecallaiUrl('/api/join-meeting');
+      if (!recallaiUrl) {
+        throw new Error('Recall server URL is not configured. Please set VITE_RECALLAI_BASE_URL in your .env file.');
+      }
+      
+      console.log('Joining meeting - API URL:', recallaiUrl);
+      
+      const response = await fetch(recallaiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          Authorization: `Bearer ${token}`,
+          'ngrok-skip-browser-warning': 'true', // Bypass ngrok interstitial page
+        },
+        body: JSON.stringify({
+          meeting_url: meetingUrl,
+        }),
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to join meeting');
+      }
+      
+      if (data.success) {
+        setJoinMeetingSuccess('Bot is joining the meeting now!');
+        setMeetingId(''); // Clear the input
+        // Don't redirect - just show success notification on dashboard
+      } else {
+        throw new Error(data.error || 'Failed to join meeting');
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unable to join meeting. Please try again.';
+      setJoinMeetingError(message);
+    } finally {
+      setIsJoiningMeeting(false);
     }
   };
 
@@ -539,25 +623,43 @@ export function DashboardPage(): JSX.Element {
                 <h2 className="font-nunito text-[25px] font-bold tracking-[-0.02em] text-[#25324B]">
                   Join a meeting.
                 </h2>
-                <div className="flex items-center gap-3">
-                  <div className="flex-1">
-                    <input
-                      id="meeting-id"
-                      type="text"
-                      placeholder="Enter meeting ID"
-                      value={meetingId}
-                      onChange={(e) => setMeetingId(e.target.value)}
-                      onKeyDown={handleJoinMeetingKeyDown}
-                      className="h-[60px] w-full rounded-[5px] border border-[#7964A0] bg-white px-6 font-nunito text-[20px] font-semibold text-[#25324B] placeholder:text-[#25324B]/40 focus:border-[#327AAD] focus:outline-none focus:ring-2 focus:ring-[#327AAD]/20"
-                    />
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1">
+                      <input
+                        id="meeting-id"
+                        type="text"
+                        placeholder="Enter meeting link or ID"
+                        value={meetingId}
+                        onChange={(e) => {
+                          setMeetingId(e.target.value);
+                          setJoinMeetingError(null);
+                          setJoinMeetingSuccess(null);
+                        }}
+                        onKeyDown={handleJoinMeetingKeyDown}
+                        disabled={isJoiningMeeting}
+                        className="h-[60px] w-full rounded-[5px] border border-[#7964A0] bg-white px-6 font-nunito text-[20px] font-semibold text-[#25324B] placeholder:text-[#25324B]/40 focus:border-[#327AAD] focus:outline-none focus:ring-2 focus:ring-[#327AAD]/20 disabled:opacity-60 disabled:cursor-not-allowed"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void handleJoinMeeting()}
+                      disabled={isJoiningMeeting || !meetingId.trim()}
+                      className="inline-flex h-[60px] items-center justify-center rounded-[5px] bg-[#327AAD] px-12 font-nunito text-[20px] font-extrabold text-white transition hover:bg-[#286996] disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {isJoiningMeeting ? 'Joining...' : 'Join now'}
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={handleJoinMeeting}
-                    className="inline-flex h-[60px] items-center justify-center rounded-[5px] bg-[#327AAD] px-12 font-nunito text-[20px] font-extrabold text-white transition hover:bg-[#286996]"
-                  >
-                    Join now
-                  </button>
+                  {joinMeetingError && (
+                    <div className="rounded-[8px] px-3 py-2 font-nunito text-sm border border-red-200 bg-red-50 text-red-700">
+                      {joinMeetingError}
+                    </div>
+                  )}
+                  {joinMeetingSuccess && (
+                    <div className="rounded-[8px] px-3 py-2 font-nunito text-sm border border-green-200 bg-green-50 text-green-700">
+                      {joinMeetingSuccess}
+                    </div>
+                  )}
                 </div>
               </div>
             </article>
