@@ -1,33 +1,17 @@
 // Notion API service for OAuth integration
 
-import { getApiBaseUrl } from '../utils/apiBaseUrl';
+/**
+ * 🔒 PRODUCTION LOCK
+ * Always uses Railway backend directly
+ * No ENV variables
+ * No proxy logic
+ */
 
-// Get unified backend API base URL using the utility function
-// This ensures we use the /api proxy path to avoid CORS issues
-function getNotionApiBaseUrl(): string {
-  const baseUrl = getApiBaseUrl() || 'https://web-production-07092.up.railway.app';
-  return baseUrl.trim().replace(/\/$/, '');
-}
+const NOTION_API_BASE_URL = 'https://web-production-07092.up.railway.app';
 
 function buildNotionApiUrl(path: string): string {
-  const baseUrl = getNotionApiBaseUrl();
-  let cleanPath = path.startsWith('/') ? path : `/${path}`;
-  
-  // If baseUrl is a relative path (/api), remove /api prefix from path if present
-  // If baseUrl is a full URL, ensure path has /api prefix
-  if (baseUrl.startsWith('http://') || baseUrl.startsWith('https://')) {
-    // Full URL - ensure path has /api prefix
-    if (!cleanPath.startsWith('/api/')) {
-      cleanPath = `/api${cleanPath}`;
-    }
-    return `${baseUrl}${cleanPath}`;
-  } else {
-    // Relative path (/api) - remove /api prefix from path if present to avoid double /api
-    if (cleanPath.startsWith('/api/')) {
-      cleanPath = cleanPath.replace(/^\/api/, '');
-    }
-    return `${baseUrl}${cleanPath}`;
-  }
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  return `${NOTION_API_BASE_URL}${cleanPath}`;
 }
 
 export interface NotionConnectionStatus {
@@ -44,8 +28,7 @@ export async function getNotionConnectUrl(userId: string): Promise<string> {
   const apiUrl = buildNotionApiUrl('/api/notion/connect');
 
   try {
-    const url = `${apiUrl}?user_id=${userId}`;
-    const response = await fetch(url, {
+    const response = await fetch(`${apiUrl}?user_id=${userId}`, {
       method: 'GET',
       headers: {
         Accept: 'application/json',
@@ -53,31 +36,36 @@ export async function getNotionConnectUrl(userId: string): Promise<string> {
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-      throw new Error(errorData.error || errorData.message || `HTTP error! status: ${response.status}`);
+      const errorData = await response.json().catch(() => ({
+        error: 'Unknown error',
+      }));
+      throw new Error(
+        errorData.error ||
+          errorData.message ||
+          `HTTP error ${response.status}`
+      );
     }
 
     const data = await response.json();
     return data.auth_url;
   } catch (error) {
     console.error('Error getting Notion connect URL:', error);
-    if (error instanceof Error) {
-      throw error;
-    }
-    throw new Error('Failed to get Notion connect URL');
+    throw error instanceof Error
+      ? error
+      : new Error('Failed to get Notion connect URL');
   }
 }
 
 /**
- * Check if user is connected to Notion
+ * Check Notion connection status
  */
-export async function getNotionStatus(userId: string): Promise<NotionConnectionStatus> {
+export async function getNotionStatus(
+  userId: string
+): Promise<NotionConnectionStatus> {
   const apiUrl = buildNotionApiUrl('/api/notion/status');
 
   try {
-    const url = `${apiUrl}?user_id=${userId}`;
-    console.log('Checking Notion status at:', url);
-    const response = await fetch(url, {
+    const response = await fetch(`${apiUrl}?user_id=${userId}`, {
       method: 'GET',
       headers: {
         Accept: 'application/json',
@@ -85,28 +73,29 @@ export async function getNotionStatus(userId: string): Promise<NotionConnectionS
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-      console.error('Notion status API error:', errorData, 'Status:', response.status);
-      throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      const errorData = await response.json().catch(() => ({
+        error: 'Unknown error',
+      }));
+      throw new Error(
+        errorData.error || `HTTP error ${response.status}`
+      );
     }
 
     const data = await response.json();
-    console.log('Notion status API response data:', data);
     return {
-      connected: data.connected || false,
+      connected: Boolean(data.connected),
       workspace_name: data.workspace_name,
       integration_name: data.integration_name,
       connection_type: data.connection_type,
     };
   } catch (error) {
     console.error('Error checking Notion status:', error);
-    // Return disconnected status on error
     return { connected: false };
   }
 }
 
 /**
- * Disconnect from Notion
+ * Disconnect Notion
  */
 export async function disconnectNotion(userId: string): Promise<void> {
   const apiUrl = buildNotionApiUrl('/api/notion/disconnect');
@@ -122,15 +111,17 @@ export async function disconnectNotion(userId: string): Promise<void> {
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-      throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      const errorData = await response.json().catch(() => ({
+        error: 'Unknown error',
+      }));
+      throw new Error(
+        errorData.error || `HTTP error ${response.status}`
+      );
     }
   } catch (error) {
     console.error('Error disconnecting from Notion:', error);
-    if (error instanceof Error) {
-      throw error;
-    }
-    throw new Error('Failed to disconnect from Notion');
+    throw error instanceof Error
+      ? error
+      : new Error('Failed to disconnect from Notion');
   }
 }
-
