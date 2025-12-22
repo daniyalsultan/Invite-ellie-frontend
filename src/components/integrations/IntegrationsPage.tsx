@@ -14,8 +14,13 @@ import {
   CalendarConnection,
   CalendarDetails,
 } from '../../services/calendarApi';
+import { getSlackConnectUrl, getSlackStatus, disconnectSlack, type SlackConnectionStatus } from '../../services/slackApi';
+import { getNotionConnectUrl, getNotionStatus, disconnectNotion, type NotionConnectionStatus } from '../../services/notionApi';
+import { getHubSpotConnectUrl, getHubSpotStatus, disconnectHubSpot, type HubSpotConnectionStatus } from '../../services/hubspotApi';
 import googleMeetIcon from '../../assets/integration-google-meet.svg';
 import microsoftTeamsIcon from '../../assets/integration-microsoft-teams.svg';
+import slackLogo from '../../assets/Slack-Logo.png';
+import notionLogo from '../../assets/notion_logo.png';
 
 interface CalendarIntegration {
   id: 'google' | 'microsoft';
@@ -23,6 +28,14 @@ interface CalendarIntegration {
   icon: string;
   description: string;
   platform: 'google_calendar' | 'microsoft_outlook';
+}
+
+interface ExportIntegration {
+  id: 'slack' | 'notion' | 'hubspot';
+  name: string;
+  icon?: string;
+  iconColor?: string;
+  description: string;
 }
 
 const CALENDAR_INTEGRATIONS: CalendarIntegration[] = [
@@ -42,14 +55,40 @@ const CALENDAR_INTEGRATIONS: CalendarIntegration[] = [
   },
 ];
 
+const EXPORT_INTEGRATIONS: ExportIntegration[] = [
+  {
+    id: 'slack',
+    name: 'Slack',
+    icon: slackLogo,
+    description: 'Export your meeting summaries and transcripts directly to Slack channels.',
+  },
+  {
+    id: 'notion',
+    name: 'Notion',
+    icon: notionLogo,
+    description: 'Sync your meeting insights and notes to Notion pages and databases.',
+  },
+  {
+    id: 'hubspot',
+    name: 'HubSpot',
+    iconColor: '#FF7A59',
+    description: 'Export meeting notes and summaries to HubSpot as notes for CRM tracking.',
+  },
+];
+
 export function IntegrationsPage(): JSX.Element {
-  const { profile } = useProfile();
+  const { profile, isLoading: isProfileLoading } = useProfile();
   const [searchParams, setSearchParams] = useSearchParams();
   const [calendars, setCalendars] = useState<CalendarConnection[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [connecting, setConnecting] = useState<'google' | 'microsoft' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  // Export integrations state
+  const [slackStatus, setSlackStatus] = useState<SlackConnectionStatus>({ connected: false });
+  const [notionStatus, setNotionStatus] = useState<NotionConnectionStatus>({ connected: false });
+  const [hubspotStatus, setHubspotStatus] = useState<HubSpotConnectionStatus>({ connected: false });
+  const [exportConnecting, setExportConnecting] = useState<'slack' | 'notion' | 'hubspot' | null>(null);
   const [selectedCalendar, setSelectedCalendar] = useState<CalendarDetails | null>(null);
   const [loadingCalendarDetails, setLoadingCalendarDetails] = useState<string | null>(null);
   const [syncingCalendar, setSyncingCalendar] = useState<string | null>(null);
@@ -83,12 +122,12 @@ export function IntegrationsPage(): JSX.Element {
   const fetchCalendarsRef = useRef<(() => Promise<void>) | null>(null);
   const handleViewCalendarRef = useRef<((calendarId: string) => Promise<void>) | null>(null);
 
-  // Handle OAuth callback redirects
+  // Handle OAuth callback redirects for calendar integrations
   useEffect(() => {
     const connected = searchParams.get('connected');
     const email = searchParams.get('email');
     
-    if (connected) {
+    if (connected === 'google' || connected === 'microsoft') {
       const platform = connected === 'google' ? 'Google Calendar' : 'Microsoft Calendar';
       setSuccessMessage(`${platform} connected successfully${email ? ` for ${email}` : ''}`);
       // Remove query params
@@ -99,6 +138,97 @@ export function IntegrationsPage(): JSX.Element {
       }
     }
   }, [searchParams, setSearchParams, profile?.id]);
+
+  // Handle OAuth callback redirects for export integrations (Slack, Notion, HubSpot)
+  useEffect(() => {
+    const connected = searchParams.get('connected');
+    const error = searchParams.get('error');
+    const team = searchParams.get('team');
+    const workspace = searchParams.get('workspace');
+    const portal = searchParams.get('portal');
+    
+    if (connected === 'slack') {
+      setSuccessMessage(`Slack connected successfully${team ? ` to ${team}` : ''}`);
+      setTimeout(() => setSearchParams({}), 100);
+      if (profile?.id) {
+        setTimeout(() => void fetchSlackStatus(), 500);
+      }
+    } else if (connected === 'notion') {
+      setSuccessMessage(`Notion connected successfully${workspace ? ` to ${workspace}` : ''}`);
+      setTimeout(() => setSearchParams({}), 100);
+      if (profile?.id) {
+        setTimeout(() => void fetchNotionStatus(), 500);
+      }
+    } else if (connected === 'hubspot') {
+      setSuccessMessage(`HubSpot connected successfully${portal ? ` to ${portal}` : ''}`);
+      setTimeout(() => setSearchParams({}), 100);
+      if (profile?.id) {
+        setTimeout(() => void fetchHubspotStatus(), 500);
+      }
+    } else if (error && (connected === 'slack' || connected === 'notion' || connected === 'hubspot')) {
+      setError(`Failed to connect: ${error}`);
+      setTimeout(() => setSearchParams({}), 100);
+    }
+  }, [searchParams, setSearchParams, profile?.id]);
+
+  // Export integration handlers - define before useEffect that uses them
+  const fetchSlackStatus = async (): Promise<void> => {
+    if (!profile?.id) {
+      setSlackStatus({ connected: false });
+      return;
+    }
+    try {
+      setError(null);
+      const status = await getSlackStatus(profile.id);
+      setSlackStatus(status);
+    } catch (err) {
+      console.error('Error fetching Slack status:', err);
+      setSlackStatus({ connected: false });
+    }
+  };
+
+  const fetchNotionStatus = async (): Promise<void> => {
+    if (!profile?.id) {
+      setNotionStatus({ connected: false });
+      return;
+    }
+    try {
+      setError(null);
+      const status = await getNotionStatus(profile.id);
+      setNotionStatus(status);
+    } catch (err) {
+      console.error('Error fetching Notion status:', err);
+      setNotionStatus({ connected: false });
+    }
+  };
+
+  const fetchHubspotStatus = async (): Promise<void> => {
+    if (!profile?.id) {
+      setHubspotStatus({ connected: false });
+      return;
+    }
+    try {
+      setError(null);
+      const status = await getHubSpotStatus(profile.id);
+      setHubspotStatus(status);
+    } catch (err) {
+      console.error('Error fetching HubSpot status:', err);
+      setHubspotStatus({ connected: false });
+    }
+  };
+
+  // Check export integration status on mount
+  useEffect(() => {
+    if (profile?.id) {
+      void fetchSlackStatus();
+      void fetchNotionStatus();
+      void fetchHubspotStatus();
+    } else if (!isProfileLoading) {
+      setSlackStatus({ connected: false });
+      setNotionStatus({ connected: false });
+      setHubspotStatus({ connected: false });
+    }
+  }, [profile?.id, isProfileLoading]);
 
   const fetchCalendars = async () => {
     if (!profile?.id) {
@@ -537,6 +667,64 @@ export function IntegrationsPage(): JSX.Element {
     }
   };
 
+  const handleExportConnect = async (integration: ExportIntegration): Promise<void> => {
+    if (!profile?.id) {
+      setError(`Please log in to connect ${integration.name}`);
+      return;
+    }
+    try {
+      setExportConnecting(integration.id);
+      setError(null);
+      if (integration.id === 'slack') {
+        const authUrl = await getSlackConnectUrl(profile.id);
+        window.location.href = authUrl;
+      } else if (integration.id === 'notion') {
+        const authUrl = await getNotionConnectUrl(profile.id);
+        window.location.href = authUrl;
+      } else if (integration.id === 'hubspot') {
+        const authUrl = await getHubSpotConnectUrl(profile.id);
+        window.location.href = authUrl;
+      }
+    } catch (err) {
+      console.error(`Error connecting to ${integration.name}:`, err);
+      setError(err instanceof Error ? err.message : `Failed to connect to ${integration.name}`);
+      setExportConnecting(null);
+    }
+  };
+
+  const handleExportDisconnect = async (integration: ExportIntegration): Promise<void> => {
+    if (!profile?.id) {
+      setError(`Please log in to disconnect ${integration.name}`);
+      return;
+    }
+    if (!confirm(`Are you sure you want to disconnect from ${integration.name}?`)) {
+      return;
+    }
+    try {
+      setError(null);
+      if (integration.id === 'slack') {
+        await disconnectSlack(profile.id);
+        setSuccessMessage('Successfully disconnected from Slack');
+        setSlackStatus({ connected: false });
+        void fetchSlackStatus();
+      } else if (integration.id === 'notion') {
+        await disconnectNotion(profile.id);
+        setSuccessMessage('Successfully disconnected from Notion');
+        setNotionStatus({ connected: false });
+        void fetchNotionStatus();
+      } else if (integration.id === 'hubspot') {
+        await disconnectHubSpot(profile.id);
+        setSuccessMessage('Successfully disconnected from HubSpot');
+        setHubspotStatus({ connected: false });
+        void fetchHubspotStatus();
+      }
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (err) {
+      console.error(`Error disconnecting from ${integration.name}:`, err);
+      setError(err instanceof Error ? err.message : `Failed to disconnect from ${integration.name}`);
+    }
+  };
+
   return (
     <DashboardLayout activeTab="/integrations">
       <div className="w-full min-h-full bg-white">
@@ -575,6 +763,7 @@ export function IntegrationsPage(): JSX.Element {
 
           {/* Integration Cards Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+            {/* Calendar Integrations */}
             {CALENDAR_INTEGRATIONS.map((integration) => {
               const connected = isConnected(integration.platform);
               const connection = getCalendarConnection(integration.platform);
@@ -665,6 +854,111 @@ export function IntegrationsPage(): JSX.Element {
                 </div>
               );
             })}
+            {/* Export Integrations */}
+            {EXPORT_INTEGRATIONS.map((integration) => {
+                const isSlack = integration.id === 'slack';
+                const isNotion = integration.id === 'notion';
+                const isHubspot = integration.id === 'hubspot';
+                const isConnected = (isSlack && slackStatus.connected) || (isNotion && notionStatus.connected) || (isHubspot && hubspotStatus.connected);
+                const isConnecting = exportConnecting === integration.id;
+
+                return (
+                  <div
+                    key={integration.id}
+                    className="bg-white border border-gray-200 rounded-lg p-4 md:p-6 shadow-md hover:shadow-lg transition-shadow"
+                  >
+                    {/* Integration Logo */}
+                    <div className="mb-3 md:mb-4 flex items-center justify-center h-12 md:h-16">
+                      {integration.icon ? (
+                        <img
+                          src={integration.icon}
+                          alt={`${integration.name} logo`}
+                          className="max-h-12 md:max-h-16 max-w-full object-contain"
+                        />
+                      ) : (
+                        <div
+                          className="text-2xl md:text-3xl font-bold"
+                          style={{ color: integration.iconColor || '#333' }}
+                        >
+                          {integration.name}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Integration Name */}
+                    <h3 className="font-nunito text-base md:text-lg font-bold text-ellieBlack mb-2 text-center">
+                      {integration.name}
+                    </h3>
+
+                    {/* Integration Description */}
+                    <p className="font-nunito text-xs md:text-sm text-ellieGray mb-4 md:mb-6 leading-relaxed">
+                      {integration.description}
+                    </p>
+
+                    {/* Connection Status */}
+                    {isSlack && isConnected && slackStatus.team_name && (
+                      <p className="font-nunito text-xs text-ellieGray mb-3 text-center">
+                        Connected to: {slackStatus.team_name}
+                      </p>
+                    )}
+                    {isNotion && isConnected && notionStatus.workspace_name && (
+                      <p className="font-nunito text-xs text-ellieGray mb-3 text-center">
+                        Connected to: {notionStatus.workspace_name}
+                      </p>
+                    )}
+                    {isHubspot && isConnected && hubspotStatus.portal_name && (
+                      <p className="font-nunito text-xs text-ellieGray mb-3 text-center">
+                        Connected to: {hubspotStatus.portal_name}
+                      </p>
+                    )}
+
+                    {/* Connect/Disconnect Button */}
+                    <div className="flex flex-col gap-2">
+                      {isConnected ? (
+                        <>
+                          <button
+                            type="button"
+                            disabled={isLoading}
+                            className="flex items-center justify-center gap-2 px-3 md:px-4 py-2 md:py-2.5 rounded-lg bg-green-600 text-white font-nunito text-xs md:text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <svg
+                              className="w-4 h-4 md:w-5 md:h-5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M5 13l4 4L19 7"
+                              />
+                            </svg>
+                            Connected
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleExportDisconnect(integration)}
+                            disabled={isLoading}
+                            className="text-red-500 font-nunito text-xs md:text-sm font-medium hover:text-red-600 transition-colors text-center disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            Disconnect
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleExportConnect(integration)}
+                          disabled={isConnecting || isLoading}
+                          className="px-3 md:px-4 py-2 md:py-2.5 rounded-lg bg-ellieBlue text-white font-nunito text-xs md:text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {isConnecting ? 'Connecting...' : 'Connect'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
           </div>
 
           {/* All Meetings from All Calendars */}

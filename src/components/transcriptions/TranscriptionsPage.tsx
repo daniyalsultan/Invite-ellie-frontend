@@ -5,6 +5,7 @@ import { useProfile } from '../../context/ProfileContext';
 import { getTranscriptions, getTranscription, type Transcription } from '../../services/transcriptionApi';
 import { getSlackStatus } from '../../services/slackApi';
 import { getNotionStatus } from '../../services/notionApi';
+import { getHubSpotStatus } from '../../services/hubspotApi';
 import { getApiBaseUrl } from '../../utils/apiBaseUrl';
 import searchIcon from '../../assets/Vector.png';
 
@@ -145,7 +146,7 @@ export function TranscriptionsPage(): JSX.Element {
     navigator.clipboard.writeText(link);
   };
 
-  const handleExport = async (transcriptionId: string, exportType: 'slack' | 'notion'): Promise<void> => {
+  const handleExport = async (transcriptionId: string, exportType: 'slack' | 'notion' | 'hubspot'): Promise<void> => {
     if (!profile?.id) {
       setError('Please log in to export transcriptions');
       return;
@@ -171,7 +172,7 @@ export function TranscriptionsPage(): JSX.Element {
           setExporting(prev => ({ ...prev, [exportKey]: false }));
           setError(`You need to connect your Slack account first to export transcriptions. Redirecting to connection page...`);
           setTimeout(() => {
-            navigate('/slack-notion-export');
+            navigate('/integrations');
           }, 1500);
           return;
         }
@@ -184,7 +185,20 @@ export function TranscriptionsPage(): JSX.Element {
           setExporting(prev => ({ ...prev, [exportKey]: false }));
           setError(`You need to connect your Notion account first to export transcriptions. Redirecting to connection page...`);
           setTimeout(() => {
-            navigate('/slack-notion-export');
+            navigate('/integrations');
+          }, 1500);
+          return;
+        }
+      } else if (exportType === 'hubspot') {
+        const hubspotStatus = await getHubSpotStatus(profile.id);
+        isConnected = hubspotStatus.connected;
+        connectionInfo = hubspotStatus;
+        
+        if (!isConnected) {
+          setExporting(prev => ({ ...prev, [exportKey]: false }));
+          setError(`You need to connect your HubSpot account first to export transcriptions. Redirecting to connection page...`);
+          setTimeout(() => {
+            navigate('/integrations');
           }, 1500);
           return;
         }
@@ -285,7 +299,8 @@ export function TranscriptionsPage(): JSX.Element {
         
         // Check if we need to redirect
         if (result.redirect) {
-          const errorMsg = result.error || `Please connect to ${exportType === 'slack' ? 'Slack' : 'Notion'} first.`;
+          const platformName = exportType === 'slack' ? 'Slack' : exportType === 'notion' ? 'Notion' : 'HubSpot';
+          const errorMsg = result.error || `Please connect to ${platformName} first.`;
           const additionalInfo = import.meta.env.DEV 
             ? ' Note: You may have connected on the production backend. Please reconnect on localhost for local testing.'
             : '';
@@ -299,10 +314,16 @@ export function TranscriptionsPage(): JSX.Element {
       }
 
       if (result.success) {
-        const platformName = exportType === 'slack' ? 'Slack' : 'Notion';
+        const platformName = exportType === 'slack' ? 'Slack' : exportType === 'notion' ? 'Notion' : 'HubSpot';
+        let messageText = `Successfully exported transcription to ${platformName}!`;
+        
+        if (exportType !== 'hubspot') {
+          messageText += ' The meeting details (transcript, summary, and action items) have been shared.';
+        }
+        
         setExportMessage({
           type: 'success',
-          text: `Successfully exported transcription to ${platformName}! The PDF and meeting details (transcript, summary, and action items) have been shared.`
+          text: messageText
         });
         // Clear message after 6 seconds
         setTimeout(() => setExportMessage(null), 6000);
@@ -317,7 +338,8 @@ export function TranscriptionsPage(): JSX.Element {
       // Check if error indicates need to connect
       if (errorMessage.includes('Not connected') || errorMessage.includes('connect') || errorMessage.includes('Please connect')) {
         setExporting(prev => ({ ...prev, [exportKey]: false }));
-        setError(`You need to connect your ${exportType === 'slack' ? 'Slack' : 'Notion'} account first. Redirecting to connection page...`);
+        const platformName = exportType === 'slack' ? 'Slack' : exportType === 'notion' ? 'Notion' : 'HubSpot';
+        setError(`You need to connect your ${platformName} account first. Redirecting to connection page...`);
         setTimeout(() => {
           navigate('/slack-notion-export');
         }, 2000);
@@ -636,6 +658,34 @@ export function TranscriptionsPage(): JSX.Element {
                                         <path d="M4.459 4.208c.746.606 1.026.56 2.428.466l13.215-.793c.28 0 .047-.28-.046-.326L17.86 1.968c-.42-.326-.981-.7-2.055-.607L3.01 2.295c-.466.046-.56.28-.374.466zm.793 3.08v13.904c0 .747.373 1.027 1.214.98l14.523-.84c.841-.046.935-.56.935-1.167V6.354c0-.606-.233-.933-.748-.887l-15.177.887c-.56.047-.747.327-.747.933zm14.337.745c.093.42 0 .841-.42.888l-.7.14v10.264c-.608.327-1.168.514-1.635.514-.748 0-.935-.234-1.495-.933l-4.577-7.186v6.952L12.21 19s0 .841-1.168.841l-3.222.186c-.093-.186 0-.653.327-.746l.84-.233V9.854L7.822 9.76c-.094-.42.14-1.026.793-1.073l3.456-.233 4.764 7.279v-6.44l-1.215-.139c-.093-.514.28-.887.747-.933z"/>
                                       </svg>
                                       Notion
+                                    </>
+                                  )}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    void handleExport(transcription.id, 'hubspot');
+                                  }}
+                                  disabled={exporting[`${transcription.id}-hubspot`]}
+                                  className="px-3 py-1.5 rounded-lg text-white font-nunito text-xs font-semibold hover:opacity-90 transition-opacity flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  style={{ backgroundColor: '#FF7A59' }}
+                                  title="Export to HubSpot"
+                                >
+                                  {exporting[`${transcription.id}-hubspot`] ? (
+                                    <>
+                                      <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                      </svg>
+                                      Exporting...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M17.1 8.6V2.4h-4.8v6.2h4.8zm-.5-7.1h5.3c.3 0 .5.2.5.5v7.1c0 .3-.2.5-.5.5h-5.3c-.3 0-.5-.2-.5-.5V2c0-.3.2-.5.5-.5zm-6.1 14.3c0-2.9-2.4-5.3-5.3-5.3S0 12.9 0 15.8s2.4 5.3 5.3 5.3 5.3-2.4 5.3-5.3zm-5.3 3.8c-2.1 0-3.8-1.7-3.8-3.8s1.7-3.8 3.8-3.8 3.8 1.7 3.8 3.8-1.7 3.8-3.8 3.8zm14.4-3.8c0-2.9-2.4-5.3-5.3-5.3s-5.3 2.4-5.3 5.3 2.4 5.3 5.3 5.3 5.3-2.4 5.3-5.3zm-5.3 3.8c-2.1 0-3.8-1.7-3.8-3.8s1.7-3.8 3.8-3.8 3.8 1.7 3.8 3.8-1.7 3.8-3.8 3.8zm-2.7-6.1V2.4H6.4v6.2h4.8zm-5.3 0H1.8c-.3 0-.5-.2-.5-.5V2c0-.3.2-.5.5-.5h5.3c.3 0 .5.2.5.5v6.1c0 .3-.2.5-.5.5z"/>
+                                      </svg>
+                                      HubSpot
                                     </>
                                   )}
                                 </button>

@@ -39,6 +39,22 @@ export default defineConfig({
           });
         },
       },
+      // Proxy HubSpot endpoints to Railway backend (bot.py)
+      '/api/hubspot': {
+        target: 'https://web-production-07092.up.railway.app',
+        // target: 'http://localhost:8080', // For local bot.py
+        changeOrigin: true,
+        secure: false,
+        cookieDomainRewrite: 'localhost',
+        rewrite: (path) => path, // Preserve /api/hubspot prefix
+        configure: (proxy, _options) => {
+          proxy.on('proxyReq', (proxyReq, req, _res) => {
+            if (req.headers.cookie) {
+              proxyReq.setHeader('Cookie', req.headers.cookie);
+            }
+          });
+        },
+      },
       // Proxy chat endpoint to Railway backend (bot.py)
       '/api/chat': {
         target: 'https://web-production-07092.up.railway.app',
