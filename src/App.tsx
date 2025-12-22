@@ -39,10 +39,20 @@ function ScrollToHash(): null {
       return;
     }
 
-    const element = document.querySelector(location.hash);
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
+    // Use setTimeout to ensure DOM is ready
+    const timeoutId = setTimeout(() => {
+      try {
+        const element = document.querySelector(location.hash);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      } catch (err) {
+        // Silently handle errors (e.g., invalid hash selector)
+        console.debug('Could not scroll to hash:', location.hash);
+      }
+    }, 100);
+
+    return () => clearTimeout(timeoutId);
   }, [location]);
 
   return null;

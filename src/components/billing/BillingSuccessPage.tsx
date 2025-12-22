@@ -6,10 +6,10 @@ import { useAuth } from '../../context/AuthContext';
 
 export function BillingSuccessPage(): JSX.Element {
   const navigate = useNavigate();
-  const { profile, refreshProfile } = useProfile();
+  const { profile } = useProfile();
   const { isAuthenticated } = useAuth();
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [hasShownSuccess, setHasShownSuccess] = useState(false);
+  const [redirectTimer, setRedirectTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     // Redirect to login if not authenticated
@@ -18,60 +18,42 @@ export function BillingSuccessPage(): JSX.Element {
       return;
     }
 
-    // Refresh profile to get updated subscription status
-    const refreshUserProfile = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        
-        // Refresh the profile to get the latest subscription status
-        if (refreshProfile) {
-          await refreshProfile();
-        }
-        
-        // Small delay to ensure profile is updated
-        setTimeout(() => {
-          setLoading(false);
-        }, 1000);
-      } catch (err) {
-        console.error('Error refreshing profile:', err);
-        setError('Failed to refresh subscription status. Please check your subscriptions page.');
-        setLoading(false);
+    // Show success immediately and set up redirect
+    setHasShownSuccess(true);
+
+    // Auto-redirect to subscriptions page after 2 seconds
+    const timer = setTimeout(() => {
+      navigate('/subscriptions');
+    }, 2000);
+
+    setRedirectTimer(timer);
+
+    // Cleanup on unmount
+    return () => {
+      if (timer) {
+        clearTimeout(timer);
       }
     };
+  }, [isAuthenticated, navigate]);
 
-    void refreshUserProfile();
-  }, [isAuthenticated, navigate, refreshProfile]);
+  // Cleanup redirect timer on unmount
+  useEffect(() => {
+    return () => {
+      if (redirectTimer) {
+        clearTimeout(redirectTimer);
+      }
+    };
+  }, [redirectTimer]);
 
   return (
     <DashboardLayout activeTab="/subscriptions">
       <div className="w-full min-h-full bg-white">
         <div className="px-4 py-4 md:px-6 md:py-6 lg:px-8 lg:py-8">
           <div className="max-w-2xl mx-auto">
-            {loading ? (
+            {!hasShownSuccess ? (
               <div className="text-center py-12">
                 <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-ellieBlue border-t-transparent mb-4"></div>
                 <p className="font-nunito text-lg text-ellieGray">Processing your subscription...</p>
-              </div>
-            ) : error ? (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-6 mb-6">
-                <div className="flex items-center gap-3 mb-2">
-                  <svg
-                    className="w-6 h-6 text-red-600"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
-                  <h2 className="font-nunito text-xl font-bold text-red-800">Error</h2>
-                </div>
-                <p className="font-nunito text-base text-red-700">{error}</p>
               </div>
             ) : (
               <div className="text-center py-12">
@@ -129,21 +111,38 @@ export function BillingSuccessPage(): JSX.Element {
                   </div>
                 )}
 
+                {/* Redirect Message */}
+                <div className="mb-6">
+                  <p className="font-nunito text-sm text-ellieGray">
+                    Redirecting to subscriptions page in a moment...
+                  </p>
+                </div>
+
                 {/* Action Buttons */}
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <button
                     type="button"
-                    onClick={() => navigate('/dashboard')}
+                    onClick={() => {
+                      if (redirectTimer) {
+                        clearTimeout(redirectTimer);
+                      }
+                      navigate('/dashboard');
+                    }}
                     className="px-6 py-3 rounded-lg bg-ellieBlue text-white font-nunito text-base font-semibold hover:opacity-90 transition-opacity"
                   >
                     Go to Dashboard
                   </button>
                   <button
                     type="button"
-                    onClick={() => navigate('/subscriptions')}
+                    onClick={() => {
+                      if (redirectTimer) {
+                        clearTimeout(redirectTimer);
+                      }
+                      navigate('/subscriptions');
+                    }}
                     className="px-6 py-3 rounded-lg bg-white border-2 border-ellieBlue text-ellieBlue font-nunito text-base font-semibold hover:bg-ellieBlue hover:text-white transition-colors"
                   >
-                    View Subscriptions
+                    View Subscriptions Now
                   </button>
                 </div>
 

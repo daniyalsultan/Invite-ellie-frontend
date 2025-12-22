@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { DashboardLayout } from '../sidebar';
 import { useProfile } from '../../context/ProfileContext';
 import { useAuth } from '../../context/AuthContext';
@@ -55,6 +55,33 @@ export function SubscriptionsPage(): JSX.Element {
   const { ensureFreshAccessToken } = useAuth();
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [currentPlanId, setCurrentPlanId] = useState<string | null>(null);
+
+  // Get current plan from sessionStorage (stored when user subscribes)
+  // or determine from subscription error
+  useEffect(() => {
+    const profileData = profile as any;
+    
+    // Only check if user has an active subscription
+    if (!profileData?.stripe_subscription_id || profileData?.subscription_status !== 'active') {
+      setCurrentPlanId(null);
+      // Clear stored plan if no subscription
+      sessionStorage.removeItem('current_subscription_plan');
+      return;
+    }
+
+    // First, try to get from sessionStorage (stored when subscribing)
+    const storedPlan = sessionStorage.getItem('current_subscription_plan');
+    if (storedPlan && PLANS.some(p => p.id === storedPlan)) {
+      setCurrentPlanId(storedPlan);
+      return;
+    }
+
+    // If not in sessionStorage, we can't determine it without backend help
+    // For now, set to null - user can still switch plans
+    // Backend will prevent subscribing to the same plan
+    setCurrentPlanId(null);
+  }, [profile]);
 
   const handleSubscribe = async (planId: string) => {
     if (!profile?.id) {
@@ -101,12 +128,26 @@ export function SubscriptionsPage(): JSX.Element {
 
       if (!response.ok) {
         const text = await response.text();
+        const errorText = text.toLowerCase();
+        
+        // If error says "already subscribed to this plan", this is the current plan
+        if (errorText.includes('already subscribed to this plan')) {
+          setCurrentPlanId(planId);
+          sessionStorage.setItem('current_subscription_plan', planId);
+          setError('You are already subscribed to this plan.');
+          setLoadingPlan(null);
+          return;
+        }
+        
         throw new Error(text || 'Failed to start checkout');
       }
 
       const data = await response.json();
       const url = data.url || data.checkout_url || data.session_url;
       if (url) {
+        // Store the plan being subscribed to in sessionStorage
+        // This helps us identify the current plan after successful subscription
+        sessionStorage.setItem('current_subscription_plan', planId);
         window.location.href = url;
       } else {
         setError('Checkout created, but no redirect URL returned.');
@@ -151,14 +192,41 @@ export function SubscriptionsPage(): JSX.Element {
                     <li key={feature}>{feature}</li>
                   ))}
                 </ul>
-                <button
-                  type="button"
-                  onClick={() => handleSubscribe(plan.id)}
-                  disabled={loadingPlan === plan.id}
-                  className="w-full px-4 py-2 rounded-lg bg-ellieBlue text-white font-nunito text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {loadingPlan === plan.id ? 'Redirecting...' : 'Subscribe'}
-                </button>
+                {(() => {
+                  const profileData = profile as any;
+                  const hasActiveSubscription = profileData?.stripe_subscription_id && profileData?.subscription_status === 'active';
+                  const isCurrentPlan = currentPlanId === plan.id;
+                  
+                  // Disable if it's the current plan or if loading
+                  const isDisabled = loadingPlan === plan.id || (hasActiveSubscription && isCurrentPlan);
+                  
+                  // Determine button text
+                  let buttonText = 'Subscribe';
+                  if (loadingPlan === plan.id) {
+                    buttonText = 'Redirecting...';
+                  } else if (hasActiveSubscription && isCurrentPlan) {
+                    buttonText = 'Current Plan';
+                  } else if (hasActiveSubscription && !isCurrentPlan) {
+                    // Show upgrade/downgrade based on price comparison
+                    const currentPlan = PLANS.find(p => p.id === currentPlanId);
+                    if (currentPlan) {
+                      buttonText = plan.price > currentPlan.price ? 'Upgrade' : 'Downgrade';
+                    } else {
+                      buttonText = 'Switch Plan';
+                    }
+                  }
+                  
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => handleSubscribe(plan.id)}
+                      disabled={isDisabled}
+                      className="w-full px-4 py-2 rounded-lg bg-ellieBlue text-white font-nunito text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {buttonText}
+                    </button>
+                  );
+                })()}
               </div>
             ))}
           </div>
