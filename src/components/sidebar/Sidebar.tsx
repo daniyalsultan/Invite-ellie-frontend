@@ -8,7 +8,6 @@ import logo from '../../assets/logo.svg';
 import notificationsIcon from '../../assets/notifications.png';
 import preferencesIcon from '../../assets/preferences.png';
 import integrationsIcon from '../../assets/integrations.png';
-import exportIcon from '../../assets/icon-slack-notion-export.svg';
 import settingsIcon from '../../assets/settings.png';
 import { useAuth } from '../../context/AuthContext';
 
@@ -46,12 +45,12 @@ export function Sidebar({ activeTab }: SidebarProps): JSX.Element {
     // { label: 'Meeting Recordings', path: '/meeting-recordings', icon: manageRecordingsIcon },
   ];
 
-  // Bottom 4 items
+  // Bottom items
   const bottomItems: SidebarItem[] = [
     { label: 'Notifications', path: '/notifications', icon: notificationsIcon, hasNotification: true },
     { label: 'Preferences', path: '/preferences', icon: preferencesIcon },
     { label: 'Integrations', path: '/integrations', icon: integrationsIcon },
-    { label: 'Slack Notion Export', path: '/slack-notion-export', icon: exportIcon },
+    { label: 'Subscriptions', path: '/subscriptions', icon: integrationsIcon },
     { label: 'Settings', path: '/settings', icon: settingsIcon },
   ];
 
