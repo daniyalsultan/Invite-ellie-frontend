@@ -1,16 +1,16 @@
-// Notion API service for OAuth integration
+// HubSpot API service for OAuth integration
 
 import { getApiBaseUrl } from '../utils/apiBaseUrl';
 
 // Get unified backend API base URL using the utility function
 // This ensures we use the /api proxy path to avoid CORS issues
-function getNotionApiBaseUrl(): string {
+function getHubSpotApiBaseUrl(): string {
   const baseUrl = getApiBaseUrl() || 'https://web-production-07092.up.railway.app';
   return baseUrl.trim().replace(/\/$/, '');
 }
 
-function buildNotionApiUrl(path: string): string {
-  const baseUrl = getNotionApiBaseUrl();
+function buildHubSpotApiUrl(path: string): string {
+  const baseUrl = getHubSpotApiBaseUrl();
   let cleanPath = path.startsWith('/') ? path : `/${path}`;
   
   // If baseUrl is a relative path (/api), remove /api prefix from path if present
@@ -30,21 +30,22 @@ function buildNotionApiUrl(path: string): string {
   }
 }
 
-export interface NotionConnectionStatus {
+export interface HubSpotConnectionStatus {
   connected: boolean;
-  workspace_name?: string;
-  integration_name?: string;
-  connection_type?: string;
+  portal_name?: string;
+  portal_id?: string;
 }
 
 /**
- * Get Notion OAuth authorization URL
+ * Get HubSpot OAuth authorization URL
  */
-export async function getNotionConnectUrl(userId: string): Promise<string> {
-  const apiUrl = buildNotionApiUrl('/api/notion/connect');
+export async function getHubSpotConnectUrl(userId: string): Promise<string> {
+  const apiUrl = buildHubSpotApiUrl('/api/hubspot/connect');
+  console.log('[HubSpot] Connecting to:', apiUrl);
 
   try {
     const url = `${apiUrl}?user_id=${userId}`;
+    console.log('[HubSpot] Full URL:', url);
     const response = await fetch(url, {
       method: 'GET',
       headers: {
@@ -53,30 +54,36 @@ export async function getNotionConnectUrl(userId: string): Promise<string> {
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-      throw new Error(errorData.error || errorData.message || `HTTP error! status: ${response.status}`);
+      const errorText = await response.text().catch(() => '');
+      console.error('[HubSpot] Response error:', response.status, errorText);
+      let errorData;
+      try {
+        errorData = JSON.parse(errorText);
+      } catch {
+        errorData = { error: errorText || 'Unknown error' };
+      }
+      throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
     }
 
     const data = await response.json();
     return data.auth_url;
   } catch (error) {
-    console.error('Error getting Notion connect URL:', error);
+    console.error('Error getting HubSpot connect URL:', error);
     if (error instanceof Error) {
       throw error;
     }
-    throw new Error('Failed to get Notion connect URL');
+    throw new Error('Failed to get HubSpot connect URL');
   }
 }
 
 /**
- * Check if user is connected to Notion
+ * Check if user is connected to HubSpot
  */
-export async function getNotionStatus(userId: string): Promise<NotionConnectionStatus> {
-  const apiUrl = buildNotionApiUrl('/api/notion/status');
+export async function getHubSpotStatus(userId: string): Promise<HubSpotConnectionStatus> {
+  const apiUrl = buildHubSpotApiUrl('/api/hubspot/status');
 
   try {
     const url = `${apiUrl}?user_id=${userId}`;
-    console.log('Checking Notion status at:', url);
     const response = await fetch(url, {
       method: 'GET',
       headers: {
@@ -86,30 +93,27 @@ export async function getNotionStatus(userId: string): Promise<NotionConnectionS
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-      console.error('Notion status API error:', errorData, 'Status:', response.status);
       throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
     }
 
     const data = await response.json();
-    console.log('Notion status API response data:', data);
     return {
       connected: data.connected || false,
-      workspace_name: data.workspace_name,
-      integration_name: data.integration_name,
-      connection_type: data.connection_type,
+      portal_name: data.portal_name,
+      portal_id: data.portal_id,
     };
   } catch (error) {
-    console.error('Error checking Notion status:', error);
+    console.error('Error checking HubSpot status:', error);
     // Return disconnected status on error
     return { connected: false };
   }
 }
 
 /**
- * Disconnect from Notion
+ * Disconnect from HubSpot
  */
-export async function disconnectNotion(userId: string): Promise<void> {
-  const apiUrl = buildNotionApiUrl('/api/notion/disconnect');
+export async function disconnectHubSpot(userId: string): Promise<void> {
+  const apiUrl = buildHubSpotApiUrl('/api/hubspot/disconnect');
 
   try {
     const response = await fetch(apiUrl, {
@@ -126,11 +130,11 @@ export async function disconnectNotion(userId: string): Promise<void> {
       throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
     }
   } catch (error) {
-    console.error('Error disconnecting from Notion:', error);
+    console.error('Error disconnecting from HubSpot:', error);
     if (error instanceof Error) {
       throw error;
     }
-    throw new Error('Failed to disconnect from Notion');
+    throw new Error('Failed to disconnect from HubSpot');
   }
 }
 

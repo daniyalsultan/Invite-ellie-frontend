@@ -4,13 +4,15 @@ import { DashboardLayout } from '../sidebar';
 import { useProfile } from '../../context/ProfileContext';
 import { getSlackConnectUrl, getSlackStatus, disconnectSlack, type SlackConnectionStatus } from '../../services/slackApi';
 import { getNotionConnectUrl, getNotionStatus, disconnectNotion, type NotionConnectionStatus } from '../../services/notionApi';
+import { getHubSpotConnectUrl, getHubSpotStatus, disconnectHubSpot, type HubSpotConnectionStatus } from '../../services/hubspotApi';
 import slackLogo from '../../assets/Slack-Logo.png';
 import notionLogo from '../../assets/notion_logo.png';
 
 interface ExportIntegration {
-  id: 'slack' | 'notion';
+  id: 'slack' | 'notion' | 'hubspot';
   name: string;
-  icon: string;
+  icon?: string;
+  iconColor?: string;
   description: string;
 }
 
@@ -27,41 +29,57 @@ const EXPORT_INTEGRATIONS: ExportIntegration[] = [
     icon: notionLogo,
     description: 'Sync your meeting insights and notes to Notion pages and databases.',
   },
+  {
+    id: 'hubspot',
+    name: 'HubSpot',
+    iconColor: '#FF7A59',
+    description: 'Export meeting notes and summaries to HubSpot as notes for CRM tracking.',
+  },
 ];
 
 export function SlackNotionExportPage(): JSX.Element {
-  const { profile } = useProfile();
+  const { profile, isLoading: isProfileLoading } = useProfile();
   const [searchParams, setSearchParams] = useSearchParams();
   const [slackStatus, setSlackStatus] = useState<SlackConnectionStatus>({ connected: false });
   const [notionStatus, setNotionStatus] = useState<NotionConnectionStatus>({ connected: false });
+  const [hubspotStatus, setHubspotStatus] = useState<HubSpotConnectionStatus>({ connected: false });
   const [isLoading, setIsLoading] = useState(true);
-  const [connecting, setConnecting] = useState<'slack' | 'notion' | null>(null);
+  const [connecting, setConnecting] = useState<'slack' | 'notion' | 'hubspot' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Check connection status on mount - only when logged in
   useEffect(() => {
+    // Wait for profile to be loaded (or confirmed as not loading)
+    // This ensures we have the user ID before checking connection status
     if (profile?.id) {
+      setIsLoading(true);
       void fetchSlackStatus();
       void fetchNotionStatus();
-    } else {
-      // Show as disconnected when not logged in
+      void fetchHubspotStatus();
+    } else if (!isProfileLoading) {
+      // Profile is not loading and we don't have a profile - user is not logged in
+      // The ProtectedRoute will handle redirecting to login if not authenticated
       setSlackStatus({ connected: false });
       setNotionStatus({ connected: false });
+      setHubspotStatus({ connected: false });
       setIsLoading(false);
     }
-  }, [profile?.id]);
+    // If isProfileLoading is true, keep loading state to show spinner
+  }, [profile?.id, isProfileLoading]);
 
   // Also check status when coming back from OAuth callback (in case profile wasn't loaded yet)
   useEffect(() => {
     const connected = searchParams.get('connected');
-    if ((connected === 'slack' || connected === 'notion') && profile?.id) {
+    if ((connected === 'slack' || connected === 'notion' || connected === 'hubspot') && profile?.id) {
       // If we have a connection callback and profile is now loaded, refresh status
       console.log('Profile loaded after OAuth callback, refreshing status...');
       if (connected === 'slack') {
         void fetchSlackStatus();
       } else if (connected === 'notion') {
         void fetchNotionStatus();
+      } else if (connected === 'hubspot') {
+        void fetchHubspotStatus();
       }
     }
   }, [profile?.id, searchParams]);
@@ -72,41 +90,103 @@ export function SlackNotionExportPage(): JSX.Element {
     const error = searchParams.get('error');
     const team = searchParams.get('team');
     const workspace = searchParams.get('workspace');
+    const portal = searchParams.get('portal');
     
     if (connected === 'slack') {
       setSuccessMessage(`Slack connected successfully${team ? ` to ${team}` : ''}`);
-      setSearchParams({});
+      // Clear search params after a moment to show the success message
+      setTimeout(() => {
+        setSearchParams({});
+      }, 100);
+      
       // Refresh status after connection - use profile.id if available
-      if (profile?.id) {
-        // Small delay to ensure backend has processed the connection
-        setTimeout(() => {
-          void fetchSlackStatus();
-        }, 500);
-      }
+      const refreshStatus = () => {
+        if (profile?.id) {
+          console.log('Refreshing Slack status after connection...');
+          // Small delay to ensure backend has processed the connection
+          setTimeout(() => {
+            void fetchSlackStatus();
+          }, 500);
+        } else {
+          // If profile isn't loaded yet, wait and retry
+          setTimeout(() => {
+            if (profile?.id) {
+              void fetchSlackStatus();
+            } else {
+              refreshStatus(); // Retry once more
+            }
+          }, 1000);
+        }
+      };
+      
+      refreshStatus();
     } else if (connected === 'notion') {
       setSuccessMessage(`Notion connected successfully${workspace ? ` to ${workspace}` : ''}`);
-      setSearchParams({});
+      // Clear search params after a moment to show the success message
+      setTimeout(() => {
+        setSearchParams({});
+      }, 100);
+      
       console.log('Notion connection callback received, workspace:', workspace);
       console.log('Current profile.id:', profile?.id);
+      
       // Refresh status after connection - use profile.id if available
-      if (profile?.id) {
-        // Small delay to ensure backend has processed the connection
-        console.log('Refreshing Notion status in 500ms...');
-        setTimeout(() => {
-          void fetchNotionStatus();
-        }, 500);
-      } else {
-        console.warn('Profile ID not available when Notion callback received, will retry when profile loads');
-        // If profile isn't loaded yet, wait a bit and try again
-        setTimeout(() => {
-          if (profile?.id) {
+      const refreshStatus = () => {
+        if (profile?.id) {
+          console.log('Refreshing Notion status after connection...');
+          // Small delay to ensure backend has processed the connection
+          setTimeout(() => {
             void fetchNotionStatus();
-          }
-        }, 2000);
-      }
+          }, 500);
+        } else {
+          // If profile isn't loaded yet, wait and retry
+          setTimeout(() => {
+            if (profile?.id) {
+              void fetchNotionStatus();
+            } else {
+              refreshStatus(); // Retry once more
+            }
+          }, 1000);
+        }
+      };
+      
+      refreshStatus();
+    } else if (connected === 'hubspot') {
+      setSuccessMessage(`HubSpot connected successfully${portal ? ` to ${portal}` : ''}`);
+      // Clear search params after a moment to show the success message
+      setTimeout(() => {
+        setSearchParams({});
+      }, 100);
+      
+      console.log('HubSpot connection callback received, portal:', portal);
+      console.log('Current profile.id:', profile?.id);
+      
+      // Refresh status after connection - use profile.id if available
+      const refreshStatus = () => {
+        if (profile?.id) {
+          console.log('Refreshing HubSpot status after connection...');
+          // Small delay to ensure backend has processed the connection
+          setTimeout(() => {
+            void fetchHubspotStatus();
+          }, 500);
+        } else {
+          // If profile isn't loaded yet, wait and retry
+          setTimeout(() => {
+            if (profile?.id) {
+              void fetchHubspotStatus();
+            } else {
+              refreshStatus(); // Retry once more
+            }
+          }, 1000);
+        }
+      };
+      
+      refreshStatus();
     } else if (error) {
       setError(`Failed to connect: ${error}`);
-      setSearchParams({});
+      setTimeout(() => {
+        setSearchParams({});
+      }, 100);
     }
   }, [searchParams, setSearchParams, profile?.id]);
 
@@ -149,6 +229,25 @@ export function SlackNotionExportPage(): JSX.Element {
     }
   };
 
+  const fetchHubspotStatus = async (): Promise<void> => {
+    // Require login for status check
+    if (!profile?.id) {
+      setHubspotStatus({ connected: false });
+      return;
+    }
+
+    try {
+      setError(null);
+      const status = await getHubSpotStatus(profile.id);
+      setHubspotStatus(status);
+    } catch (err) {
+      console.error('Error fetching HubSpot status:', err);
+      setHubspotStatus({ connected: false });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleConnect = async (integration: ExportIntegration): Promise<void> => {
     // Require login for connect action
     if (!profile?.id) {
@@ -168,6 +267,10 @@ export function SlackNotionExportPage(): JSX.Element {
       } else if (integration.id === 'notion') {
         const authUrl = await getNotionConnectUrl(profile.id);
         // Redirect to Notion OAuth
+        window.location.href = authUrl;
+      } else if (integration.id === 'hubspot') {
+        const authUrl = await getHubSpotConnectUrl(profile.id);
+        // Redirect to HubSpot OAuth
         window.location.href = authUrl;
       }
     } catch (err) {
@@ -204,6 +307,12 @@ export function SlackNotionExportPage(): JSX.Element {
         setNotionStatus({ connected: false });
         // Refresh status to confirm disconnection
         void fetchNotionStatus();
+      } else if (integration.id === 'hubspot') {
+        await disconnectHubSpot(profile.id);
+        setSuccessMessage('Successfully disconnected from HubSpot');
+        setHubspotStatus({ connected: false });
+        // Refresh status to confirm disconnection
+        void fetchHubspotStatus();
       }
       
       // Clear success message after 3 seconds
@@ -255,7 +364,8 @@ export function SlackNotionExportPage(): JSX.Element {
             {EXPORT_INTEGRATIONS.map((integration) => {
               const isSlack = integration.id === 'slack';
               const isNotion = integration.id === 'notion';
-              const isConnected = (isSlack && slackStatus.connected) || (isNotion && notionStatus.connected);
+              const isHubspot = integration.id === 'hubspot';
+              const isConnected = (isSlack && slackStatus.connected) || (isNotion && notionStatus.connected) || (isHubspot && hubspotStatus.connected);
               const isConnecting = connecting === integration.id;
 
               return (
@@ -265,11 +375,20 @@ export function SlackNotionExportPage(): JSX.Element {
                 >
                   {/* Integration Logo */}
                   <div className="mb-3 md:mb-4 flex items-center justify-center h-12 md:h-16">
-                    <img
-                      src={integration.icon}
-                      alt={`${integration.name} logo`}
-                      className="max-h-12 md:max-h-16 max-w-full object-contain"
-                    />
+                    {integration.icon ? (
+                      <img
+                        src={integration.icon}
+                        alt={`${integration.name} logo`}
+                        className="max-h-12 md:max-h-16 max-w-full object-contain"
+                      />
+                    ) : (
+                      <div
+                        className="text-2xl md:text-3xl font-bold"
+                        style={{ color: integration.iconColor || '#333' }}
+                      >
+                        {integration.name}
+                      </div>
+                    )}
                   </div>
 
                   {/* Integration Name */}
@@ -291,6 +410,11 @@ export function SlackNotionExportPage(): JSX.Element {
                   {isNotion && isConnected && notionStatus.workspace_name && (
                     <p className="font-nunito text-xs text-ellieGray mb-3 text-center">
                       Connected to: {notionStatus.workspace_name}
+                    </p>
+                  )}
+                  {isHubspot && isConnected && hubspotStatus.portal_name && (
+                    <p className="font-nunito text-xs text-ellieGray mb-3 text-center">
+                      Connected to: {hubspotStatus.portal_name}
                     </p>
                   )}
 
