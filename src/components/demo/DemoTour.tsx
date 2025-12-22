@@ -4,6 +4,7 @@ import demo1 from '../../assets/demo-1.png';
 import demo2 from '../../assets/demo-2.png';
 import demo3 from '../../assets/demo-3.png';
 import demo4 from '../../assets/demo-4.png';
+import logo from '../../assets/logo.svg';
 
 interface TourStep {
   id: number;
@@ -94,7 +95,7 @@ export function DemoTour({
         <div className="mb-4 md:mb-6">
           <div className="flex flex-col items-center gap-2 md:flex-row md:items-center md:gap-3">
             <img
-              src="/src/assets/logo.svg"
+              src={logo}
               alt="Invite Ellie"
               className="h-12 w-12 md:h-20 md:w-20"
             />

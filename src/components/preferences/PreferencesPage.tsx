@@ -55,6 +55,7 @@ export function PreferencesPage(): JSX.Element {
   const [profileEmail, setProfileEmail] = useState<string | undefined>(undefined);
   const [ssoProvider, setSsoProvider] = useState<string | undefined>(undefined);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSavingAvatar, setIsSavingAvatar] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -71,7 +72,93 @@ export function PreferencesPage(): JSX.Element {
     }
   };
 
-  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+  // Auto-save avatar (upload or remove)
+  const saveAvatarOnly = async (file: File | null, isRemoving: boolean = false) => {
+    if (!apiBaseUrl) {
+      return;
+    }
+
+    setIsSavingAvatar(true);
+    try {
+      const token = await ensureFreshAccessToken();
+      if (!token) {
+        throw new Error('Unable to authenticate. Please login again.');
+      }
+
+      const formData = new FormData();
+      if (isRemoving) {
+        // To remove avatar, send empty string
+        formData.append('avatar', '');
+      } else if (file) {
+        formData.append('avatar', file);
+      }
+
+      const response = await fetch(`${apiBaseUrl}/accounts/me/`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      let responseData: unknown;
+      try {
+        const contentType = response.headers.get('content-type') ?? '';
+        if (contentType.includes('application/json')) {
+          responseData = await response.json();
+        } else {
+          const text = await response.text();
+          responseData = text ? JSON.parse(text) : null;
+        }
+      } catch (parseError) {
+        console.error('Failed to parse response:', parseError);
+        responseData = null;
+      }
+
+      if (!response.ok) {
+        let message = 'Unable to update avatar.';
+        if (responseData && typeof responseData === 'object' && responseData !== null) {
+          const data = responseData as Record<string, unknown>;
+          if ('error' in data && typeof data.error === 'string') {
+            message = data.error;
+          } else if ('detail' in data && typeof data.detail === 'string') {
+            message = data.detail;
+          }
+        }
+        throw new Error(message);
+      }
+
+      // Update preview with server response
+      if (responseData && typeof responseData === 'object' && responseData !== null) {
+        const data = responseData as Record<string, unknown>;
+        if ('avatar_url' in data) {
+          if (isRemoving || data.avatar_url === null || data.avatar_url === '') {
+            revokeObjectUrl();
+            setAvatarPreview(null);
+          } else if (typeof data.avatar_url === 'string') {
+            revokeObjectUrl();
+            setAvatarPreview(data.avatar_url);
+          }
+        }
+      }
+      setAvatarFile(null);
+      await refreshProfile();
+    } catch (error) {
+      console.error('Failed to save avatar:', error);
+      // Revert preview on error
+      if (isRemoving) {
+        setAvatarPreview(profile?.avatar_url ?? null);
+      } else {
+        revokeObjectUrl();
+        setAvatarPreview(profile?.avatar_url ?? null);
+        setAvatarFile(null);
+      }
+    } finally {
+      setIsSavingAvatar(false);
+    }
+  };
+
+  const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -80,9 +167,16 @@ export function PreferencesPage(): JSX.Element {
     previousUrlRef.current = objectUrl;
     setAvatarPreview(objectUrl);
     setAvatarFile(file);
+    
+    // Auto-save avatar - pass file directly, avatarFile state is for tracking
+    void avatarFile; // Suppress unused variable warning
+    await saveAvatarOnly(file, false);
   };
 
-  const handleRemoveAvatar = () => {
+  const handleRemoveAvatar = async () => {
+    // Auto-save avatar removal
+    await saveAvatarOnly(null, true);
+    
     revokeObjectUrl();
     setAvatarPreview(null);
     setAvatarFile(null);
@@ -144,9 +238,7 @@ export function PreferencesPage(): JSX.Element {
       const audienceLocal: 'team' | 'personal' = usageType === 'personal' ? 'personal' : 'team';
       formData.append('audience', localAudienceToApi(audienceLocal));
       formData.append('purpose', encodeMultiSelect(selectedUseCases));
-      if (avatarFile) {
-        formData.append('avatar', avatarFile);
-      }
+      // Don't include avatar in regular save - it's auto-saved separately
 
       const response = await fetch(`${apiBaseUrl}/accounts/me/`, {
         method: 'PATCH',
@@ -202,14 +294,6 @@ export function PreferencesPage(): JSX.Element {
       }
 
       setStatusMessage({ type: 'success', text: 'Profile updated successfully.' });
-      if (responseData && typeof responseData === 'object' && responseData !== null) {
-        const data = responseData as Record<string, unknown>;
-        if ('avatar_url' in data && typeof data.avatar_url === 'string') {
-          revokeObjectUrl();
-          setAvatarPreview(data.avatar_url);
-          setAvatarFile(null);
-        }
-      }
       await refreshProfile();
     } catch (error) {
       const message =
@@ -221,7 +305,7 @@ export function PreferencesPage(): JSX.Element {
   };
 
   const displayName = [firstName, lastName].filter(Boolean).join(' ') || undefined;
-  const disableInputs = isSaving;
+  const disableInputs = isSaving || isSavingAvatar;
   const showInitialLoading = isProfileLoading && !profile;
 
   const normalizedProvider = (ssoProvider ?? '').toLowerCase();
