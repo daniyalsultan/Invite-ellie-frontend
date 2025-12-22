@@ -77,6 +77,7 @@ export function SetupProfilePage(): JSX.Element {
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSavingAvatar, setIsSavingAvatar] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const previousUrlRef = useRef<string | null>(null);
@@ -105,7 +106,93 @@ export function SetupProfilePage(): JSX.Element {
     }
   };
 
-  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+  // Auto-save avatar (upload or remove)
+  const saveAvatarOnly = async (file: File | null, isRemoving: boolean = false) => {
+    if (!apiBaseUrl) {
+      return;
+    }
+
+    setIsSavingAvatar(true);
+    try {
+      const token = await ensureFreshAccessToken();
+      if (!token) {
+        throw new Error('Unable to authenticate. Please login again.');
+      }
+
+      const formData = new FormData();
+      if (isRemoving) {
+        // To remove avatar, send empty string
+        formData.append('avatar', '');
+      } else if (file) {
+        formData.append('avatar', file);
+      }
+
+      const response = await fetch(`${apiBaseUrl}/accounts/me/`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      let responseData: unknown;
+      try {
+        const contentType = response.headers.get('content-type') ?? '';
+        if (contentType.includes('application/json')) {
+          responseData = await response.json();
+        } else {
+          const text = await response.text();
+          responseData = text ? JSON.parse(text) : null;
+        }
+      } catch (parseError) {
+        console.error('Failed to parse response:', parseError);
+        responseData = null;
+      }
+
+      if (!response.ok) {
+        let message = 'Unable to update avatar.';
+        if (responseData && typeof responseData === 'object' && responseData !== null) {
+          const data = responseData as Record<string, unknown>;
+          if ('error' in data && typeof data.error === 'string') {
+            message = data.error;
+          } else if ('detail' in data && typeof data.detail === 'string') {
+            message = data.detail;
+          }
+        }
+        throw new Error(message);
+      }
+
+      // Update preview with server response
+      if (responseData && typeof responseData === 'object' && responseData !== null) {
+        const data = responseData as Record<string, unknown>;
+        if ('avatar_url' in data) {
+          if (isRemoving || data.avatar_url === null || data.avatar_url === '') {
+            revokeObjectUrl();
+            setAvatarPreview(null);
+          } else if (typeof data.avatar_url === 'string') {
+            revokeObjectUrl();
+            setAvatarPreview(data.avatar_url);
+          }
+        }
+      }
+      setAvatarFile(null);
+      await refreshProfile();
+    } catch (error) {
+      console.error('Failed to save avatar:', error);
+      // Revert preview on error
+      if (isRemoving) {
+        setAvatarPreview(profile?.avatar_url ?? null);
+      } else {
+        revokeObjectUrl();
+        setAvatarPreview(profile?.avatar_url ?? null);
+        setAvatarFile(null);
+      }
+    } finally {
+      setIsSavingAvatar(false);
+    }
+  };
+
+  const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -114,9 +201,16 @@ export function SetupProfilePage(): JSX.Element {
     previousUrlRef.current = objectUrl;
     setAvatarPreview(objectUrl);
     setAvatarFile(file);
+    
+    // Auto-save avatar - pass file directly, avatarFile state is for tracking
+    void avatarFile; // Suppress unused variable warning
+    await saveAvatarOnly(file, false);
   };
 
-  const handleRemoveAvatar = () => {
+  const handleRemoveAvatar = async () => {
+    // Auto-save avatar removal
+    await saveAvatarOnly(null, true);
+    
     revokeObjectUrl();
     setAvatarPreview(null);
     setAvatarFile(null);
@@ -178,9 +272,7 @@ export function SetupProfilePage(): JSX.Element {
       // Set first_login to false after profile setup
       // Keep show_tour as true so the tour shows after redirecting to dashboard
       formData.append('first_login', 'false');
-      if (avatarFile) {
-        formData.append('avatar', avatarFile);
-      }
+      // Don't include avatar in regular save - it's auto-saved separately
 
       const response = await fetch(`${apiBaseUrl}/accounts/me/`, {
         method: 'PATCH',
@@ -251,7 +343,7 @@ export function SetupProfilePage(): JSX.Element {
     }
   };
 
-  const disableInputs = isSubmitting;
+  const disableInputs = isSubmitting || isSavingAvatar;
 
   return (
     <div className="bg-white pb-[80px] pt-[40px] lg:pb-[120px] lg:pt-[60px]">
@@ -443,14 +535,15 @@ export function SetupProfilePage(): JSX.Element {
                         }
                         await refreshProfile();
                       }
-                    } catch {
-                      // Ignore errors when skipping
+                    } catch (error) {
+                      console.error('Error updating first_login when skipping:', error);
+                      // Continue navigation even if API call fails
                     }
                   }
-                  navigate('/dashboard');
+                  navigate('/dashboard', { replace: true });
                 }}
                 disabled={isSubmitting}
-                className="font-nunito text-[18px] font-extrabold text-ellieNavy underline decoration-transparent transition hover:decoration-current disabled:opacity-50"
+                className="font-nunito text-[18px] font-extrabold text-ellieNavy underline decoration-transparent transition hover:decoration-current disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Skip for now?
               </button>
