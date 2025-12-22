@@ -90,18 +90,51 @@ export async function getConnectedCalendars(
       let response: Response;
       try {
         console.log('Making fetch request now...');
-        response = await fetch(url, {
-          method: 'GET',
-          headers: {
-            Accept: 'application/json',
-            'ngrok-skip-browser-warning': 'true', // Bypass ngrok interstitial page
-          },
-          // Don't include credentials to avoid CORS issues
-          // credentials: 'include',
-        });
-        console.log('✅ GET request completed! Status:', response.status, response.statusText);
-        console.log('Calendar API response URL:', response.url);
+        
+        // Create abort controller for timeout (more compatible than AbortSignal.timeout)
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+        
+        try {
+          response = await fetch(url, {
+            method: 'GET',
+            headers: {
+              Accept: 'application/json',
+              'ngrok-skip-browser-warning': 'true', // Bypass ngrok interstitial page
+            },
+            // Don't include credentials to avoid CORS issues
+            // credentials: 'include',
+            signal: controller.signal,
+          });
+          clearTimeout(timeoutId);
+          console.log('✅ GET request completed! Status:', response.status, response.statusText);
+          console.log('Calendar API response URL:', response.url);
+        } catch (fetchError) {
+          clearTimeout(timeoutId);
+          throw fetchError;
+        }
       } catch (fetchError) {
+        // Check if it's an abort/timeout error
+        if (fetchError instanceof Error && (fetchError.name === 'AbortError' || fetchError.message.includes('aborted'))) {
+          console.error('Fetch timeout - request took too long');
+          // Return empty array for timeout instead of throwing
+          // This prevents breaking the UI when network is slow
+          console.warn('Request timed out, returning empty array');
+          return [];
+        }
+        // Check if it's a network error (ERR_SOCKET_NOT_CONNECTED, Failed to fetch, etc.)
+        if (
+          fetchError instanceof TypeError && 
+          (fetchError.message.includes('Failed to fetch') || 
+           fetchError.message.includes('ERR_SOCKET_NOT_CONNECTED') ||
+           fetchError.message.includes('NetworkError'))
+        ) {
+          console.error('Fetch error (network issue):', fetchError);
+          // Don't throw for network errors - return empty array instead
+          // This prevents breaking the UI when network is temporarily unavailable
+          console.warn('Network error fetching calendars, returning empty array');
+          return [];
+        }
         console.error('Fetch error (network/CORS issue):', fetchError);
         throw new Error(
           `Failed to fetch calendars. This might be a CORS issue. Check browser console and ensure VITE_RECALLAI_BASE_URL is set to your backend server URL. Error: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`
@@ -148,15 +181,24 @@ export async function getConnectedCalendars(
         // Check if response is actually JSON
         if (contentType.includes('application/json')) {
           const data = await response.json();
+          // Handle both array and object response formats
+          let calendarsArray: any[] = [];
           if (Array.isArray(data)) {
-            return data.map((cal: any) => ({
-              id: cal.id,
-              platform: cal.platform === 'google_calendar' ? 'google_calendar' : 'microsoft_outlook',
-              email: cal.email,
-              status: cal.status,
-              connected: true,
-            }));
+            calendarsArray = data;
+          } else if (data && data.calendars && Array.isArray(data.calendars)) {
+            calendarsArray = data.calendars;
+          } else {
+            console.warn('Unexpected response format:', data);
+            return [];
           }
+          
+          return calendarsArray.map((cal: any) => ({
+            id: cal.id,
+            platform: cal.platform === 'google_calendar' ? 'google_calendar' : 'microsoft_outlook',
+            email: cal.email,
+            status: cal.status,
+            connected: cal.connected !== undefined ? cal.connected : cal.status === 'connected',
+          }));
         } else {
           // Response is not JSON, probably HTML error page
           const text = await response.text();
@@ -476,6 +518,36 @@ export async function createBotForEvent(
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({ error: 'Failed to create bot' }));
     throw new Error(errorData.error || 'Failed to create bot');
+  }
+
+  return await response.json();
+}
+
+/**
+ * Delete a scheduled bot for a calendar event
+ * This can only be done on scheduled bots that have not yet joined a call.
+ */
+export async function deleteBotForEvent(
+  eventId: string,
+  botId: string,
+  userId?: string
+): Promise<{ success: boolean; message: string; error?: string }> {
+  const recallaiUrl = buildRecallaiUrl(`/api/calendar-event/${eventId}/bot/${botId}${userId ? `?userId=${userId}` : ''}`);
+  if (!recallaiUrl) {
+    throw new Error('Recallai backend URL is not configured.');
+  }
+
+  const response = await fetch(recallaiUrl, {
+    method: 'DELETE',
+    headers: {
+      Accept: 'application/json',
+      'ngrok-skip-browser-warning': 'true', // Bypass ngrok interstitial page
+    },
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: 'Failed to delete bot' }));
+    throw new Error(errorData.error || 'Failed to delete bot');
   }
 
   return await response.json();

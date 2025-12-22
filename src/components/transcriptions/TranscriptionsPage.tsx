@@ -742,6 +742,129 @@ export function TranscriptionsPage(): JSX.Element {
                     </div>
                   ) : (
                     <>
+                      {/* Show impact score section - always visible */}
+                      {selectedTranscription.impact_score !== null && selectedTranscription.impact_score !== undefined && (
+                        <div className="mb-6 p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-200">
+                          <div className="flex items-center justify-between mb-3">
+                            <h3 className="font-nunito text-sm md:text-base font-bold text-[#25324B]">Meeting Impact Score</h3>
+                            <div className="flex items-center gap-2">
+                              <span className="font-nunito text-2xl md:text-3xl font-extrabold text-ellieBlue">
+                                {Math.round(selectedTranscription.impact_score)}
+                              </span>
+                              <span className="font-nunito text-xs text-ellieGray">/ 100</span>
+                            </div>
+                          </div>
+                          {/* Impact score bar */}
+                          <div className="w-full bg-gray-200 rounded-full h-3 mb-3">
+                            <div
+                              className={`h-3 rounded-full transition-all ${
+                                selectedTranscription.impact_score >= 75
+                                  ? 'bg-green-500'
+                                  : selectedTranscription.impact_score >= 50
+                                  ? 'bg-yellow-500'
+                                  : 'bg-red-500'
+                              }`}
+                              style={{ width: `${selectedTranscription.impact_score}%` }}
+                            />
+                          </div>
+                          {/* Impact breakdown */}
+                          {selectedTranscription.impact_breakdown && (
+                            <div className="grid grid-cols-2 gap-2 mt-3">
+                              {selectedTranscription.impact_breakdown.decision_making !== undefined && (
+                                <div className="text-xs">
+                                  <span className="font-nunito text-ellieGray">Decision Making:</span>
+                                  <span className="font-nunito font-semibold text-[#25324B] ml-1">
+                                    {Math.round(selectedTranscription.impact_breakdown.decision_making)}/25
+                                  </span>
+                                </div>
+                              )}
+                              {selectedTranscription.impact_breakdown.action_clarity !== undefined && (
+                                <div className="text-xs">
+                                  <span className="font-nunito text-ellieGray">Action Clarity:</span>
+                                  <span className="font-nunito font-semibold text-[#25324B] ml-1">
+                                    {Math.round(selectedTranscription.impact_breakdown.action_clarity)}/25
+                                  </span>
+                                </div>
+                              )}
+                              {selectedTranscription.impact_breakdown.stakeholder_engagement !== undefined && (
+                                <div className="text-xs">
+                                  <span className="font-nunito text-ellieGray">Stakeholder Engagement:</span>
+                                  <span className="font-nunito font-semibold text-[#25324B] ml-1">
+                                    {Math.round(selectedTranscription.impact_breakdown.stakeholder_engagement)}/25
+                                  </span>
+                                </div>
+                              )}
+                              {selectedTranscription.impact_breakdown.productivity !== undefined && (
+                                <div className="text-xs">
+                                  <span className="font-nunito text-ellieGray">Productivity:</span>
+                                  <span className="font-nunito font-semibold text-[#25324B] ml-1">
+                                    {Math.round(selectedTranscription.impact_breakdown.productivity)}/25
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Show contextual nudges section */}
+                      {selectedTranscription.contextual_nudges && selectedTranscription.contextual_nudges.length > 0 && (
+                        <div className="mb-6 p-4 bg-amber-50 rounded-lg border border-amber-200">
+                          <h3 className="font-nunito text-sm md:text-base font-bold text-amber-800 mb-3">Contextual Nudges</h3>
+                          <p className="font-nunito text-xs text-amber-700 mb-3">
+                            Actionable insights based on meeting analysis
+                          </p>
+                          <div className="space-y-3">
+                            {selectedTranscription.contextual_nudges.map((nudge: any, index: number) => (
+                              <div
+                                key={index}
+                                className="p-3 bg-white rounded-lg border border-amber-100 shadow-sm"
+                              >
+                                <div className="flex items-start gap-2">
+                                  <svg
+                                    className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                    />
+                                  </svg>
+                                  <div className="flex-1">
+                                    <p className="font-nunito text-xs md:text-sm font-semibold text-[#25324B] mb-1">
+                                      {nudge.text}
+                                    </p>
+                                    {(nudge.timestamp || nudge.speaker) && (
+                                      <div className="flex items-center gap-2 mt-1">
+                                        {nudge.timestamp && (
+                                          <span className="font-nunito text-[10px] text-ellieGray">
+                                            {nudge.timestamp}
+                                          </span>
+                                        )}
+                                        {nudge.speaker && (
+                                          <span className="font-nunito text-[10px] text-ellieGray">
+                                            • {nudge.speaker}
+                                          </span>
+                                        )}
+                                      </div>
+                                    )}
+                                    {nudge.explanation && (
+                                      <p className="font-nunito text-[10px] text-ellieGray mt-1 italic">
+                                        {nudge.explanation}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
                       {/* Show summary section - always visible */}
                       <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
                         <h3 className="font-nunito text-sm md:text-base font-bold text-ellieBlue mb-2">Summary</h3>

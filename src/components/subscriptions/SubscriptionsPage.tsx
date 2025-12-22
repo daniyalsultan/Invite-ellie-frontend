@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { DashboardLayout } from '../sidebar';
 import { useProfile } from '../../context/ProfileContext';
+import { useAuth } from '../../context/AuthContext';
+import { getApiBaseUrl } from '../../utils/apiBaseUrl';
 
 interface Plan {
   id: string;
@@ -12,7 +14,7 @@ interface Plan {
 
 const PLANS: Plan[] = [
   {
-    id: 'clarity',
+    id: 'CLARITY',
     name: 'Clarity',
     price: 10,
     description: 'Essential tools to capture and share meeting notes.',
@@ -23,7 +25,7 @@ const PLANS: Plan[] = [
     ],
   },
   {
-    id: 'insight',
+    id: 'INSIGHT',
     name: 'Insight',
     price: 20,
     description: 'Advanced summaries, exports, and team visibility.',
@@ -35,7 +37,7 @@ const PLANS: Plan[] = [
     ],
   },
   {
-    id: 'alignment',
+    id: 'ALIGNMENT',
     name: 'Alignment',
     price: 30,
     description: 'Full collaboration, CRM exports, and priority support.',
@@ -50,6 +52,7 @@ const PLANS: Plan[] = [
 
 export function SubscriptionsPage(): JSX.Element {
   const { profile } = useProfile();
+  const { ensureFreshAccessToken } = useAuth();
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -62,16 +65,37 @@ export function SubscriptionsPage(): JSX.Element {
     try {
       setError(null);
       setLoadingPlan(planId);
-      const token = import.meta.env.VITE_STRIPE_CHECKOUT_TOKEN;
+      
+      // Get fresh access token for authentication
+      const accessToken = await ensureFreshAccessToken();
+      if (!accessToken) {
+        setError('Please login to choose a plan.');
+        setLoadingPlan(null);
+        return;
+      }
+      
+      // Use getApiBaseUrl() to get the proxy path (/api) which handles CORS automatically
+      const apiBaseUrl = getApiBaseUrl();
+      if (!apiBaseUrl) {
+        setError('API base URL is not configured. Please check your environment variables.');
+        setLoadingPlan(null);
+        return;
+      }
+
+      // Construct the URL using the proxy path
+      // In development: /api/accounts/stripe/checkout/ -> proxied to https://api.stage.inviteellie.ai/api/accounts/stripe/checkout/
+      // In production: /api/accounts/stripe/checkout/ -> handled by Vercel rewrite or reverse proxy
+      const checkoutUrl = `${apiBaseUrl}/accounts/stripe/checkout/`;
+      
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
       };
-      if (token) {
-        headers.Authorization = `Bearer ${token}`;
-      }
-      const response = await fetch('https://api.stage.inviteellie.ai/api/accounts/stripe/checkout/', {
+      
+      const response = await fetch(checkoutUrl, {
         method: 'POST',
         headers,
+        credentials: 'include', // Include cookies for session-based auth if needed
         body: JSON.stringify({ plan: planId }),
       });
 

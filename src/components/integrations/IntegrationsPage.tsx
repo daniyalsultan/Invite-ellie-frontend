@@ -11,6 +11,7 @@ import {
   syncCalendarEvents,
   setEventManualRecord,
   createBotForEvent,
+  deleteBotForEvent,
   CalendarConnection,
   CalendarDetails,
 } from '../../services/calendarApi';
@@ -93,6 +94,7 @@ export function IntegrationsPage(): JSX.Element {
   const [loadingCalendarDetails, setLoadingCalendarDetails] = useState<string | null>(null);
   const [syncingCalendar, setSyncingCalendar] = useState<string | null>(null);
   const [creatingBot, setCreatingBot] = useState<string | null>(null);
+  const [deletingBot, setDeletingBot] = useState<string | null>(null);
   const [allMeetings, setAllMeetings] = useState<Array<{
     calendarId: string;
     calendarName: string;
@@ -269,8 +271,25 @@ export function IntegrationsPage(): JSX.Element {
       }>();
       
       // Fetch LIVE data ONLY for connected calendars
-      if (connected.length > 0) {
-        const liveMeetingsPromises = connected.map(async (cal) => {
+      // Filter to only process calendars that are actually connected
+      const connectedCalendars = connected.filter(cal => cal.connected === true);
+      console.log(`Processing ${connectedCalendars.length} connected calendar(s) out of ${connected.length} total`);
+      
+      if (connectedCalendars.length > 0) {
+        // Deduplicate by email/platform to avoid showing same calendar multiple times
+        const seenCalendars = new Map<string, typeof connectedCalendars[0]>();
+        for (const cal of connectedCalendars) {
+          const key = `${cal.email || 'unknown'}_${cal.platform}`;
+          // Keep the most recent calendar if duplicates exist
+          if (!seenCalendars.has(key) || cal.id > seenCalendars.get(key)!.id) {
+            seenCalendars.set(key, cal);
+          }
+        }
+        
+        const uniqueCalendars = Array.from(seenCalendars.values());
+        console.log(`After deduplication: ${uniqueCalendars.length} unique calendar(s)`);
+        
+        const liveMeetingsPromises = uniqueCalendars.map(async (cal) => {
           try {
             const details = await getCalendarDetails(cal.id, profile.id);
             return {
@@ -300,6 +319,7 @@ export function IntegrationsPage(): JSX.Element {
         const liveMeetings = await Promise.all(liveMeetingsPromises);
         for (const meeting of liveMeetings) {
           if (meeting) {
+            // Use calendarId as key to avoid duplicates
             meetingsByCalendar.set(meeting.calendarId, meeting);
           }
         }
@@ -376,6 +396,7 @@ export function IntegrationsPage(): JSX.Element {
           if (data.type === 'calendar_update') {
             console.log('Received calendar update:', data.data);
             const updatedCalendarId = data.data?.calendar_id;
+            const eventType = data.data?.event;
             
             // Refresh calendars and meetings when update is received
             // Use ref to get latest function reference (avoids stale closure)
@@ -383,18 +404,40 @@ export function IntegrationsPage(): JSX.Element {
             const handleViewCalendarFn = handleViewCalendarRef.current;
             
             if (fetchCalendarsFn) {
-              void fetchCalendarsFn().then(() => {
-                // If viewing a calendar that was updated, refresh its details
-                // Use ref to get the latest selected calendar ID (avoid stale closure)
-                const currentSelectedId = selectedCalendarIdRef.current;
-                if (currentSelectedId && updatedCalendarId === currentSelectedId && handleViewCalendarFn) {
-                  console.log('Refreshing calendar details for:', currentSelectedId);
-                  // Small delay to ensure fetchCalendars completes
-                  setTimeout(() => {
-                    void handleViewCalendarFn(currentSelectedId);
-                  }, 300);
+              // For bot deletion events, add a small delay to ensure database is updated
+              const delay = eventType === 'bots_deleted' || eventType === 'bot_deleted' ? 500 : 0;
+              
+              if (eventType === 'bots_deleted' || eventType === 'bot_deleted') {
+                console.log('Bot deletion detected, refreshing calendar data...');
+              }
+              
+              setTimeout(() => {
+                // Check if profile is still available before fetching
+                if (!profile?.id) {
+                  console.warn('Profile not available, skipping calendar refresh');
+                  return;
                 }
-              });
+                
+                void fetchCalendarsFn().catch((error) => {
+                  console.error('Error refreshing calendars after WebSocket update:', error);
+                  // Don't show error to user for WebSocket-triggered refreshes
+                  // The next manual refresh or page load will fix it
+                }).then(() => {
+                  console.log('Calendar data refreshed after WebSocket update');
+                  // If viewing a calendar that was updated, refresh its details
+                  // Use ref to get the latest selected calendar ID (avoid stale closure)
+                  const currentSelectedId = selectedCalendarIdRef.current;
+                  if (currentSelectedId && updatedCalendarId === currentSelectedId && handleViewCalendarFn) {
+                    console.log('Refreshing calendar details for:', currentSelectedId);
+                    // Small delay to ensure fetchCalendars completes
+                    setTimeout(() => {
+                      void handleViewCalendarFn(currentSelectedId).catch((error) => {
+                        console.error('Error refreshing calendar details:', error);
+                      });
+                    }, 300);
+                  }
+                });
+              }, delay);
             }
           } else if (data.type === 'pong') {
             // Keepalive response
@@ -630,6 +673,43 @@ export function IntegrationsPage(): JSX.Element {
       setError(error instanceof Error ? error.message : 'Failed to create bot');
     } finally {
       setCreatingBot(null);
+    }
+  };
+
+  const handleDeleteBotForEvent = async (eventId: string, botId: string) => {
+    if (!profile?.id) {
+      setError('Please login to delete bots');
+      return;
+    }
+
+    if (!confirm('Are you sure you want to delete this scheduled bot?')) {
+      return;
+    }
+
+    setDeletingBot(botId);
+    setError(null);
+    setSuccessMessage(null);
+
+    try {
+      const result = await deleteBotForEvent(eventId, botId, profile.id);
+      
+      if (result.success) {
+        setSuccessMessage(result.message || 'Bot deleted successfully');
+        // Refresh calendar details if viewing a calendar
+        if (selectedCalendar) {
+          const details = await getCalendarDetails(selectedCalendar.id, profile.id);
+          setSelectedCalendar(details);
+        }
+        // Refresh all meetings
+        await fetchCalendars();
+      } else {
+        setError(result.error || 'Failed to delete bot');
+      }
+    } catch (error) {
+      console.error('Error deleting bot:', error);
+      setError(error instanceof Error ? error.message : 'Failed to delete bot');
+    } finally {
+      setDeletingBot(null);
     }
   };
 
@@ -1080,7 +1160,23 @@ export function IntegrationsPage(): JSX.Element {
                                     )}
                                     {/* Show status for future meetings (bots are auto-created) */}
                                     {isFuture && hasBot && (
-                                      <span className="text-green-600 font-semibold">Bot Scheduled</span>
+                                      <div className="flex flex-col gap-1">
+                                        <span className="text-green-600 font-semibold">Bot Scheduled</span>
+                                        {event.bots && event.bots.length > 0 && event.bots.map((bot: any) => {
+                                          const botId = bot.bot_id || bot.id;
+                                          return (
+                                            <button
+                                              key={botId}
+                                              type="button"
+                                              onClick={() => handleDeleteBotForEvent(event.id, botId)}
+                                              disabled={deletingBot === botId}
+                                              className="px-2 py-1 rounded bg-red-500 text-white font-nunito text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                                            >
+                                              {deletingBot === botId ? 'Deleting...' : 'Delete Bot'}
+                                            </button>
+                                          );
+                                        })}
+                                      </div>
                                     )}
                                     {isFuture && !hasBot && (
                                       <span className="text-blue-600">Bot will be created automatically</span>
@@ -1334,7 +1430,23 @@ export function IntegrationsPage(): JSX.Element {
                                   )}
                                   {/* Show status for future meetings (bots are auto-created) */}
                                   {isFuture && hasBot && (
-                                    <span className="text-green-600 font-semibold text-xs">Bot Scheduled</span>
+                                    <div className="flex flex-col gap-1">
+                                      <span className="text-green-600 font-semibold text-xs">Bot Scheduled</span>
+                                      {event.bots && event.bots.length > 0 && event.bots.map((bot: any) => {
+                                        const botId = bot.bot_id || bot.id;
+                                        return (
+                                          <button
+                                            key={botId}
+                                            type="button"
+                                            onClick={() => handleDeleteBotForEvent(event.id, botId)}
+                                            disabled={deletingBot === botId}
+                                            className="px-2 py-1 rounded bg-red-500 text-white font-nunito text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                                          >
+                                            {deletingBot === botId ? 'Deleting...' : 'Delete Bot'}
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
                                   )}
                                   {isFuture && !hasBot && (
                                     <span className="text-blue-600 text-xs">Bot will be created automatically</span>

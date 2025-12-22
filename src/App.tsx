@@ -12,6 +12,7 @@ import { NewPasswordPage } from './components/resetpassword/NewPasswordPage';
 import { SSOCallbackPage } from './components/auth/SSOCallbackPage';
 import { IntegrationsPage } from './components/integrations';
 import { SubscriptionsPage } from './components/subscriptions/SubscriptionsPage';
+import { BillingSuccessPage } from './components/billing/BillingSuccessPage';
 import { PreferencesPage } from './components/preferences';
 import { SettingsPage } from './components/settings';
 import { NotificationsPage } from './components/notifications';
@@ -133,6 +134,7 @@ function App(): JSX.Element {
     location.pathname.startsWith('/dashboard') ||
     location.pathname.startsWith('/integrations') ||
     location.pathname.startsWith('/subscriptions') ||
+    location.pathname.startsWith('/billing') ||
     location.pathname.startsWith('/preferences') ||
     location.pathname.startsWith('/settings') ||
     location.pathname.startsWith('/notifications') ||
@@ -163,6 +165,7 @@ function App(): JSX.Element {
           <Route path="/setup-profile" element={<SetupProfilePage />} />
           <Route path="/integrations" element={<IntegrationsPage />} />
           <Route path="/subscriptions" element={<SubscriptionsPage />} />
+          <Route path="/billing/success" element={<BillingSuccessPage />} />
           <Route path="/preferences" element={<PreferencesPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/notifications" element={<NotificationsPage />} />

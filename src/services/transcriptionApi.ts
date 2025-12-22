@@ -29,6 +29,14 @@ export interface ActionItem {
   speaker?: string;
 }
 
+export interface ContextualNudge {
+  text: string;
+  type: string;
+  timestamp?: string;
+  speaker?: string;
+  explanation?: string;
+}
+
 export interface Transcription {
   id: string;
   event_id: string;
@@ -46,6 +54,14 @@ export interface Transcription {
   transcript_text: string | null;
   summary: string | null;
   action_items: ActionItem[] | null;
+  contextual_nudges?: ContextualNudge[] | null;
+  impact_score?: number | null;
+  impact_breakdown?: {
+    decision_making?: number;
+    action_clarity?: number;
+    stakeholder_engagement?: number;
+    productivity?: number;
+  } | null;
   status: string;
   language: string | null;
   duration: number | null;
@@ -137,6 +153,9 @@ export async function getTranscriptions(userId: string): Promise<Transcription[]
     transcript_text: item.transcript_text || '',
     summary: item.summary || '',
     action_items: item.action_items || [],
+    contextual_nudges: item.contextual_nudges || [],
+    impact_score: item.impact_score ?? null,
+    impact_breakdown: item.impact_breakdown || null,
     status: item.status || 'unknown',
     language: item.language || 'en',
     duration: item.duration,
