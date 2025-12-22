@@ -1,33 +1,18 @@
 // Slack API service for OAuth integration
 
-import { getApiBaseUrl } from '../utils/apiBaseUrl';
+/**
+ * 🔒 PRODUCTION LOCK
+ * This file ALWAYS uses the Railway backend directly.
+ * No ENV variables
+ * No /api proxy logic
+ * No CORS guessing
+ */
 
-// Get unified backend API base URL using the utility function
-// This ensures we use the /api proxy path to avoid CORS issues
-function getSlackApiBaseUrl(): string {
-  const baseUrl = getApiBaseUrl() || 'https://web-production-07092.up.railway.app';
-  return baseUrl.trim().replace(/\/$/, '');
-}
+const SLACK_API_BASE_URL = 'https://web-production-07092.up.railway.app';
 
 function buildSlackApiUrl(path: string): string {
-  const baseUrl = getSlackApiBaseUrl();
-  let cleanPath = path.startsWith('/') ? path : `/${path}`;
-  
-  // If baseUrl is a relative path (/api), remove /api prefix from path if present
-  // If baseUrl is a full URL, ensure path has /api prefix
-  if (baseUrl.startsWith('http://') || baseUrl.startsWith('https://')) {
-    // Full URL - ensure path has /api prefix
-    if (!cleanPath.startsWith('/api/')) {
-      cleanPath = `/api${cleanPath}`;
-    }
-    return `${baseUrl}${cleanPath}`;
-  } else {
-    // Relative path (/api) - remove /api prefix from path if present to avoid double /api
-    if (cleanPath.startsWith('/api/')) {
-      cleanPath = cleanPath.replace(/^\/api/, '');
-    }
-    return `${baseUrl}${cleanPath}`;
-  }
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  return `${SLACK_API_BASE_URL}${cleanPath}`;
 }
 
 export interface SlackConnectionStatus {
@@ -44,8 +29,7 @@ export async function getSlackConnectUrl(userId: string): Promise<string> {
   const apiUrl = buildSlackApiUrl('/api/slack/connect');
 
   try {
-    const url = `${apiUrl}?user_id=${userId}`;
-    const response = await fetch(url, {
+    const response = await fetch(`${apiUrl}?user_id=${userId}`, {
       method: 'GET',
       headers: {
         Accept: 'application/json',
@@ -53,30 +37,32 @@ export async function getSlackConnectUrl(userId: string): Promise<string> {
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-      throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      const errorData = await response.json().catch(() => ({
+        error: 'Unknown error',
+      }));
+      throw new Error(errorData.error || `HTTP error ${response.status}`);
     }
 
     const data = await response.json();
     return data.auth_url;
   } catch (error) {
     console.error('Error getting Slack connect URL:', error);
-    if (error instanceof Error) {
-      throw error;
-    }
-    throw new Error('Failed to get Slack connect URL');
+    throw error instanceof Error
+      ? error
+      : new Error('Failed to get Slack connect URL');
   }
 }
 
 /**
- * Check if user is connected to Slack
+ * Check Slack connection status
  */
-export async function getSlackStatus(userId: string): Promise<SlackConnectionStatus> {
+export async function getSlackStatus(
+  userId: string
+): Promise<SlackConnectionStatus> {
   const apiUrl = buildSlackApiUrl('/api/slack/status');
 
   try {
-    const url = `${apiUrl}?user_id=${userId}`;
-    const response = await fetch(url, {
+    const response = await fetch(`${apiUrl}?user_id=${userId}`, {
       method: 'GET',
       headers: {
         Accept: 'application/json',
@@ -84,26 +70,27 @@ export async function getSlackStatus(userId: string): Promise<SlackConnectionSta
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-      throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      const errorData = await response.json().catch(() => ({
+        error: 'Unknown error',
+      }));
+      throw new Error(errorData.error || `HTTP error ${response.status}`);
     }
 
     const data = await response.json();
     return {
-      connected: data.connected || false,
+      connected: Boolean(data.connected),
       team_name: data.team_name,
       user_name: data.user_name,
       team_id: data.team_id,
     };
   } catch (error) {
     console.error('Error checking Slack status:', error);
-    // Return disconnected status on error
     return { connected: false };
   }
 }
 
 /**
- * Disconnect from Slack
+ * Disconnect Slack
  */
 export async function disconnectSlack(userId: string): Promise<void> {
   const apiUrl = buildSlackApiUrl('/api/slack/disconnect');
@@ -119,15 +106,15 @@ export async function disconnectSlack(userId: string): Promise<void> {
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-      throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      const errorData = await response.json().catch(() => ({
+        error: 'Unknown error',
+      }));
+      throw new Error(errorData.error || `HTTP error ${response.status}`);
     }
   } catch (error) {
     console.error('Error disconnecting from Slack:', error);
-    if (error instanceof Error) {
-      throw error;
-    }
-    throw new Error('Failed to disconnect from Slack');
+    throw error instanceof Error
+      ? error
+      : new Error('Failed to disconnect from Slack');
   }
 }
-
