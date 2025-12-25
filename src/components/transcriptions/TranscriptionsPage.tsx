@@ -151,26 +151,24 @@ export function TranscriptionsPage(): JSX.Element {
       setError('Please log in to export transcriptions');
       return;
     }
-
+  
     const exportKey = `${transcriptionId}-${exportType}`;
     
     try {
       setExporting(prev => ({ ...prev, [exportKey]: true }));
       setError(null);
       setExportMessage(null);
-
+  
       // Check connection status first - if not connected, redirect to connect page
       let isConnected = false;
-      let connectionInfo = null;
       
       if (exportType === 'slack') {
         const slackStatus = await getSlackStatus(profile.id);
         isConnected = slackStatus.connected;
-        connectionInfo = slackStatus;
         
         if (!isConnected) {
           setExporting(prev => ({ ...prev, [exportKey]: false }));
-          setError(`You need to connect your Slack account first to export transcriptions. Redirecting to connection page...`);
+          setError('You need to connect your Slack account first to export transcriptions. Redirecting to connection page...');
           setTimeout(() => {
             navigate('/integrations');
           }, 1500);
@@ -179,11 +177,10 @@ export function TranscriptionsPage(): JSX.Element {
       } else if (exportType === 'notion') {
         const notionStatus = await getNotionStatus(profile.id);
         isConnected = notionStatus.connected;
-        connectionInfo = notionStatus;
         
         if (!isConnected) {
           setExporting(prev => ({ ...prev, [exportKey]: false }));
-          setError(`You need to connect your Notion account first to export transcriptions. Redirecting to connection page...`);
+          setError('You need to connect your Notion account first to export transcriptions. Redirecting to connection page...');
           setTimeout(() => {
             navigate('/integrations');
           }, 1500);
@@ -192,22 +189,17 @@ export function TranscriptionsPage(): JSX.Element {
       } else if (exportType === 'hubspot') {
         const hubspotStatus = await getHubSpotStatus(profile.id);
         isConnected = hubspotStatus.connected;
-        connectionInfo = hubspotStatus;
         
         if (!isConnected) {
           setExporting(prev => ({ ...prev, [exportKey]: false }));
-          setError(`You need to connect your HubSpot account first to export transcriptions. Redirecting to connection page...`);
+          setError('You need to connect your HubSpot account first to export transcriptions. Redirecting to connection page...');
           setTimeout(() => {
             navigate('/integrations');
           }, 1500);
           return;
         }
       }
-
-      // If we reach here, user is connected - proceed with export
-      console.log(`User is connected to ${exportType}. Proceeding with export...`);
-      console.log(`Connection info:`, connectionInfo);
-
+  
       // Fetch full transcription data
       const fullTranscription = await getTranscription(transcriptionId, profile.id);
       
@@ -220,10 +212,10 @@ export function TranscriptionsPage(): JSX.Element {
           .map((u: any) => `${u.speaker || 'Unknown'}: ${u.text || ''}`)
           .join('\n');
       }
-
+  
       // Prepare action items
       const actionItems = fullTranscription.action_items || [];
-
+  
       // Prepare export data
       const exportData = {
         user_id: profile.id,
@@ -232,33 +224,16 @@ export function TranscriptionsPage(): JSX.Element {
         transcript: transcriptText,
         summary: fullTranscription.summary || '',
         action_items: actionItems,
+        channel: '#general', // Default Slack channel
       };
-
-      // Get API base URL - use the same backend as status check
-      const apiBaseUrl = getApiBaseUrl();
-      let exportUrl: string;
+  
+      // ✅ FIXED: Always use direct Railway backend URL (bypasses getApiBaseUrl() proxy issues)
+      const exportUrl = `https://web-production-07092.up.railway.app/api/${exportType}/export`;
       
-      // Use the same backend URL strategy as the status check APIs
-      // This ensures we're checking and exporting to the same backend instance
-      if (apiBaseUrl && apiBaseUrl.startsWith('http')) {
-        // Full URL (production or explicit URL)
-        exportUrl = `${apiBaseUrl}/api/${exportType}/export`;
-      } else if (apiBaseUrl) {
-        // Relative path (/api) - use proxy
-        // The proxy forwards /api/* to backend, so we need /api/slack/export or /api/notion/export
-        exportUrl = `${apiBaseUrl}/${exportType}/export`;
-      } else {
-        // Fallback to Railway backend (same as status check fallback)
-        exportUrl = `https://web-production-07092.up.railway.app/api/${exportType}/export`;
-      }
-      
-      console.log('Export URL:', exportUrl);
-      console.log('API Base URL:', apiBaseUrl);
-      console.log('Environment:', import.meta.env.DEV ? 'Development' : 'Production');
-      console.log('Using same backend as status check for consistency');
-
-      // Call export endpoint
       console.log('Exporting to:', exportUrl);
+      console.log('[FIXED] Using direct Railway backend URL - no proxy confusion');
+  
+      // Call export endpoint
       const response = await fetch(exportUrl, {
         method: 'POST',
         headers: {
@@ -267,7 +242,7 @@ export function TranscriptionsPage(): JSX.Element {
         },
         body: JSON.stringify(exportData),
       });
-
+  
       // Check content type before parsing
       const contentType = response.headers.get('content-type');
       let result: any;
@@ -276,84 +251,39 @@ export function TranscriptionsPage(): JSX.Element {
         result = await response.json();
         console.log('Export response:', result);
       } else {
-        // Response is not JSON (likely HTML error page)
         const text = await response.text();
         console.error('Non-JSON response received:', text.substring(0, 200));
         
-        if (!response.ok) {
-          if (response.status === 404) {
-            throw new Error(`Export endpoint not found. Please check if the backend is running and the endpoint exists.`);
-          }
-          throw new Error(`Server returned HTML instead of JSON. Status: ${response.status}. The export endpoint may not be available.`);
+        if (response.status === 404) {
+          throw new Error('Backend /api/slack/export endpoint not deployed. Check Railway deployment.');
         }
-        throw new Error('Unexpected response format from server');
+        throw new Error(`Server error ${response.status}. Backend may not be running.`);
       }
-
+  
       if (!response.ok) {
-        // Log debug info if available
-        if (result.debug) {
-          console.error('Export debug info:', result.debug);
-          console.error('Your user_id:', profile.id);
-          console.error('Available connections on this backend:', result.debug.available_users);
-        }
-        
-        // Check if we need to redirect
-        if (result.redirect) {
-          const platformName = exportType === 'slack' ? 'Slack' : exportType === 'notion' ? 'Notion' : 'HubSpot';
-          const errorMsg = result.error || `Please connect to ${platformName} first.`;
-          const additionalInfo = import.meta.env.DEV 
-            ? ' Note: You may have connected on the production backend. Please reconnect on localhost for local testing.'
-            : '';
-          setError(errorMsg + additionalInfo);
-          setTimeout(() => {
-            navigate(result.redirect);
-          }, 3000);
-          return;
-        }
-        throw new Error(result.error || `Failed to export to ${exportType}`);
+        throw new Error(result.error || `Export failed: ${response.status}`);
       }
-
+  
       if (result.success) {
         const platformName = exportType === 'slack' ? 'Slack' : exportType === 'notion' ? 'Notion' : 'HubSpot';
-        let messageText = `Successfully exported transcription to ${platformName}!`;
-        
-        if (exportType !== 'hubspot') {
-          messageText += ' The meeting details (transcript, summary, and action items) have been shared.';
-        }
-        
         setExportMessage({
           type: 'success',
-          text: messageText
+          text: `Successfully exported to ${platformName}!`
         });
-        // Clear message after 6 seconds
         setTimeout(() => setExportMessage(null), 6000);
       } else {
-        throw new Error(result.error || `Failed to export to ${exportType}`);
+        throw new Error(result.error || `Export failed`);
       }
       
     } catch (error) {
       console.error(`[Export ${exportType.toUpperCase()}] Error:`, error);
       const errorMessage = error instanceof Error ? error.message : `Failed to export to ${exportType}`;
-      
-      // Check if error indicates need to connect
-      if (errorMessage.includes('Not connected') || errorMessage.includes('connect') || errorMessage.includes('Please connect')) {
-        setExporting(prev => ({ ...prev, [exportKey]: false }));
-        const platformName = exportType === 'slack' ? 'Slack' : exportType === 'notion' ? 'Notion' : 'HubSpot';
-        setError(`You need to connect your ${platformName} account first. Redirecting to connection page...`);
-        setTimeout(() => {
-          navigate('/slack-notion-export');
-        }, 2000);
-      } else {
-        setError(errorMessage);
-        setExportMessage({
-          type: 'error',
-          text: errorMessage
-        });
-      }
+      setError(errorMessage);
     } finally {
       setExporting(prev => ({ ...prev, [exportKey]: false }));
     }
   };
+  
 
   return (
     <DashboardLayout activeTab="/transcriptions">
