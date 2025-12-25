@@ -120,6 +120,8 @@
 // }
 // Slack API service for OAuth integration
 
+// Slack API service for OAuth integration
+
 /**
  * 🔒 PRODUCTION LOCK
  * This file ALWAYS uses the Railway backend directly.
@@ -132,11 +134,6 @@
  * 🔗 SLACK STATUS:  https://web-production-07092.up.railway.app/api/slack/status  
  * 🔗 SLACK DISCONNECT: https://web-production-07092.up.railway.app/api/slack/disconnect
  */
-
-function buildSlackApiUrl(path: string): string {
-  const cleanPath = path.startsWith('/') ? path : `/${path}`;
-  return `https://web-production-07092.up.railway.app${cleanPath}`;
-}
 
 export interface SlackConnectionStatus {
   connected: boolean;
