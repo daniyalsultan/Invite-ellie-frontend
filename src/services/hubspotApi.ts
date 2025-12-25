@@ -5,14 +5,12 @@
  * Always uses Railway backend directly
  * No ENV variables
  * No proxy logic
+ * 
+ * 🚀 START SERVER: https://web-production-07092.up.railway.app
+ * 🔗 HUBSPOT CONNECT: https://web-production-07092.up.railway.app/api/hubspot/connect
+ * 🔗 HUBSPOT STATUS:  https://web-production-07092.up.railway.app/api/hubspot/status
+ * 🔗 HUBSPOT DISCONNECT: https://web-production-07092.up.railway.app/api/hubspot/disconnect
  */
-
-const HUBSPOT_API_BASE_URL = 'https://web-production-07092.up.railway.app';
-
-function buildHubSpotApiUrl(path: string): string {
-  const cleanPath = path.startsWith('/') ? path : `/${path}`;
-  return `${HUBSPOT_API_BASE_URL}${cleanPath}`;
-}
 
 export interface HubSpotConnectionStatus {
   connected: boolean;
@@ -24,11 +22,11 @@ export interface HubSpotConnectionStatus {
  * Get HubSpot OAuth authorization URL
  */
 export async function getHubSpotConnectUrl(userId: string): Promise<string> {
-  const apiUrl = buildHubSpotApiUrl('/api/hubspot/connect');
+  const apiUrl = `https://web-production-07092.up.railway.app/api/hubspot/connect?user_id=${userId}`;
   console.log('[HubSpot] Connecting to:', apiUrl);
 
   try {
-    const response = await fetch(`${apiUrl}?user_id=${userId}`, {
+    const response = await fetch(apiUrl, {
       method: 'GET',
       headers: { Accept: 'application/json' },
     });
@@ -62,10 +60,10 @@ export async function getHubSpotConnectUrl(userId: string): Promise<string> {
 export async function getHubSpotStatus(
   userId: string
 ): Promise<HubSpotConnectionStatus> {
-  const apiUrl = buildHubSpotApiUrl('/api/hubspot/status');
+  const apiUrl = `https://web-production-07092.up.railway.app/api/hubspot/status?user_id=${userId}`;
 
   try {
-    const response = await fetch(`${apiUrl}?user_id=${userId}`, {
+    const response = await fetch(apiUrl, {
       method: 'GET',
       headers: { Accept: 'application/json' },
     });
@@ -95,7 +93,7 @@ export async function getHubSpotStatus(
  * Disconnect HubSpot
  */
 export async function disconnectHubSpot(userId: string): Promise<void> {
-  const apiUrl = buildHubSpotApiUrl('/api/hubspot/disconnect');
+  const apiUrl = `https://web-production-07092.up.railway.app/api/hubspot/disconnect`;
 
   try {
     const response = await fetch(apiUrl, {
@@ -122,4 +120,3 @@ export async function disconnectHubSpot(userId: string): Promise<void> {
       : new Error('Failed to disconnect from HubSpot');
   }
 }
-
