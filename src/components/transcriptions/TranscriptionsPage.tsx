@@ -6,7 +6,7 @@ import { getTranscriptions, getTranscription, type Transcription } from '../../s
 import { getSlackStatus } from '../../services/slackApi';
 import { getNotionStatus } from '../../services/notionApi';
 import { getHubSpotStatus } from '../../services/hubspotApi';
-import { getApiBaseUrl } from '../../utils/apiBaseUrl';
+// import { getApiBaseUrl } from '../../utils/apiBaseUrl';
 import searchIcon from '../../assets/Vector.png';
 
 // Helper functions
