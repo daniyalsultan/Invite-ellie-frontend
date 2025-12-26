@@ -1,0 +1,257 @@
+Meeting Impact Score - Calculation Parameters
+===============================================
+
+OVERVIEW
+--------
+The Impact Score is a 0-100 rating that measures the overall effectiveness and productivity of a meeting. It's calculated by analyzing the meeting transcript, summary, and action items using Groq AI (Llama 3.3 70B model).
+
+SCORING BREAKDOWN (Total: 100 points)
+--------------------------------------
+The impact score is calculated based on 4 key dimensions, each worth 25 points:
+
+1. DECISION-MAKING EFFECTIVENESS (0-25 points)
+------------------------------------------------
+What it measures:
+- How many concrete decisions were made during the meeting
+- Clarity of decisions (specific vs. vague)
+- Whether decisions have clear outcomes and next steps
+- Resolution of conflicts or disagreements
+- Consensus among participants
+
+High Score Indicators:
+- Multiple clear decisions made
+- Decisions are specific and actionable
+- All participants agree on outcomes
+- Decisions have clear timelines and owners
+
+Low Score Indicators:
+- No decisions made
+- Vague or ambiguous decisions
+- Decisions deferred to "later"
+- Conflicts unresolved
+
+Example Scoring:
+- 20-25 points: Multiple clear decisions with owners and timelines
+- 15-19 points: Some decisions made but missing details
+- 10-14 points: Few decisions, mostly vague
+- 0-9 points: No concrete decisions made
+
+
+2. ACTION ITEM CLARITY AND OWNERSHIP (0-25 points)
+---------------------------------------------------
+What it measures:
+- Number of action items identified
+- Clarity of action items (specific vs. vague)
+- Whether each action item has a clear owner assigned
+- Whether action items have deadlines or timelines
+- Actionability of items (can they be executed?)
+
+High Score Indicators:
+- Multiple action items with clear owners
+- Each action item has a deadline
+- Action items are specific and measurable
+- Clear ownership assigned to each task
+
+Low Score Indicators:
+- No action items identified
+- Action items without owners
+- Vague action items ("we'll figure it out later")
+- No deadlines or timelines
+
+Example Scoring:
+- 20-25 points: 3+ action items, all with owners and deadlines
+- 15-19 points: Some action items, but missing owners or deadlines
+- 10-14 points: Few action items, mostly vague
+- 0-9 points: No clear action items or all without owners
+
+
+3. STAKEHOLDER ENGAGEMENT AND COVERAGE (0-25 points)
+-----------------------------------------------------
+What it measures:
+- Whether all relevant stakeholders are present
+- Participation level of attendees
+- Whether key decision-makers are involved
+- Coverage of all topics that need input
+- Balance of participation (not dominated by one person)
+
+High Score Indicators:
+- All relevant stakeholders present
+- Balanced participation from all attendees
+- Key decision-makers involved in discussions
+- All topics covered with proper input
+
+Low Score Indicators:
+- Missing key stakeholders
+- One person dominates the conversation
+- Important topics discussed without relevant people
+- Low participation from some attendees
+
+Example Scoring:
+- 20-25 points: All stakeholders present, balanced participation
+- 15-19 points: Most stakeholders present, good participation
+- 10-14 points: Some stakeholders missing, uneven participation
+- 0-9 points: Key stakeholders missing, poor engagement
+
+
+4. MEETING PRODUCTIVITY AND FOLLOW-THROUGH POTENTIAL (0-25 points)
+------------------------------------------------------------------
+What it measures:
+- Meeting structure and organization
+- Time efficiency (staying on topic)
+- Whether meeting ended with clear next steps
+- Follow-up plans and accountability
+- Overall meeting flow and productivity
+
+High Score Indicators:
+- Well-structured meeting with clear agenda
+- Stayed on topic, efficient use of time
+- Clear recap and next steps at the end
+- Follow-up meetings or check-ins scheduled
+- High information-to-time ratio
+
+Low Score Indicators:
+- No clear agenda or structure
+- Went off-topic frequently
+- Meeting ended without recap
+- No follow-up plans
+- Low productivity (little accomplished)
+
+Example Scoring:
+- 20-25 points: Highly productive, clear structure, good follow-through
+- 15-19 points: Productive but could be more structured
+- 10-14 points: Some productivity, but disorganized
+- 0-9 points: Low productivity, no clear outcomes
+
+
+HOW IT'S CALCULATED
+-------------------
+
+Input Data Analyzed:
+1. Meeting Transcript (first 6000 characters)
+   - Full conversation text
+   - Speaker identification
+   - Timestamps
+
+2. Meeting Summary (if available)
+   - AI-generated summary
+   - Key discussion points
+
+3. Action Items (if available)
+   - List of action items extracted
+   - Owners and deadlines (if mentioned)
+
+4. Previous Meeting Context (last 5 meetings)
+   - Summaries from previous meetings
+   - Historical context for comparison
+
+AI Analysis Process:
+1. Groq AI (Llama 3.3 70B) analyzes the transcript
+2. Evaluates each dimension (0-25 points each)
+3. Calculates total score (sum of 4 dimensions = 0-100)
+4. Provides breakdown showing score for each dimension
+
+Output Format:
+{
+  "impact_score": 75.5,  // Total score (0-100)
+  "impact_breakdown": {
+    "decision_making": 20,           // 0-25 points
+    "action_clarity": 18,           // 0-25 points
+    "stakeholder_engagement": 19,   // 0-25 points
+    "productivity": 18.5            // 0-25 points
+  }
+}
+
+
+SCORE INTERPRETATION
+--------------------
+
+90-100: Excellent Meeting
+- Highly effective decision-making
+- Clear action items with owners
+- All stakeholders engaged
+- Very productive and well-structured
+
+75-89: Good Meeting
+- Effective decisions made
+- Most action items have owners
+- Good stakeholder coverage
+- Productive with minor improvements needed
+
+50-74: Average Meeting
+- Some decisions made but missing details
+- Action items present but unclear ownership
+- Some stakeholders missing or disengaged
+- Moderate productivity
+
+25-49: Below Average Meeting
+- Few or vague decisions
+- Action items without clear owners
+- Missing key stakeholders
+- Low productivity
+
+0-24: Poor Meeting
+- No concrete decisions
+- No clear action items
+- Critical stakeholders missing
+- Very low productivity
+
+
+FACTORS THAT AFFECT EACH DIMENSION
+-----------------------------------
+
+Decision-Making Effectiveness:
++ Number of decisions made
++ Specificity of decisions
++ Decision ownership
++ Conflict resolution
+- Vague commitments
+- Deferred decisions
+
+Action Item Clarity:
++ Number of action items
++ Owner assignment
++ Deadline specification
++ Action item specificity
+- Vague action items
+- Missing owners
+
+Stakeholder Engagement:
++ All relevant people present
++ Balanced participation
++ Key decision-makers involved
++ Topic coverage
+- Missing stakeholders
+- Uneven participation
+
+Meeting Productivity:
++ Clear agenda
++ Time efficiency
++ Meeting recap
++ Follow-up plans
+- No structure
+- Off-topic discussions
+
+
+EXAMPLE SCENARIOS
+-----------------
+
+High Impact Meeting (Score: 85)
+- Decision-Making: 22/25 - Made 5 clear decisions with owners
+- Action Clarity: 21/25 - 6 action items, all with owners and deadlines
+- Stakeholder Engagement: 21/25 - All stakeholders present, balanced participation
+- Productivity: 21/25 - Well-structured, ended with clear recap
+
+Low Impact Meeting (Score: 35)
+- Decision-Making: 8/25 - No concrete decisions, everything deferred
+- Action Clarity: 9/25 - 2 vague action items, no owners
+- Stakeholder Engagement: 10/25 - Missing key stakeholders
+- Productivity: 8/25 - No structure, ended without recap
+
+
+TECHNICAL IMPLEMENTATION
+------------------------
+Location: recallai/app/services/groq/nudge_analyzer.py
+Function: generate_contextual_nudges_and_impact_score_with_groq()
+Model: Groq API - Llama 3.3 70B Versatile
+Analysis Method: AI analyzes transcript and provides scores based on the 4 dimensions above.
+

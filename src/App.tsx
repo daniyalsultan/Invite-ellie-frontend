@@ -38,7 +38,7 @@ function ScrollToHash(): null {
     if (location.hash.startsWith('#access_token=')) {
       return;
     }
-
+    
     // Use setTimeout to ensure DOM is ready
     const timeoutId = setTimeout(() => {
       try {
