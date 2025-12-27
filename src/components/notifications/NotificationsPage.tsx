@@ -9,20 +9,7 @@ interface Notification {
 }
 
 export function NotificationsPage(): JSX.Element {
-  const [notifications, setNotifications] = useState<Notification[]>([
-    {
-      id: '1',
-      title: "Ellie couldn't connect with one of your tools.",
-      description: 'Some meeting data might not sync until you reconnect.',
-      isRead: false,
-    },
-    {
-      id: '2',
-      title: 'Your meeting transcript is ready.',
-      description: 'Ellie summarized notes and action items for quick review.',
-      isRead: false,
-    },
-  ]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
 
   const handleMarkAsRead = (id: string): void => {
     setNotifications((prev) =>
@@ -55,44 +42,55 @@ export function NotificationsPage(): JSX.Element {
           </h1>
 
           {/* Notifications List */}
-          <div className="space-y-4 md:space-y-6">
-            {notifications.map((notification) => (
-              <div
-                key={notification.id}
-                className={`bg-[#E8F4F8] border border-[#CAE8E3] rounded-lg p-4 md:p-6 ${
-                  notification.isRead ? 'opacity-60' : ''
-                }`}
-              >
-                <div className="flex items-start gap-3 md:gap-4">
-                  {/* Orange Dot */}
-                  <div className="flex-shrink-0 mt-1">
-                    <span className="w-2 h-2 md:w-2.5 md:h-2.5 bg-orange-500 rounded-full block"></span>
-                  </div>
+          {notifications.length === 0 ? (
+            <div className="text-center py-12 md:py-16">
+              <p className="font-nunito text-base md:text-lg text-ellieGray">
+                No notifications yet
+              </p>
+              <p className="font-nunito text-sm text-ellieGray mt-2">
+                You'll see notifications here when there are updates about your meetings and integrations.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4 md:space-y-6">
+              {notifications.map((notification) => (
+                <div
+                  key={notification.id}
+                  className={`bg-[#E8F4F8] border border-[#CAE8E3] rounded-lg p-4 md:p-6 ${
+                    notification.isRead ? 'opacity-60' : ''
+                  }`}
+                >
+                  <div className="flex items-start gap-3 md:gap-4">
+                    {/* Orange Dot */}
+                    <div className="flex-shrink-0 mt-1">
+                      <span className="w-2 h-2 md:w-2.5 md:h-2.5 bg-orange-500 rounded-full block"></span>
+                    </div>
 
-                  {/* Notification Content */}
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-nunito text-sm md:text-base font-semibold text-ellieBlack mb-1 md:mb-2">
-                      {notification.title}
-                    </h3>
-                    <p className="font-nunito text-xs md:text-sm text-ellieGray leading-relaxed">
-                      {notification.description}
-                    </p>
-                  </div>
+                    {/* Notification Content */}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-nunito text-sm md:text-base font-semibold text-ellieBlack mb-1 md:mb-2">
+                        {notification.title}
+                      </h3>
+                      <p className="font-nunito text-xs md:text-sm text-ellieGray leading-relaxed">
+                        {notification.description}
+                      </p>
+                    </div>
 
-                  {/* Mark as Read Button */}
-                  {!notification.isRead && (
-                    <button
-                      type="button"
-                      onClick={() => handleMarkAsRead(notification.id)}
-                      className="flex-shrink-0 px-3 md:px-4 py-2 md:py-2.5 rounded-lg bg-ellieBlue text-white font-nunito text-xs md:text-sm font-semibold hover:opacity-90 transition-opacity whitespace-nowrap"
-                    >
-                      Mark as Read
-                    </button>
-                  )}
+                    {/* Mark as Read Button */}
+                    {!notification.isRead && (
+                      <button
+                        type="button"
+                        onClick={() => handleMarkAsRead(notification.id)}
+                        className="flex-shrink-0 px-3 md:px-4 py-2 md:py-2.5 rounded-lg bg-ellieBlue text-white font-nunito text-xs md:text-sm font-semibold hover:opacity-90 transition-opacity whitespace-nowrap"
+                      >
+                        Mark as Read
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </DashboardLayout>

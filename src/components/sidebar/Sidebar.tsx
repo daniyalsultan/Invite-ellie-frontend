@@ -47,7 +47,7 @@ export function Sidebar({ activeTab }: SidebarProps): JSX.Element {
 
   // Bottom items
   const bottomItems: SidebarItem[] = [
-    { label: 'Notifications', path: '/notifications', icon: notificationsIcon, hasNotification: true },
+    { label: 'Notifications', path: '/notifications', icon: notificationsIcon },
     { label: 'Preferences', path: '/preferences', icon: preferencesIcon },
     { label: 'Integrations', path: '/integrations', icon: integrationsIcon },
     { label: 'Subscriptions', path: '/subscriptions', icon: integrationsIcon },

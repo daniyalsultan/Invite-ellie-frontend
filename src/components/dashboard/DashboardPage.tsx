@@ -111,6 +111,9 @@ export function DashboardPage(): JSX.Element {
   const [isJoiningMeeting, setIsJoiningMeeting] = useState(false);
   const [joinMeetingError, setJoinMeetingError] = useState<string | null>(null);
   const [joinMeetingSuccess, setJoinMeetingSuccess] = useState<string | null>(null);
+  const [isJoinMeetingModalOpen, setIsJoinMeetingModalOpen] = useState(false);
+  const [meetingName, setMeetingName] = useState('');
+  const [meetingNameError, setMeetingNameError] = useState<string | null>(null);
 
   // Format activity from API to ActivityItem format
   const formatActivity = (activity: ActivityRecord): ActivityItem => {
@@ -443,16 +446,42 @@ export function DashboardPage(): JSX.Element {
     }, 300);
   };
 
-  const handleJoinMeeting = async (): Promise<void> => {
+  const openJoinMeetingModal = (): void => {
     const trimmedId = meetingId.trim();
     if (!trimmedId) {
+      setJoinMeetingError('Please enter a meeting link or ID first');
+      return;
+    }
+    setJoinMeetingError(null);
+    setJoinMeetingSuccess(null);
+    setMeetingNameError(null);
+    setIsJoinMeetingModalOpen(true);
+  };
+
+  const closeJoinMeetingModal = (): void => {
+    setIsJoinMeetingModalOpen(false);
+    setMeetingName('');
+    setMeetingNameError(null);
+  };
+
+  const handleJoinMeeting = async (): Promise<void> => {
+    const trimmedId = meetingId.trim();
+    const trimmedName = meetingName.trim();
+    
+    if (!trimmedId) {
       setJoinMeetingError('Please enter a meeting link or ID');
+      return;
+    }
+    
+    if (!trimmedName) {
+      setMeetingNameError('Meeting name is required');
       return;
     }
     
     setIsJoiningMeeting(true);
     setJoinMeetingError(null);
     setJoinMeetingSuccess(null);
+    setMeetingNameError(null);
     
     try {
       const token = await ensureFreshAccessToken();
@@ -489,6 +518,7 @@ export function DashboardPage(): JSX.Element {
         },
         body: JSON.stringify({
           meeting_url: meetingUrl,
+          meeting_name: trimmedName,
         }),
       });
       
@@ -501,6 +531,8 @@ export function DashboardPage(): JSX.Element {
       if (data.success) {
         setJoinMeetingSuccess('Bot is joining the meeting now!');
         setMeetingId(''); // Clear the input
+        setMeetingName(''); // Clear the meeting name
+        closeJoinMeetingModal(); // Close the modal
         // Don't redirect - just show success notification on dashboard
       } else {
         throw new Error(data.error || 'Failed to join meeting');
@@ -517,7 +549,14 @@ export function DashboardPage(): JSX.Element {
   const handleJoinMeetingKeyDown = (e: React.KeyboardEvent<HTMLInputElement>): void => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      handleJoinMeeting();
+      openJoinMeetingModal();
+    }
+  };
+
+  const handleMeetingNameKeyDown = (e: React.KeyboardEvent<HTMLInputElement>): void => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      void handleJoinMeeting();
     }
   };
 
@@ -643,11 +682,11 @@ export function DashboardPage(): JSX.Element {
                     </div>
                     <button
                       type="button"
-                      onClick={() => void handleJoinMeeting()}
+                      onClick={openJoinMeetingModal}
                       disabled={isJoiningMeeting || !meetingId.trim()}
                       className="inline-flex h-[60px] items-center justify-center rounded-[5px] bg-[#327AAD] px-12 font-nunito text-[20px] font-extrabold text-white transition hover:bg-[#286996] disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                      {isJoiningMeeting ? 'Joining...' : 'Join now'}
+                      Join now
                     </button>
                   </div>
                   {joinMeetingError && (
@@ -1286,6 +1325,90 @@ export function DashboardPage(): JSX.Element {
                 {isDeletingFolder ? 'Deleting...' : 'Yes, delete!'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* Join Meeting Modal */}
+      {isJoinMeetingModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6">
+          <div className="w-full max-w-sm rounded-[30px] bg-white p-6 text-center shadow-[0_25px_60px_rgba(0,0,0,0.15)]">
+            <div className="mb-4 flex items-start justify-end">
+              <button
+                type="button"
+                onClick={closeJoinMeetingModal}
+                className="text-red-500 transition hover:scale-105 disabled:opacity-60"
+                aria-label="Close dialog"
+                disabled={isJoiningMeeting}
+              >
+                <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <h3 className="font-nunito text-2xl font-extrabold text-[#111928]">Join Meeting</h3>
+            <p className="mt-2 font-nunito text-sm text-[#5F6B7A]">
+              Enter a meeting name to help identify this meeting in your transcriptions.
+            </p>
+            <div className="my-5 border-t border-[#E6E9F2]" />
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                void handleJoinMeeting();
+              }}
+              className="space-y-4 text-left"
+            >
+              <label className="flex flex-col gap-2 font-nunito text-sm font-semibold text-[#25324B]">
+                Meeting Name
+                <input
+                  type="text"
+                  value={meetingName}
+                  onChange={(event) => {
+                    setMeetingName(event.target.value);
+                    setMeetingNameError(null);
+                  }}
+                  onKeyDown={handleMeetingNameKeyDown}
+                  className="rounded-[10px] border border-[#A3AED0] px-4 py-3 font-normal text-[#25324B] placeholder:text-[#A3AED0] focus:border-[#7C5CFF] focus:outline-none focus:ring-2 focus:ring-[#7C5CFF]/30"
+                  autoFocus
+                  disabled={isJoiningMeeting}
+                  placeholder="e.g., Team Standup, Client Call"
+                />
+              </label>
+              {meetingNameError && (
+                <p className="rounded-lg border border-red-100 bg-red-50 px-3 py-2 font-nunito text-sm text-red-600">
+                  {meetingNameError}
+                </p>
+              )}
+              <div className="mt-4 p-3 bg-gray-50 rounded-[10px] border border-[#E6E9F2]">
+                <label className="font-nunito text-xs font-semibold uppercase tracking-wide text-[#6B7A96] mb-1 block">
+                  Meeting Link
+                </label>
+                <p className="font-nunito text-sm text-[#25324B] break-all">
+                  {meetingId.trim() || 'No link entered'}
+                </p>
+              </div>
+              {joinMeetingError && (
+                <p className="rounded-lg border border-red-100 bg-red-50 px-3 py-2 font-nunito text-sm text-red-600">
+                  {joinMeetingError}
+                </p>
+              )}
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end sm:gap-4 mt-6">
+                <button
+                  type="button"
+                  onClick={closeJoinMeetingModal}
+                  className="rounded-[10px] border border-[#B7C0D6] px-5 py-2 font-nunito text-sm font-semibold text-[#1F2A44] transition hover:bg-[#F7F8FC]"
+                  disabled={isJoiningMeeting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="inline-flex items-center justify-center rounded-[10px] bg-[#327AAD] px-5 py-3 font-nunito text-base font-extrabold text-white transition hover:bg-[#286996] disabled:opacity-60"
+                  disabled={isJoiningMeeting || !meetingName.trim()}
+                >
+                  {isJoiningMeeting ? 'Joining...' : 'Join Meeting'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -81,6 +81,7 @@ export function SetupProfilePage(): JSX.Element {
   const [statusMessage, setStatusMessage] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const previousUrlRef = useRef<string | null>(null);
+  const hasInitializedFieldsRef = useRef(false);
 
   const navigate = useNavigate();
   const { ensureFreshAccessToken } = useAuth();
@@ -208,12 +209,10 @@ export function SetupProfilePage(): JSX.Element {
   };
 
   const handleRemoveAvatar = async () => {
-    // Auto-save avatar removal
+    // Auto-save avatar removal - saveAvatarOnly handles state updates
     await saveAvatarOnly(null, true);
     
-    revokeObjectUrl();
-    setAvatarPreview(null);
-    setAvatarFile(null);
+    // Clear file input
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -234,13 +233,19 @@ export function SetupProfilePage(): JSX.Element {
       return;
     }
 
-    setFirstName(profile.first_name ?? '');
-    setLastName(profile.last_name ?? '');
-    setCompanyName(profile.company ?? '');
-    setPosition(profile.position ?? '');
-    setSelectedTeam(apiAudienceToLocal(profile.audience));
-    setSelectedHelp(decodeMultiSelect(profile.company_notes, HELP_OPTION_VALUES));
-    setSelectedGoals(decodeMultiSelect(profile.purpose, GOAL_OPTION_VALUES));
+    // Only sync all fields on initial load to avoid wiping user input
+    if (!hasInitializedFieldsRef.current) {
+      setFirstName(profile.first_name ?? '');
+      setLastName(profile.last_name ?? '');
+      setCompanyName(profile.company ?? '');
+      setPosition(profile.position ?? '');
+      setSelectedTeam(apiAudienceToLocal(profile.audience));
+      setSelectedHelp(decodeMultiSelect(profile.company_notes, HELP_OPTION_VALUES));
+      setSelectedGoals(decodeMultiSelect(profile.purpose, GOAL_OPTION_VALUES));
+      hasInitializedFieldsRef.current = true;
+    }
+
+    // Always update avatar preview when profile changes (after avatar save)
     revokeObjectUrl();
     setAvatarPreview(profile.avatar_url ?? null);
     setAvatarFile(null);

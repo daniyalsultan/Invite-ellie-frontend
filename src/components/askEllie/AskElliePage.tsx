@@ -1,6 +1,7 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { DashboardLayout } from '../sidebar';
 import { useProfile } from '../../context/ProfileContext';
+import { getContextualNudges, type ContextualNudge } from '../../services/contextualNudgesApi';
 import logo from '../../assets/logo.svg';
 
 interface Message {
@@ -29,8 +30,11 @@ function buildRecallaiUrl(path: string): string | null {
   return `${baseUrl}${path}`;
 }
 
+type TabType = 'assistant' | 'nudges';
+
 export function AskElliePage(): JSX.Element {
   const { profile } = useProfile();
+  const [activeTab, setActiveTab] = useState<TabType>('assistant');
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 1,
@@ -42,8 +46,16 @@ export function AskElliePage(): JSX.Element {
   const [isLoading, setIsLoading] = useState(false);
   const [hasLiveMeetings, setHasLiveMeetings] = useState(false);
   const [liveMeetingCount, setLiveMeetingCount] = useState(0);
+  const [liveBotId, setLiveBotId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  
+  // Contextual nudges state
+  const [contextualNudges, setContextualNudges] = useState<ContextualNudge[]>([]);
+  const [nudgesLoading, setNudgesLoading] = useState(false);
+  const [nudgesError, setNudgesError] = useState<string | null>(null);
+  const [currentParticipants, setCurrentParticipants] = useState<string[]>([]);
+  const [previousParticipantCount, setPreviousParticipantCount] = useState<number>(0);
 
   // Get chat API URL from recallai
   const CHAT_API_URL = useMemo(() => {
@@ -99,6 +111,179 @@ export function AskElliePage(): JSX.Element {
       inputRef.current.style.height = 'auto';
     }
   }, [inputValue]);
+
+  // Fetch contextual nudges - API will check if meeting is live
+  const fetchContextualNudges = useCallback(async (): Promise<void> => {
+    if (!profile?.id) {
+      setContextualNudges([]);
+      setCurrentParticipants([]);
+      setHasLiveMeetings(false);
+      return;
+    }
+
+    setNudgesLoading(true);
+    setNudgesError(null);
+
+    try {
+      const response = await getContextualNudges(profile.id, liveBotId || undefined);
+      
+      if (response.success) {
+        // Update live meeting status based on API response
+        // The API checks for live meetings independently
+        const hasLive = response.has_live_meeting ?? false;
+        setHasLiveMeetings(hasLive);
+        
+        if (hasLive) {
+          const newParticipants = response.current_participants || [];
+          const newParticipantCount = newParticipants.length;
+          
+          setContextualNudges(response.nudges || []);
+          setCurrentParticipants(newParticipants);
+          setPreviousParticipantCount(newParticipantCount);
+          
+          // Update bot_id if provided in response
+          if (response.live_meeting_bot_id) {
+            setLiveBotId(response.live_meeting_bot_id);
+          }
+        } else {
+          // No live meeting - clear nudges and bot_id
+          setContextualNudges([]);
+          setCurrentParticipants([]);
+          setPreviousParticipantCount(0);
+          setLiveBotId(null);
+        }
+      } else {
+        setNudgesError(response.error || 'Failed to fetch contextual nudges');
+        setContextualNudges([]);
+        setCurrentParticipants([]);
+        setPreviousParticipantCount(0);
+        setHasLiveMeetings(false);
+      }
+    } catch (error) {
+      console.error('Error fetching contextual nudges:', error);
+      setNudgesError(error instanceof Error ? error.message : 'Failed to fetch contextual nudges');
+      setContextualNudges([]);
+      setCurrentParticipants([]);
+      setPreviousParticipantCount(0);
+      setHasLiveMeetings(false);
+    } finally {
+      setNudgesLoading(false);
+    }
+  }, [profile?.id, liveBotId]);
+
+  // Check for live meetings periodically (regardless of tab)
+  // This ensures live meetings are detected even when user is on assistant tab
+  const checkLiveMeetingStatus = useCallback(async (): Promise<void> => {
+    if (!profile?.id) {
+      setHasLiveMeetings(false);
+      setLiveBotId(null);
+      return;
+    }
+
+    try {
+      // Check for live meetings without requiring bot_id
+      // This will find the most recent live meeting
+      const response = await getContextualNudges(profile.id, undefined);
+      
+      if (response.success) {
+        const hasLive = response.has_live_meeting ?? false;
+        setHasLiveMeetings(hasLive);
+        
+        if (hasLive) {
+          // Update bot_id if provided in response
+          if (response.live_meeting_bot_id) {
+            setLiveBotId(response.live_meeting_bot_id);
+          }
+        } else {
+          // No live meeting - clear bot_id
+          setLiveBotId(null);
+        }
+      } else {
+        setHasLiveMeetings(false);
+        setLiveBotId(null);
+      }
+    } catch (error) {
+      console.error('Error checking live meeting status:', error);
+      // Don't set to false on error, keep current state to avoid flickering
+    }
+  }, [profile?.id]);
+
+  // Poll for live meeting status every 30 seconds (works on any tab)
+  // This ensures new meetings are detected automatically
+  useEffect(() => {
+    if (!profile?.id) {
+      return;
+    }
+
+    // Initial check
+    void checkLiveMeetingStatus();
+
+    // Set up polling every 30 seconds
+    const intervalId = setInterval(() => {
+      void checkLiveMeetingStatus();
+    }, 30000); // 30 seconds
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [profile?.id, checkLiveMeetingStatus]);
+
+  // Fetch nudges when switching to nudges tab (API will check if meeting is live)
+  useEffect(() => {
+    if (activeTab === 'nudges' && profile?.id) {
+      void fetchContextualNudges();
+    } else if (activeTab !== 'nudges') {
+      // Clear nudges when switching away from nudges tab
+      setContextualNudges([]);
+      setCurrentParticipants([]);
+    }
+  }, [activeTab, profile?.id, fetchContextualNudges]);
+
+  // Smart polling for nudges when on nudges tab
+  // - Poll every 30 seconds ONLY when meeting is live AND no nudges are available yet
+  // - Once nudges are shown, stop polling (to reduce API calls)
+  // - When new participant joins, trigger one-time fetch (detected via participant count change)
+  useEffect(() => {
+    if (activeTab !== 'nudges' || !profile?.id || !hasLiveMeetings) {
+      return;
+    }
+
+    // Only set up polling if no nudges are available yet
+    // This reduces API calls - once nudges appear, we stop polling
+    if (contextualNudges.length > 0) {
+      // Nudges are already available, no need to poll
+      return;
+    }
+
+    // Set up polling every 30 seconds only when no nudges yet
+    // This helps detect when participants join and matching meetings become available
+    const intervalId = setInterval(() => {
+      void fetchContextualNudges();
+    }, 30000); // 30 seconds
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [activeTab, profile?.id, hasLiveMeetings, contextualNudges.length, fetchContextualNudges]);
+
+  // Detect when new participant joins and trigger one-time fetch
+  // This happens when participant count changes (new person joined the meeting)
+  useEffect(() => {
+    if (activeTab !== 'nudges' || !profile?.id || !hasLiveMeetings) {
+      return;
+    }
+
+    // Skip if this is the initial load (previousParticipantCount is 0)
+    if (previousParticipantCount === 0) {
+      return;
+    }
+
+    // If participant count changed (increased), fetch nudges (might have new matching meetings)
+    if (currentParticipants.length > previousParticipantCount) {
+      console.log(`[AskEllie] New participant joined! Count: ${previousParticipantCount} → ${currentParticipants.length}. Fetching nudges...`);
+      void fetchContextualNudges();
+    }
+  }, [currentParticipants.length, previousParticipantCount, activeTab, profile?.id, hasLiveMeetings, fetchContextualNudges]);
 
   const handleSendMessage = async (): Promise<void> => {
     if (!inputValue.trim() || isLoading) return;
@@ -158,6 +343,11 @@ export function AskElliePage(): JSX.Element {
         setHasLiveMeetings(data.has_live_meetings);
         setLiveMeetingCount(data.live_meeting_count || 0);
       }
+      
+      // Store bot_id if provided in response (for contextual nudges)
+      if (data.bot_id) {
+        setLiveBotId(data.bot_id);
+      }
 
       const ellieResponse: Message = {
         id: messages.length + 2,
@@ -205,15 +395,43 @@ export function AskElliePage(): JSX.Element {
 
           {/* Page Title */}
           <div className="mb-4 md:mb-6 lg:mb-8">
-            <h1 className="font-nunito text-xl md:text-2xl lg:text-3xl xl:text-4xl font-extrabold text-[#1F2A44] mb-2">
+            <h1 className="font-nunito text-xl md:text-2xl lg:text-3xl xl:text-4xl font-extrabold text-[#1F2A44] mb-4 md:mb-6">
               Ellie Meeting Assistant
             </h1>
+            
+            {/* Tabs */}
+            <div className="flex gap-2 border-b border-gray-200">
+              <button
+                type="button"
+                onClick={() => setActiveTab('assistant')}
+                className={`px-4 md:px-6 py-2 md:py-3 font-nunito text-sm md:text-base font-semibold transition-colors border-b-2 ${
+                  activeTab === 'assistant'
+                    ? 'border-ellieBlue text-ellieBlue'
+                    : 'border-transparent text-ellieGray hover:text-ellieBlack'
+                }`}
+              >
+                Live Meeting Assistant
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('nudges')}
+                className={`px-4 md:px-6 py-2 md:py-3 font-nunito text-sm md:text-base font-semibold transition-colors border-b-2 ${
+                  activeTab === 'nudges'
+                    ? 'border-ellieBlue text-ellieBlue'
+                    : 'border-transparent text-ellieGray hover:text-ellieBlack'
+                }`}
+              >
+                Contextual Nudges
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Chat Container */}
+        {/* Content Container */}
         <div className="flex-1 flex flex-col min-h-0 px-4 md:px-6 lg:px-8 pb-4 md:pb-6 lg:pb-8">
-          <div className="flex-1 flex flex-col rounded-xl bg-gradient-to-b from-[#FAFBFC] to-[#F4F7FA] border border-gray-200 shadow-sm overflow-hidden">
+          {activeTab === 'assistant' ? (
+            /* Live Meeting Assistant Tab */
+            <div className="flex-1 flex flex-col rounded-xl bg-gradient-to-b from-[#FAFBFC] to-[#F4F7FA] border border-gray-200 shadow-sm overflow-hidden">
             {/* Messages Area */}
             <div className="flex-1 overflow-y-auto px-4 py-6 md:px-6 md:py-8">
               <div className="flex flex-col gap-4 max-w-4xl mx-auto">
@@ -327,6 +545,292 @@ export function AskElliePage(): JSX.Element {
               </p>
             </div>
           </div>
+          ) : (
+            /* Contextual Nudges Tab */
+            <div className="flex-1 flex flex-col rounded-xl bg-gradient-to-b from-[#FAFBFC] to-[#F4F7FA] border border-gray-200 shadow-sm overflow-hidden">
+              <div className="flex-1 overflow-y-auto px-4 py-6 md:px-6 md:py-8">
+                <div className="max-w-4xl mx-auto">
+                  {!hasLiveMeetings ? (
+                    /* No Live Meeting State */
+                    <div className="text-center py-12 md:py-16">
+                      <div className="mb-4">
+                        <svg
+                          className="mx-auto h-12 w-12 md:h-16 md:w-16 text-ellieGray"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+                          />
+                        </svg>
+                      </div>
+                      <h2 className="font-nunito text-xl md:text-2xl font-bold text-ellieBlack mb-2">
+                        Contextual Nudges
+                      </h2>
+                      <p className="font-nunito text-sm md:text-base text-ellieGray max-w-md mx-auto">
+                        Contextual nudges are only available during live meetings. Start or join a meeting to see relevant insights from previous meetings with the same participants.
+                      </p>
+                    </div>
+                  ) : nudgesLoading ? (
+                    /* Loading State */
+                    <div className="text-center py-12 md:py-16">
+                      <div className="mb-4">
+                        <img src={logo} alt="Ellie" className="mx-auto h-12 w-12 md:h-16 md:w-16 animate-pulse" />
+                      </div>
+                      <p className="font-nunito text-sm md:text-base text-ellieGray">
+                        Loading contextual nudges...
+                      </p>
+                    </div>
+                  ) : nudgesError ? (
+                    /* Error State */
+                    <div className="text-center py-12 md:py-16">
+                      <div className="mb-4">
+                        <svg
+                          className="mx-auto h-12 w-12 md:h-16 md:w-16 text-red-500"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                          />
+                        </svg>
+                      </div>
+                      <h2 className="font-nunito text-xl md:text-2xl font-bold text-ellieBlack mb-2">
+                        Error Loading Nudges
+                      </h2>
+                      <p className="font-nunito text-sm md:text-base text-red-600 mb-4">
+                        {nudgesError}
+                      </p>
+                      <button
+                        onClick={() => void fetchContextualNudges()}
+                        className="px-4 py-2 rounded-lg bg-ellieBlue text-white font-nunito text-sm font-semibold hover:bg-ellieBlue/90 transition-colors"
+                      >
+                        Try Again
+                      </button>
+                    </div>
+                  ) : contextualNudges.length === 0 ? (
+                    /* Empty State - No Nudges */
+                    <div className="text-center py-12 md:py-16">
+                      <div className="mb-4">
+                        <svg
+                          className="mx-auto h-12 w-12 md:h-16 md:w-16 text-ellieGray"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+                          />
+                        </svg>
+                      </div>
+                      <h2 className="font-nunito text-xl md:text-2xl font-bold text-ellieBlack mb-2">
+                        No Contextual Nudges Yet
+                      </h2>
+                      {currentParticipants.length > 0 ? (
+                        <>
+                          <p className="font-nunito text-sm md:text-base text-ellieGray mb-3">
+                            No previous meetings found with matching participants.
+                          </p>
+                          <div className="inline-flex flex-wrap gap-2 justify-center">
+                            <span className="font-nunito text-xs text-ellieGray">Current participants:</span>
+                            {currentParticipants.map((participant, index) => (
+                              <span
+                                key={index}
+                                className="px-3 py-1 bg-ellieBlue/10 text-ellieBlue rounded-full text-xs font-nunito font-semibold"
+                              >
+                                {participant}
+                              </span>
+                            ))}
+                          </div>
+                        </>
+                      ) : (
+                        <p className="font-nunito text-sm md:text-base text-ellieGray">
+                          Waiting for participants to join the meeting...
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    /* Nudges List */
+                    <div className="space-y-4 md:space-y-6">
+                      {/* Current Participants Info */}
+                      {currentParticipants.length > 0 && (
+                        <div className="bg-white rounded-lg border border-gray-200 p-4 md:p-5">
+                          <div className="flex items-center gap-2 mb-2">
+                            <svg
+                              className="h-5 w-5 text-ellieBlue"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                              />
+                            </svg>
+                            <h3 className="font-nunito text-sm md:text-base font-semibold text-ellieBlack">
+                              Current Meeting Participants
+                            </h3>
+                          </div>
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {currentParticipants.map((participant, index) => (
+                              <span
+                                key={index}
+                                className="px-3 py-1 bg-ellieBlue/10 text-ellieBlue rounded-full text-xs font-nunito font-semibold"
+                              >
+                                {participant}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Nudges Header */}
+                      <div className="flex items-center justify-between">
+                        <h2 className="font-nunito text-lg md:text-xl font-bold text-ellieBlack">
+                          Contextual Nudges ({contextualNudges.length})
+                        </h2>
+                        <button
+                          onClick={() => void fetchContextualNudges()}
+                          disabled={nudgesLoading}
+                          className="px-3 py-1.5 rounded-lg bg-ellieBlue text-white font-nunito text-xs font-semibold hover:bg-ellieBlue/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Refresh
+                        </button>
+                      </div>
+
+                      {/* Nudges List */}
+                      <div className="space-y-3 md:space-y-4">
+                        {contextualNudges.map((nudge) => (
+                          <div
+                            key={nudge.id}
+                            className="bg-white rounded-lg border border-amber-200 shadow-sm p-4 md:p-5 hover:shadow-md transition-shadow"
+                          >
+                            <div className="flex items-start gap-3">
+                              {/* Icon */}
+                              <div className="flex-shrink-0 mt-1">
+                                <svg
+                                  className="w-5 h-5 text-amber-600"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                  />
+                                </svg>
+                              </div>
+
+                              {/* Content */}
+                              <div className="flex-1 min-w-0">
+                                <p className="font-nunito text-sm md:text-base font-semibold text-ellieBlack mb-2">
+                                  {nudge.text}
+                                </p>
+
+                                {/* Metadata */}
+                                <div className="flex flex-wrap items-center gap-3 text-xs text-ellieGray mb-2">
+                                  {nudge.timestamp && (
+                                    <span className="font-nunito">
+                                      <svg className="inline h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                      </svg>
+                                      {nudge.timestamp}
+                                    </span>
+                                  )}
+                                  {nudge.speaker && (
+                                    <span className="font-nunito">
+                                      <svg className="inline h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                      </svg>
+                                      {nudge.speaker}
+                                    </span>
+                                  )}
+                                  {nudge.type && (
+                                    <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded font-nunito font-medium">
+                                      {nudge.type.replace('_', ' ')}
+                                    </span>
+                                  )}
+                                </div>
+
+                                {/* Explanation */}
+                                {nudge.explanation && (
+                                  <p className="font-nunito text-xs text-ellieGray italic mb-3">
+                                    {nudge.explanation}
+                                  </p>
+                                )}
+
+                                {/* Meeting Context */}
+                                {nudge.meeting_context && (
+                                  <div className="mt-3 pt-3 border-t border-gray-100">
+                                    <div className="flex items-start gap-2">
+                                      <svg
+                                        className="w-4 h-4 text-ellieGray mt-0.5 flex-shrink-0"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth={2}
+                                          d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                        />
+                                      </svg>
+                                      <div className="flex-1 min-w-0">
+                                        <p className="font-nunito text-xs font-semibold text-ellieBlack">
+                                          {nudge.meeting_context.meeting_title}
+                                        </p>
+                                        <p className="font-nunito text-xs text-ellieGray mt-1">
+                                          {nudge.meeting_context.meeting_date
+                                            ? new Date(nudge.meeting_context.meeting_date).toLocaleDateString('en-US', {
+                                                year: 'numeric',
+                                                month: 'long',
+                                                day: 'numeric',
+                                              })
+                                            : 'Date not available'}
+                                        </p>
+                                        {nudge.meeting_context.participants && nudge.meeting_context.participants.length > 0 && (
+                                          <div className="flex flex-wrap gap-1.5 mt-2">
+                                            {nudge.meeting_context.participants.map((participant, idx) => (
+                                              <span
+                                                key={idx}
+                                                className="px-2 py-0.5 bg-gray-100 text-ellieGray rounded text-xs font-nunito"
+                                              >
+                                                {participant}
+                                              </span>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </DashboardLayout>
