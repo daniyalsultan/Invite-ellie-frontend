@@ -7,6 +7,7 @@ import {
   StoredSession,
 } from '../utils/authStorage';
 import { getApiBaseUrl } from '../utils/apiBaseUrl';
+import { autoCreateWorkspaceForEmail } from '../utils/workspaceAutoCreate';
 
 type Session = StoredSession;
 
@@ -192,6 +193,18 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
           },
           { rememberMe },
         );
+
+        // Auto-create workspace based on email domain (background operation, don't await)
+        if (email) {
+          console.log('[AuthContext] Triggering workspace auto-creation for email:', email);
+          autoCreateWorkspaceForEmail(data.access_token, email).catch((error) => {
+            console.error('[AuthContext] Failed to auto-create workspace after login:', error);
+            // Don't throw - this is a background operation
+          });
+        } else {
+          console.warn('[AuthContext] No email provided for workspace auto-creation');
+        }
+
         return;
       }
 

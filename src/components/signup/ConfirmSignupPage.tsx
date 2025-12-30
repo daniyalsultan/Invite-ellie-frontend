@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, useRef } from 'react';
 import { Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { getApiBaseUrl } from '../../utils/apiBaseUrl';
+import { autoCreateWorkspaceForEmail } from '../../utils/workspaceAutoCreate';
 
 type ConfirmationState =
   | { status: 'idle' }
@@ -353,6 +354,14 @@ export function ConfirmSignupPage(): JSX.Element {
             userId,
             expiresAt: expiresIn ? Date.now() + expiresIn * 1000 : null,
           });
+
+          // Auto-create workspace based on email domain (background operation, don't await)
+          if (emailToUse) {
+            autoCreateWorkspaceForEmail(accessToken, emailToUse).catch((error) => {
+              console.error('Failed to auto-create workspace after signup confirmation:', error);
+              // Don't throw - this is a background operation
+            });
+          }
         }
 
         const successMessage =

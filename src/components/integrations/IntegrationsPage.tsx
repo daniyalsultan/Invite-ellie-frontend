@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { DashboardLayout } from '../sidebar';
 import { useProfile } from '../../context/ProfileContext';
+import { useAuth } from '../../context/AuthContext';
 import {
   getConnectedCalendars,
   getCalendarConnectUrls,
@@ -18,6 +19,7 @@ import {
 import { getSlackConnectUrl, getSlackStatus, disconnectSlack, type SlackConnectionStatus } from '../../services/slackApi';
 import { getNotionConnectUrl, getNotionStatus, disconnectNotion, type NotionConnectionStatus } from '../../services/notionApi';
 import { getHubSpotConnectUrl, getHubSpotStatus, disconnectHubSpot, type HubSpotConnectionStatus } from '../../services/hubspotApi';
+import { autoCreateWorkspaceForCalendar } from '../../utils/workspaceAutoCreate';
 import googleMeetIcon from '../../assets/integration-google-meet.svg';
 import microsoftTeamsIcon from '../../assets/integration-microsoft-teams.svg';
 import slackLogo from '../../assets/Slack-Logo.png';
@@ -79,6 +81,7 @@ const EXPORT_INTEGRATIONS: ExportIntegration[] = [
 
 export function IntegrationsPage(): JSX.Element {
   const { profile, isLoading: isProfileLoading } = useProfile();
+  const { ensureFreshAccessToken } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [calendars, setCalendars] = useState<CalendarConnection[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -134,7 +137,7 @@ export function IntegrationsPage(): JSX.Element {
       setSuccessMessage(`${platform} connected successfully${email ? ` for ${email}` : ''}`);
       // Remove query params
       setSearchParams({});
-      // Refresh calendars
+      // Refresh calendars (workspace auto-creation will happen in fetchCalendars)
       if (profile?.id) {
         void fetchCalendars();
       }
@@ -240,9 +243,42 @@ export function IntegrationsPage(): JSX.Element {
 
     try {
       console.log('Fetching calendars for userId:', profile.id);
+      const previousCalendars = calendars;
       const connected = await getConnectedCalendars(profile.id);
       console.log('Calendars fetched:', connected);
       setCalendars(connected);
+      
+      // Auto-create workspaces for newly connected calendars
+      // Check for calendars that are now connected but weren't before
+      const newlyConnected = connected.filter(cal => {
+        if (!cal.connected || !cal.email) return false;
+        // Check if this calendar was not connected before
+        const wasConnected = previousCalendars.some(
+          prevCal => prevCal.id === cal.id && prevCal.connected
+        );
+        return !wasConnected;
+      });
+      
+      // Create workspaces for newly connected calendars
+      if (newlyConnected.length > 0) {
+        try {
+          const token = await ensureFreshAccessToken();
+          if (token) {
+            console.log('[Integrations] Found newly connected calendars, creating workspaces:', newlyConnected);
+            for (const calendar of newlyConnected) {
+              if (calendar.email) {
+                console.log('[Integrations] Auto-creating workspace for calendar:', calendar.email);
+                await autoCreateWorkspaceForCalendar(token, calendar.email).catch((error) => {
+                  console.error('[Integrations] Failed to auto-create workspace for calendar:', error);
+                  // Don't show error to user - this is a background operation
+                });
+              }
+            }
+          }
+        } catch (error) {
+          console.error('[Integrations] Error creating workspaces for calendars:', error);
+        }
+      }
       
       // Show ONLY live data for connected calendars (hide stored data from disconnected calendars)
       // Stored data will be available on a different page in the future

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { getApiBaseUrl } from '../../utils/apiBaseUrl';
+import { autoCreateWorkspaceForEmail } from '../../utils/workspaceAutoCreate';
 
 export function SSOCallbackPage(): JSX.Element {
   const [searchParams] = useSearchParams();
@@ -195,6 +196,41 @@ export function SSOCallbackPage(): JSX.Element {
             },
             { rememberMe: true },
           );
+
+          // Auto-create workspace based on email domain
+          // First fetch user profile to get email, then create workspace
+          if (data.access_token && apiBaseUrl) {
+            console.log('[SSOCallback] Fetching user profile to get email for workspace auto-creation');
+            fetch(`${apiBaseUrl}/accounts/me/`, {
+              method: 'GET',
+              headers: {
+                Authorization: `Bearer ${data.access_token}`,
+              },
+            })
+              .then((profileResponse) => {
+                console.log('[SSOCallback] Profile response status:', profileResponse.status);
+                if (profileResponse.ok) {
+                  return profileResponse.json();
+                }
+                console.warn('[SSOCallback] Profile response not OK');
+                return null;
+              })
+              .then((profile: { email?: string } | null) => {
+                if (profile?.email) {
+                  console.log('[SSOCallback] Found email in profile, triggering workspace auto-creation:', profile.email);
+                  return autoCreateWorkspaceForEmail(data.access_token, profile.email);
+                } else {
+                  console.warn('[SSOCallback] No email found in profile:', profile);
+                }
+                return null;
+              })
+              .catch((error) => {
+                console.error('[SSOCallback] Failed to auto-create workspace after SSO:', error);
+                // Don't throw - this is a background operation
+              });
+          } else {
+            console.warn('[SSOCallback] Missing access token or API base URL for workspace auto-creation');
+          }
 
           // Redirect to dashboard
           navigate('/dashboard', { replace: true });
