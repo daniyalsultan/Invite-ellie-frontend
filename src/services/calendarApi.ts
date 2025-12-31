@@ -277,9 +277,15 @@ export async function getConnectedCalendars(
 /**
  * Get OAuth authorization URLs for both calendars - simple like root_view
  * Returns both URLs at once
+ * 
+ * @param userId - User ID
+ * @param folderId - Optional folder ID to include in OAuth state
+ * @param workspaceId - Optional workspace ID to include in OAuth state
  */
 export async function getCalendarConnectUrls(
-  userId: string
+  userId: string,
+  folderId?: string | null,
+  workspaceId?: string | null
 ): Promise<{ googleCalendar: string; microsoftOutlook: string }> {
   const recallaiUrl = buildRecallaiUrl('/api/calendar/connect-urls');
   if (!recallaiUrl) {
@@ -289,7 +295,14 @@ export async function getCalendarConnectUrls(
   }
 
   try {
-    const url = `${recallaiUrl}?userId=${userId}`;
+    const params = new URLSearchParams({ userId });
+    if (folderId) {
+      params.append('folderId', folderId);
+    }
+    if (workspaceId) {
+      params.append('workspaceId', workspaceId);
+    }
+    const url = `${recallaiUrl}?${params.toString()}`;
     console.log('Fetching connect URLs from:', url);
     
     const response = await fetch(url, {

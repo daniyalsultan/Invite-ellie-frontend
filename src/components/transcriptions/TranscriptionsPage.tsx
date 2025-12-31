@@ -44,6 +44,7 @@ export function TranscriptionsPage(): JSX.Element {
   const [transcriptionSearchQuery, setTranscriptionSearchQuery] = useState('');
   const [exporting, setExporting] = useState<{ [key: string]: boolean }>({});
   const [exportMessage, setExportMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+  const [deleting, setDeleting] = useState<{ [key: string]: boolean }>({});
 
   // Fetch transcriptions on mount
   useEffect(() => {
@@ -144,6 +145,84 @@ export function TranscriptionsPage(): JSX.Element {
 
   const handleCopyLink = (link: string): void => {
     navigator.clipboard.writeText(link);
+  };
+
+  const handleDeleteMeeting = async (transcriptionId: string): Promise<void> => {
+    if (!profile?.id) {
+      setError('Please log in to delete meetings');
+      return;
+    }
+
+    // Confirm deletion
+    if (!window.confirm('Are you sure you want to delete this meeting? This action cannot be undone.')) {
+      return;
+    }
+
+    const deleteKey = transcriptionId;
+    
+    try {
+      setDeleting(prev => ({ ...prev, [deleteKey]: true }));
+      setError(null);
+      setExportMessage(null);
+
+      // Build recall server URL
+      function getRecallaiBaseUrl(): string | null {
+        const raw = import.meta.env.VITE_RECALLAI_BASE_URL;
+        if (typeof raw !== 'string' || !raw.trim()) {
+          return null;
+        }
+        return raw.trim().replace(/\/$/, '');
+      }
+
+      function buildRecallaiUrl(path: string): string | null {
+        const baseUrl = getRecallaiBaseUrl();
+        if (!baseUrl) {
+          return null;
+        }
+        return `${baseUrl}${path}`;
+      }
+
+      // Delete transcription from recall server
+      const deleteUrl = buildRecallaiUrl(`/api/transcriptions/${transcriptionId}?userId=${profile.id}`);
+      if (!deleteUrl) {
+        throw new Error('Recall server URL is not configured');
+      }
+
+      const response = await fetch(deleteUrl, {
+        method: 'DELETE',
+        headers: {
+          Accept: 'application/json',
+          'ngrok-skip-browser-warning': 'true',
+        },
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to delete meeting: ${errorText || response.statusText}`);
+      }
+
+      // Remove from local state
+      setTranscriptions(prev => prev.filter(t => t.id !== transcriptionId));
+      
+      // Clear selection if deleted meeting was selected
+      if (selectedTranscription?.id === transcriptionId) {
+        setSelectedTranscription(null);
+        setTranscriptContent(null);
+      }
+
+      setExportMessage({
+        type: 'success',
+        text: 'Meeting deleted successfully!'
+      });
+      setTimeout(() => setExportMessage(null), 3000);
+      
+    } catch (error) {
+      console.error('[Delete Meeting] Error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete meeting';
+      setError(errorMessage);
+    } finally {
+      setDeleting(prev => ({ ...prev, [deleteKey]: false }));
+    }
   };
 
   const handleExport = async (transcriptionId: string, exportType: 'slack' | 'notion' | 'hubspot'): Promise<void> => {
@@ -392,6 +471,36 @@ export function TranscriptionsPage(): JSX.Element {
                           )}
                         </div>
 
+                        {/* Delete Button - Mobile */}
+                        <div className="mb-3">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void handleDeleteMeeting(transcription.id);
+                            }}
+                            disabled={deleting[transcription.id]}
+                            className="w-full px-3 py-2 rounded-lg bg-red-500 text-white font-nunito text-xs font-semibold hover:bg-red-600 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {deleting[transcription.id] ? (
+                              <>
+                                <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Deleting...
+                              </>
+                            ) : (
+                              <>
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                                Delete Meeting
+                              </>
+                            )}
+                          </button>
+                        </div>
+
                         <div className="pb-3 md:pb-4 border-b border-[#DEE1E6]">
                           <div className="flex items-center justify-between">
                             <div>
@@ -442,18 +551,21 @@ export function TranscriptionsPage(): JSX.Element {
                         <th className="text-left py-3 px-4 font-nunito text-base font-semibold text-[#25324B] whitespace-nowrap">
                           Export
                         </th>
+                        <th className="text-left py-3 px-4 font-nunito text-base font-semibold text-[#25324B] whitespace-nowrap">
+                          Delete
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
                       {loading ? (
                         <tr>
-                          <td colSpan={5} className="py-8 text-center text-gray-500">
+                          <td colSpan={6} className="py-8 text-center text-gray-500">
                             Loading transcriptions...
                           </td>
                         </tr>
                       ) : filteredTranscriptions.length === 0 ? (
                         <tr>
-                          <td colSpan={5} className="py-8 text-center text-gray-500">
+                          <td colSpan={6} className="py-8 text-center text-gray-500">
                             No transcriptions found
                           </td>
                         </tr>
@@ -620,6 +732,35 @@ export function TranscriptionsPage(): JSX.Element {
                                   )}
                                 </button>
                               </div>
+                            </td>
+                            <td className="py-4 px-4 whitespace-nowrap">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  void handleDeleteMeeting(transcription.id);
+                                }}
+                                disabled={deleting[transcription.id]}
+                                className="px-3 py-1.5 rounded-lg bg-red-500 text-white font-nunito text-xs font-semibold hover:bg-red-600 transition-colors flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                                title="Delete Meeting (Testing)"
+                              >
+                                {deleting[transcription.id] ? (
+                                  <>
+                                    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    Deleting...
+                                  </>
+                                ) : (
+                                  <>
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                    Delete
+                                  </>
+                                )}
+                              </button>
                             </td>
                           </tr>
                         ))

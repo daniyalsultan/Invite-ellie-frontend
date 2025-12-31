@@ -36,11 +36,12 @@ export function Sidebar({ activeTab }: SidebarProps): JSX.Element {
     return () => window.removeEventListener('toggleMobileMenu', handleToggle);
   }, []);
 
-  // Top 4 items
+  // Top 5 items
   const topItems: SidebarItem[] = [
     { label: 'Dashboard', path: '/dashboard', icon: dashboardIcon },
     { label: 'Work Spaces', path: '/workspaces', icon: workspaceIcon },
     { label: 'Transcriptions', path: '/transcriptions', icon: transcriptionIcon },
+    { label: 'Unresolved Meetings', path: '/unresolved-meetings', icon: transcriptionIcon },
     { label: 'Live Meeting Assistant', path: '/ask-ellie', icon: logo },
     // { label: 'Meeting Recordings', path: '/meeting-recordings', icon: manageRecordingsIcon },
   ];
@@ -60,6 +61,9 @@ export function Sidebar({ activeTab }: SidebarProps): JSX.Element {
     }
     if (path === '/workspaces') {
       return currentPath.startsWith('/workspaces');
+    }
+    if (path === '/unresolved-meetings') {
+      return currentPath.startsWith('/unresolved-meetings');
     }
     return currentPath.startsWith(path);
   };

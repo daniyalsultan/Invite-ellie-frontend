@@ -239,3 +239,59 @@ export async function autoCreateWorkspaceForCalendar(
   return autoCreateWorkspaceForEmail(token, calendarEmail);
 }
 
+/**
+ * Get user's workspace based on their email domain
+ * This ensures meetings are associated with the correct workspace
+ * 
+ * @param token - User's access token
+ * @param email - User's email address
+ * @returns Workspace ID and name, or null if not found/created
+ */
+export async function getUserWorkspaceByEmail(
+  token: string,
+  email: string
+): Promise<{ id: string; name: string } | null> {
+  console.log('[Workspace Auto-Create] Getting user workspace by email', { email });
+  
+  // First, try to auto-create workspace (will return existing if it exists)
+  const workspace = await autoCreateWorkspaceForEmail(token, email);
+  
+  if (workspace) {
+    return workspace;
+  }
+  
+  // If auto-create returned null (workspace exists), fetch it
+  try {
+    const domain = extractEmailDomain(email);
+    if (!domain) {
+      console.warn('[Workspace Auto-Create] Could not extract domain from email:', email);
+      return null;
+    }
+    
+    const workspaceName = getWorkspaceNameFromDomain(domain);
+    const response = await listWorkspaces(token, {
+      page: 1,
+      pageSize: 100,
+      ordering: '-created_at',
+    });
+    
+    const foundWorkspace = response.results.find(
+      w => w.name.toLowerCase() === workspaceName.toLowerCase()
+    );
+    
+    if (foundWorkspace) {
+      console.log('[Workspace Auto-Create] Found existing workspace:', foundWorkspace);
+      return {
+        id: foundWorkspace.id,
+        name: foundWorkspace.name,
+      };
+    }
+    
+    console.warn('[Workspace Auto-Create] Workspace not found for email:', email);
+    return null;
+  } catch (error) {
+    console.error('[Workspace Auto-Create] Error getting user workspace:', error);
+    return null;
+  }
+}
+

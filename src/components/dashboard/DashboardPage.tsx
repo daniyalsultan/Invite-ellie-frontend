@@ -18,9 +18,11 @@ import {
   patchFolder,
   deleteFolder,
 } from '../workspace/workspaceApi';
+import { getUserWorkspaceByEmail } from '../../utils/workspaceAutoCreate';
 import { listActivities, ActivityRecord } from '../../services/activityApi';
 import { DemoTour } from '../demo';
 import { FolderDetailView } from '../folder/FolderDetailView';
+import { FolderMeetingsModal } from '../folder/FolderMeetingsModal';
 
 /**
  * Get the recallai backend base URL from environment variable
@@ -105,6 +107,8 @@ export function DashboardPage(): JSX.Element {
   const [isDeletingFolder, setIsDeletingFolder] = useState(false);
   const [selectedFolder, setSelectedFolder] = useState<FolderRecord | null>(null);
   const [isDetailViewOpen, setIsDetailViewOpen] = useState(false);
+  const [isFolderMeetingsModalOpen, setIsFolderMeetingsModalOpen] = useState(false);
+  const [selectedFolderForModal, setSelectedFolderForModal] = useState<FolderRecord | null>(null);
   const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([]);
   const [isActivitiesLoading, setIsActivitiesLoading] = useState(true);
   const [activitiesError, setActivitiesError] = useState<string | null>(null);
@@ -114,6 +118,15 @@ export function DashboardPage(): JSX.Element {
   const [isJoinMeetingModalOpen, setIsJoinMeetingModalOpen] = useState(false);
   const [meetingName, setMeetingName] = useState('');
   const [meetingNameError, setMeetingNameError] = useState<string | null>(null);
+  // Folder selection for join meeting
+  const [joinMeetingWorkspaceId, setJoinMeetingWorkspaceId] = useState<string | null>(null);
+  const [joinMeetingWorkspaceName, setJoinMeetingWorkspaceName] = useState<string | null>(null);
+  const [joinMeetingFolders, setJoinMeetingFolders] = useState<FolderRecord[]>([]);
+  const [isLoadingJoinMeetingFolders, setIsLoadingJoinMeetingFolders] = useState(false);
+  const [selectedJoinMeetingFolderId, setSelectedJoinMeetingFolderId] = useState<string | null>(null);
+  const [isCreatingJoinMeetingFolder, setIsCreatingJoinMeetingFolder] = useState(false);
+  const [newJoinMeetingFolderName, setNewJoinMeetingFolderName] = useState('');
+  const [showCreateFolderInJoinModal, setShowCreateFolderInJoinModal] = useState(false);
 
   // Format activity from API to ActivityItem format
   const formatActivity = (activity: ActivityRecord): ActivityItem => {
@@ -434,8 +447,8 @@ export function DashboardPage(): JSX.Element {
   };
 
   const handleFolderClick = (folder: FolderRecord): void => {
-    setSelectedFolder(folder);
-    setIsDetailViewOpen(true);
+    setSelectedFolderForModal(folder);
+    setIsFolderMeetingsModalOpen(true);
   };
 
   const handleCloseDetailView = (): void => {
@@ -446,7 +459,7 @@ export function DashboardPage(): JSX.Element {
     }, 300);
   };
 
-  const openJoinMeetingModal = (): void => {
+  const openJoinMeetingModal = async (): Promise<void> => {
     const trimmedId = meetingId.trim();
     if (!trimmedId) {
       setJoinMeetingError('Please enter a meeting link or ID first');
@@ -455,13 +468,110 @@ export function DashboardPage(): JSX.Element {
     setJoinMeetingError(null);
     setJoinMeetingSuccess(null);
     setMeetingNameError(null);
+    setShowCreateFolderInJoinModal(false);
+    setNewJoinMeetingFolderName('');
     setIsJoinMeetingModalOpen(true);
+    
+    // Get user's workspace based on email and fetch folders
+    if (profile?.email) {
+      try {
+        setIsLoadingJoinMeetingFolders(true);
+        const token = await ensureFreshAccessToken();
+        if (!token) {
+          throw new Error('Unable to authenticate. Please login again.');
+        }
+        
+        // Get user's workspace by email domain
+        const userWorkspace = await getUserWorkspaceByEmail(token, profile.email);
+        if (userWorkspace) {
+          setJoinMeetingWorkspaceId(userWorkspace.id);
+          setJoinMeetingWorkspaceName(userWorkspace.name);
+          
+          // Fetch folders for this workspace
+          const foldersResponse = await listFolders(token, {
+            workspace: userWorkspace.id,
+            pageSize: 100,
+            ordering: '-created_at',
+          });
+          setJoinMeetingFolders(foldersResponse.results);
+          
+          // Try to restore last selected folder from localStorage
+          const lastSelectedFolderId = localStorage.getItem('lastSelectedJoinMeetingFolderId');
+          if (lastSelectedFolderId) {
+            // Verify that the folder still exists in the current workspace
+            const folderExists = foldersResponse.results.some(
+              (folder) => folder.id === lastSelectedFolderId
+            );
+            if (folderExists) {
+              setSelectedJoinMeetingFolderId(lastSelectedFolderId);
+            } else {
+              // Folder doesn't exist anymore, clear from localStorage
+              localStorage.removeItem('lastSelectedJoinMeetingFolderId');
+            }
+          }
+        } else {
+          console.warn('Could not get user workspace for join meeting');
+        }
+      } catch (error) {
+        console.error('Error loading folders for join meeting:', error);
+      } finally {
+        setIsLoadingJoinMeetingFolders(false);
+      }
+    }
   };
 
   const closeJoinMeetingModal = (): void => {
     setIsJoinMeetingModalOpen(false);
     setMeetingName('');
     setMeetingNameError(null);
+    setSelectedJoinMeetingFolderId(null);
+    setShowCreateFolderInJoinModal(false);
+    setNewJoinMeetingFolderName('');
+    setJoinMeetingFolders([]);
+    setJoinMeetingWorkspaceId(null);
+    setJoinMeetingWorkspaceName(null);
+  };
+
+  const handleCreateFolderInJoinModal = async (): Promise<void> => {
+    if (!joinMeetingWorkspaceId) {
+      setJoinMeetingError('Workspace not found. Please try again.');
+      return;
+    }
+    
+    const trimmed = newJoinMeetingFolderName.trim();
+    if (!trimmed) {
+      setJoinMeetingError('Folder name is required.');
+      return;
+    }
+    
+    setIsCreatingJoinMeetingFolder(true);
+    setJoinMeetingError(null);
+    
+    try {
+      const token = await ensureFreshAccessToken();
+      if (!token) {
+        throw new Error('Unable to authenticate. Please login again.');
+      }
+      
+      const newFolder = await createFolder(token, {
+        name: trimmed,
+        workspace: joinMeetingWorkspaceId,
+      });
+      
+      // Add to folders list and select it
+      setJoinMeetingFolders((prev) => [newFolder, ...prev]);
+      setSelectedJoinMeetingFolderId(newFolder.id);
+      // Save to localStorage for future meetings
+      localStorage.setItem('lastSelectedJoinMeetingFolderId', newFolder.id);
+      setNewJoinMeetingFolderName('');
+      setShowCreateFolderInJoinModal(false);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unable to create folder. Please try again.';
+      setJoinMeetingError(message);
+    } finally {
+      setIsCreatingJoinMeetingFolder(false);
+    }
   };
 
   const handleJoinMeeting = async (): Promise<void> => {
@@ -477,6 +587,9 @@ export function DashboardPage(): JSX.Element {
       setMeetingNameError('Meeting name is required');
       return;
     }
+    
+    // Folder selection is optional but recommended
+    // We'll proceed even without folder, but log a warning
     
     setIsJoiningMeeting(true);
     setJoinMeetingError(null);
@@ -499,6 +612,27 @@ export function DashboardPage(): JSX.Element {
         meetingUrl = trimmedId;
       }
       
+      // Prepare request body with folder_id if selected
+      const requestBody: {
+        meeting_url: string;
+        meeting_name: string;
+        folder_id?: string;
+        workspace_id?: string;
+      } = {
+        meeting_url: meetingUrl,
+        meeting_name: trimmedName,
+      };
+      
+      // Add folder_id if selected
+      if (selectedJoinMeetingFolderId) {
+        requestBody.folder_id = selectedJoinMeetingFolderId;
+      }
+      
+      // Add workspace_id for association
+      if (joinMeetingWorkspaceId) {
+        requestBody.workspace_id = joinMeetingWorkspaceId;
+      }
+      
       // Call the recall server API to join meeting immediately
       // The endpoint exists in the recall server, not in Invite-ellie-backend
       const recallaiUrl = buildRecallaiUrl('/api/join-meeting');
@@ -507,6 +641,7 @@ export function DashboardPage(): JSX.Element {
       }
       
       console.log('Joining meeting - API URL:', recallaiUrl);
+      console.log('Join meeting request body:', requestBody);
       
       const response = await fetch(recallaiUrl, {
         method: 'POST',
@@ -516,10 +651,7 @@ export function DashboardPage(): JSX.Element {
           Authorization: `Bearer ${token}`,
           'ngrok-skip-browser-warning': 'true', // Bypass ngrok interstitial page
         },
-        body: JSON.stringify({
-          meeting_url: meetingUrl,
-          meeting_name: trimmedName,
-        }),
+        body: JSON.stringify(requestBody),
       });
       
       const data = await response.json();
@@ -529,6 +661,11 @@ export function DashboardPage(): JSX.Element {
       }
       
       if (data.success) {
+        // Save the selected folder to localStorage for future meetings
+        if (selectedJoinMeetingFolderId) {
+          localStorage.setItem('lastSelectedJoinMeetingFolderId', selectedJoinMeetingFolderId);
+        }
+        
         setJoinMeetingSuccess('Bot is joining the meeting now!');
         setMeetingId(''); // Clear the input
         setMeetingName(''); // Clear the meeting name
@@ -682,7 +819,7 @@ export function DashboardPage(): JSX.Element {
                     </div>
                     <button
                       type="button"
-                      onClick={openJoinMeetingModal}
+                      onClick={() => void openJoinMeetingModal()}
                       disabled={isJoiningMeeting || !meetingId.trim()}
                       className="inline-flex h-[60px] items-center justify-center rounded-[5px] bg-[#327AAD] px-12 font-nunito text-[20px] font-extrabold text-white transition hover:bg-[#286996] disabled:opacity-60 disabled:cursor-not-allowed"
                     >
@@ -1347,7 +1484,7 @@ export function DashboardPage(): JSX.Element {
             </div>
             <h3 className="font-nunito text-2xl font-extrabold text-[#111928]">Join Meeting</h3>
             <p className="mt-2 font-nunito text-sm text-[#5F6B7A]">
-              Enter a meeting name to help identify this meeting in your transcriptions.
+              Enter a meeting name and select a folder to organize this meeting.
             </p>
             <div className="my-5 border-t border-[#E6E9F2]" />
             <form
@@ -1378,6 +1515,134 @@ export function DashboardPage(): JSX.Element {
                   {meetingNameError}
                 </p>
               )}
+              
+              {/* Folder Selection */}
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <label className="font-nunito text-sm font-semibold text-[#25324B]">
+                    Working on: <span className="text-xs font-normal text-[#6B7A96]">(Optional but recommended)</span>
+                  </label>
+                  {joinMeetingWorkspaceName && (
+                    <span className="text-xs font-nunito font-medium text-[#6B7A96]">
+                      Workspace: <span className="font-semibold text-[#25324B]">{joinMeetingWorkspaceName}</span>
+                    </span>
+                  )}
+                </div>
+                {isLoadingJoinMeetingFolders ? (
+                  <div className="rounded-[10px] border border-[#A3AED0] px-4 py-3 font-nunito text-sm text-[#6B7A96]">
+                    Loading folders...
+                  </div>
+                ) : showCreateFolderInJoinModal ? (
+                  <div className="space-y-2">
+                    {joinMeetingWorkspaceName && (
+                      <p className="text-xs font-nunito text-[#6B7A96]">
+                        Creating folder in workspace: <span className="font-semibold text-[#25324B]">{joinMeetingWorkspaceName}</span>
+                      </p>
+                    )}
+                    <input
+                      type="text"
+                      value={newJoinMeetingFolderName}
+                      onChange={(event) => setNewJoinMeetingFolderName(event.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          void handleCreateFolderInJoinModal();
+                        }
+                      }}
+                      className="w-full rounded-[10px] border border-[#A3AED0] px-4 py-3 font-normal text-[#25324B] placeholder:text-[#A3AED0] focus:border-[#7C5CFF] focus:outline-none focus:ring-2 focus:ring-[#7C5CFF]/30"
+                      placeholder="Enter folder name"
+                      disabled={isCreatingJoinMeetingFolder}
+                      autoFocus
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={handleCreateFolderInJoinModal}
+                        disabled={isCreatingJoinMeetingFolder || !newJoinMeetingFolderName.trim()}
+                        className="flex-1 rounded-[10px] bg-[#327AAD] px-4 py-2 font-nunito text-sm font-semibold text-white transition hover:bg-[#286996] disabled:opacity-60"
+                      >
+                        {isCreatingJoinMeetingFolder ? 'Creating...' : 'Create Folder'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowCreateFolderInJoinModal(false);
+                          setNewJoinMeetingFolderName('');
+                        }}
+                        disabled={isCreatingJoinMeetingFolder}
+                        className="rounded-[10px] border border-[#B7C0D6] px-4 py-2 font-nunito text-sm font-semibold text-[#1F2A44] transition hover:bg-[#F7F8FC] disabled:opacity-60"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : joinMeetingFolders.length > 0 ? (
+                  <div className="relative">
+                    <select
+                      value={selectedJoinMeetingFolderId || ''}
+                      onChange={(event) => {
+                        const newFolderId = event.target.value || null;
+                        setSelectedJoinMeetingFolderId(newFolderId);
+                        // Save to localStorage for future meetings
+                        if (newFolderId) {
+                          localStorage.setItem('lastSelectedJoinMeetingFolderId', newFolderId);
+                        } else {
+                          // If user clears selection, remove from localStorage
+                          localStorage.removeItem('lastSelectedJoinMeetingFolderId');
+                        }
+                      }}
+                      className="w-full appearance-none rounded-[10px] border border-[#A3AED0] bg-white px-4 py-3 pr-10 font-nunito text-sm font-normal text-[#25324B] focus:border-[#7C5CFF] focus:outline-none focus:ring-2 focus:ring-[#7C5CFF]/30"
+                      disabled={isJoiningMeeting}
+                    >
+                      <option value="">Select a folder (Optional)</option>
+                      {joinMeetingFolders.map((folder) => (
+                        <option key={folder.id} value={folder.id}>
+                          {folder.name}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
+                      <svg
+                        className="h-5 w-5 text-[#327AAD]"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 9l6 6 6-6" />
+                      </svg>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowCreateFolderInJoinModal(true)}
+                      className="mt-2 text-sm font-nunito text-[#327AAD] hover:underline"
+                      disabled={isJoiningMeeting}
+                    >
+                      + Create new folder
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {joinMeetingWorkspaceName && (
+                      <p className="text-xs font-nunito text-[#6B7A96] mb-1">
+                        Workspace: <span className="font-semibold text-[#25324B]">{joinMeetingWorkspaceName}</span>
+                      </p>
+                    )}
+                    <p className="text-sm font-nunito text-[#6B7A96]">
+                      No folders yet. Create one to organize your meetings.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setShowCreateFolderInJoinModal(true)}
+                      className="w-full rounded-[10px] border border-[#327AAD] bg-white px-4 py-2 font-nunito text-sm font-semibold text-[#327AAD] transition hover:bg-[#327AAD]/5"
+                      disabled={isJoiningMeeting}
+                    >
+                      + Create Folder
+                    </button>
+                  </div>
+                )}
+              </div>
+              
               <div className="mt-4 p-3 bg-gray-50 rounded-[10px] border border-[#E6E9F2]">
                 <label className="font-nunito text-xs font-semibold uppercase tracking-wide text-[#6B7A96] mb-1 block">
                   Meeting Link
@@ -1403,7 +1668,7 @@ export function DashboardPage(): JSX.Element {
                 <button
                   type="submit"
                   className="inline-flex items-center justify-center rounded-[10px] bg-[#327AAD] px-5 py-3 font-nunito text-base font-extrabold text-white transition hover:bg-[#286996] disabled:opacity-60"
-                  disabled={isJoiningMeeting || !meetingName.trim()}
+                  disabled={isJoiningMeeting || !meetingName.trim() || isCreatingJoinMeetingFolder}
                 >
                   {isJoiningMeeting ? 'Joining...' : 'Join Meeting'}
                 </button>
@@ -1438,6 +1703,19 @@ export function DashboardPage(): JSX.Element {
           }
         }}
       />
+      
+      {/* Folder Meetings Modal */}
+      {selectedFolderForModal && (
+        <FolderMeetingsModal
+          folderId={selectedFolderForModal.id}
+          folderName={selectedFolderForModal.name}
+          isOpen={isFolderMeetingsModalOpen}
+          onClose={() => {
+            setIsFolderMeetingsModalOpen(false);
+            setTimeout(() => setSelectedFolderForModal(null), 300);
+          }}
+        />
+      )}
       </DashboardLayout>
     </React.Fragment>
   );

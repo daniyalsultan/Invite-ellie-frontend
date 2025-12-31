@@ -19,6 +19,7 @@ import { NotificationsPage } from './components/notifications';
 import { DashboardPage } from './components/dashboard';
 import { WorkspacePage, CreateWorkspacePage, WorkspaceViewPage } from './components/workspace';
 import { TranscriptionsPage } from './components/transcriptions';
+import { UnresolvedMeetingsPage } from './components/unresolved/UnresolvedMeetingsPage';
 import { MeetingRecordingsPage } from './components/meetingrecordings';
 import { MeetingViewPage } from './components/meetingView';
 import { SearchResultsPage } from './components/search';
@@ -151,6 +152,7 @@ function App(): JSX.Element {
     location.pathname.startsWith('/workspaces') ||
     location.pathname.startsWith('/create-workspace') ||
     location.pathname.startsWith('/transcriptions') ||
+    location.pathname.startsWith('/unresolved-meetings') ||
     location.pathname.startsWith('/ask-ellie') ||
     location.pathname.startsWith('/meeting-recordings') ||
     location.pathname.startsWith('/meeting-view') ||
@@ -184,6 +186,7 @@ function App(): JSX.Element {
           <Route path="/create-workspace" element={<CreateWorkspacePage />} />
           <Route path="/workspaces/:workspaceId" element={<WorkspaceViewPage />} />
           <Route path="/transcriptions" element={<TranscriptionsPage />} />
+          <Route path="/unresolved-meetings" element={<UnresolvedMeetingsPage />} />
           <Route path="/ask-ellie" element={<AskElliePage />} />
           <Route path="/meeting-recordings" element={<MeetingRecordingsPage />} />
           <Route path="/meeting-view" element={<MeetingViewPage />} />

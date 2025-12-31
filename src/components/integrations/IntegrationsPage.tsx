@@ -19,8 +19,22 @@ import {
 import { getSlackConnectUrl, getSlackStatus, disconnectSlack, type SlackConnectionStatus } from '../../services/slackApi';
 import { getNotionConnectUrl, getNotionStatus, disconnectNotion, type NotionConnectionStatus } from '../../services/notionApi';
 import { getHubSpotConnectUrl, getHubSpotStatus, disconnectHubSpot, type HubSpotConnectionStatus } from '../../services/hubspotApi';
-import { autoCreateWorkspaceForCalendar } from '../../utils/workspaceAutoCreate';
+import { autoCreateWorkspaceForCalendar, getUserWorkspaceByEmail } from '../../utils/workspaceAutoCreate';
+import { listFolders, createFolder, type FolderRecord } from '../workspace/workspaceApi';
 import googleMeetIcon from '../../assets/integration-google-meet.svg';
+
+/**
+ * Build API URL for recallai backend
+ */
+function buildRecallaiUrl(path: string): string | null {
+  const baseUrl = import.meta.env.VITE_RECALLAI_BASE_URL;
+  if (!baseUrl || typeof baseUrl !== 'string' || !baseUrl.trim()) {
+    return null;
+  }
+  const url = baseUrl.trim().replace(/\/$/, '');
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  return `${url}${cleanPath}`;
+}
 import microsoftTeamsIcon from '../../assets/integration-microsoft-teams.svg';
 import slackLogo from '../../assets/Slack-Logo.png';
 import notionLogo from '../../assets/notion_logo.png';
@@ -126,6 +140,19 @@ export function IntegrationsPage(): JSX.Element {
   // Refs to store latest function references for WebSocket handler
   const fetchCalendarsRef = useRef<(() => Promise<void>) | null>(null);
   const handleViewCalendarRef = useRef<((calendarId: string) => Promise<void>) | null>(null);
+  
+  // Calendar connection modal state
+  const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
+  const [pendingIntegration, setPendingIntegration] = useState<CalendarIntegration | null>(null);
+  const [connectModalWorkspaceId, setConnectModalWorkspaceId] = useState<string | null>(null);
+  const [connectModalWorkspaceName, setConnectModalWorkspaceName] = useState<string | null>(null);
+  const [connectModalFolders, setConnectModalFolders] = useState<FolderRecord[]>([]);
+  const [isLoadingConnectModalFolders, setIsLoadingConnectModalFolders] = useState(false);
+  const [selectedConnectModalFolderId, setSelectedConnectModalFolderId] = useState<string | null>(null);
+  const [isCreatingConnectModalFolder, setIsCreatingConnectModalFolder] = useState(false);
+  const [newConnectModalFolderName, setNewConnectModalFolderName] = useState('');
+  const [showCreateFolderInConnectModal, setShowCreateFolderInConnectModal] = useState(false);
+  const [connectModalError, setConnectModalError] = useState<string | null>(null);
 
   // Handle OAuth callback redirects for calendar integrations
   useEffect(() => {
@@ -134,9 +161,67 @@ export function IntegrationsPage(): JSX.Element {
     
     if (connected === 'google' || connected === 'microsoft') {
       const platform = connected === 'google' ? 'Google Calendar' : 'Microsoft Calendar';
+      const platformKey = connected === 'google' ? 'google_calendar' : 'microsoft_outlook';
+      
+      // Get stored folder preference from localStorage
+      const pendingFolderId = localStorage.getItem(`pendingCalendarFolder_${platformKey}`);
+      const pendingWorkspaceId = localStorage.getItem(`pendingCalendarWorkspace_${platformKey}`);
+      
+      // Clear pending preferences after use
+      if (pendingFolderId) {
+        localStorage.removeItem(`pendingCalendarFolder_${platformKey}`);
+      }
+      if (pendingWorkspaceId) {
+        localStorage.removeItem(`pendingCalendarWorkspace_${platformKey}`);
+      }
+      
       setSuccessMessage(`${platform} connected successfully${email ? ` for ${email}` : ''}`);
       // Remove query params
       setSearchParams({});
+      
+      // If folder preference was set, update the calendar after it's connected
+      if (profile?.id && pendingFolderId && email) {
+        const calendarEmail = email; // Store in const to satisfy TypeScript
+        // Wait a bit for calendar to be created, then update it
+        setTimeout(async () => {
+          try {
+            const token = await ensureFreshAccessToken();
+            if (!token) return;
+            
+            // Fetch calendars to find the newly connected one
+            if (!profile?.id) return;
+            const connected = await getConnectedCalendars(profile.id);
+            const newCalendar = connected.find(
+              (cal) => cal.email === calendarEmail && cal.platform === platformKey && cal.connected
+            );
+            
+            if (newCalendar) {
+              // Update calendar with folder preference
+              const recallaiUrl = buildRecallaiUrl(`/api/calendar/${newCalendar.id}/update?userId=${profile.id}`);
+              if (recallaiUrl) {
+                await fetch(recallaiUrl, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                    Authorization: `Bearer ${token}`,
+                    'ngrok-skip-browser-warning': 'true',
+                  },
+                  body: JSON.stringify({
+                    default_folder_id: pendingFolderId,
+                    default_workspace_id: pendingWorkspaceId || null,
+                  }),
+                });
+                console.log(`[Integrations] Updated calendar ${newCalendar.id} with folder preference: ${pendingFolderId}`);
+              }
+            }
+          } catch (error) {
+            console.error('[Integrations] Error updating calendar folder preference:', error);
+            // Don't show error to user - this is a background operation
+          }
+        }, 2000); // Wait 2 seconds for calendar to be created
+      }
+      
       // Refresh calendars (workspace auto-creation will happen in fetchCalendars)
       if (profile?.id) {
         void fetchCalendars();
@@ -550,23 +635,156 @@ export function IntegrationsPage(): JSX.Element {
     return calendars.find((cal) => cal.platform === platform);
   };
 
-  const handleConnect = async (integration: CalendarIntegration) => {
-    if (!profile?.id) {
+  const openConnectModal = async (integration: CalendarIntegration) => {
+    if (!profile?.id || !profile?.email) {
       setError('Please login to connect calendars');
       return;
     }
 
-    setConnecting(integration.id);
-    setError(null);
-    setSuccessMessage(null);
+    setPendingIntegration(integration);
+    setConnectModalError(null);
+    setSelectedConnectModalFolderId(null);
+    setShowCreateFolderInConnectModal(false);
+    setNewConnectModalFolderName('');
+    setIsConnectModalOpen(true);
+
+    // Get user's workspace based on email and fetch folders
+    try {
+      setIsLoadingConnectModalFolders(true);
+      const token = await ensureFreshAccessToken();
+      if (!token) {
+        throw new Error('Unable to authenticate. Please login again.');
+      }
+
+      // Get user's workspace by email domain
+      const userWorkspace = await getUserWorkspaceByEmail(token, profile.email);
+      if (userWorkspace) {
+        setConnectModalWorkspaceId(userWorkspace.id);
+        setConnectModalWorkspaceName(userWorkspace.name);
+
+        // Fetch folders for this workspace
+        const foldersResponse = await listFolders(token, {
+          workspace: userWorkspace.id,
+          pageSize: 100,
+          ordering: '-created_at',
+        });
+        setConnectModalFolders(foldersResponse.results);
+
+        // Try to restore last selected folder from localStorage
+        const lastSelectedFolderId = localStorage.getItem(`lastSelectedCalendarFolder_${integration.platform}`);
+        if (lastSelectedFolderId) {
+          // Verify that the folder still exists in the current workspace
+          const folderExists = foldersResponse.results.some(
+            (folder) => folder.id === lastSelectedFolderId
+          );
+          if (folderExists) {
+            setSelectedConnectModalFolderId(lastSelectedFolderId);
+          } else {
+            // Folder doesn't exist anymore, clear from localStorage
+            localStorage.removeItem(`lastSelectedCalendarFolder_${integration.platform}`);
+          }
+        }
+      } else {
+        console.warn('Could not get user workspace for calendar connection');
+      }
+    } catch (error) {
+      console.error('Error loading folders for calendar connection:', error);
+      setConnectModalError('Failed to load workspace and folders. Please try again.');
+    } finally {
+      setIsLoadingConnectModalFolders(false);
+    }
+  };
+
+  const closeConnectModal = (): void => {
+    setIsConnectModalOpen(false);
+    setPendingIntegration(null);
+    setSelectedConnectModalFolderId(null);
+    setShowCreateFolderInConnectModal(false);
+    setNewConnectModalFolderName('');
+    setConnectModalFolders([]);
+    setConnectModalWorkspaceId(null);
+    setConnectModalWorkspaceName(null);
+    setConnectModalError(null);
+    setConnecting(null);
+  };
+
+  const handleCreateFolderInConnectModal = async (): Promise<void> => {
+    if (!connectModalWorkspaceId) {
+      setConnectModalError('Workspace not found. Please try again.');
+      return;
+    }
+
+    const trimmed = newConnectModalFolderName.trim();
+    if (!trimmed) {
+      setConnectModalError('Folder name is required.');
+      return;
+    }
+
+    setIsCreatingConnectModalFolder(true);
+    setConnectModalError(null);
 
     try {
+      const token = await ensureFreshAccessToken();
+      if (!token) {
+        throw new Error('Unable to authenticate. Please login again.');
+      }
+
+      const newFolder = await createFolder(token, {
+        name: trimmed,
+        workspace: connectModalWorkspaceId,
+      });
+
+      // Add to folders list and select it
+      setConnectModalFolders((prev) => [newFolder, ...prev]);
+      setSelectedConnectModalFolderId(newFolder.id);
+      // Save to localStorage for future connections
+      if (pendingIntegration) {
+        localStorage.setItem(`lastSelectedCalendarFolder_${pendingIntegration.platform}`, newFolder.id);
+      }
+      setNewConnectModalFolderName('');
+      setShowCreateFolderInConnectModal(false);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unable to create folder. Please try again.';
+      setConnectModalError(message);
+    } finally {
+      setIsCreatingConnectModalFolder(false);
+    }
+  };
+
+  const handleConnect = async () => {
+    if (!profile?.id || !pendingIntegration) {
+      setError('Please login to connect calendars');
+      return;
+    }
+
+    setConnecting(pendingIntegration.id);
+    setConnectModalError(null);
+
+    try {
+      // Save folder preference to localStorage
+      if (selectedConnectModalFolderId && pendingIntegration) {
+        localStorage.setItem(`lastSelectedCalendarFolder_${pendingIntegration.platform}`, selectedConnectModalFolderId);
+        // Also store folder_id and workspace_id for use after OAuth callback
+        localStorage.setItem(`pendingCalendarFolder_${pendingIntegration.platform}`, selectedConnectModalFolderId);
+        localStorage.setItem(`pendingCalendarWorkspace_${pendingIntegration.platform}`, connectModalWorkspaceId || '');
+      } else if (pendingIntegration) {
+        // Clear if no folder selected
+        localStorage.removeItem(`pendingCalendarFolder_${pendingIntegration.platform}`);
+        localStorage.removeItem(`pendingCalendarWorkspace_${pendingIntegration.platform}`);
+      }
+
       // Get both URLs at once - simple like root_view
-      const connectUrls = await getCalendarConnectUrls(profile.id);
-      
+      // Pass folder_id and workspace_id to include in OAuth state
+      const connectUrls = await getCalendarConnectUrls(
+        profile.id,
+        selectedConnectModalFolderId || null,
+        connectModalWorkspaceId || null
+      );
+
       // Redirect to the appropriate OAuth provider
       const authUrl =
-        integration.platform === 'google_calendar'
+        pendingIntegration.platform === 'google_calendar'
           ? connectUrls.googleCalendar
           : connectUrls.microsoftOutlook;
 
@@ -574,10 +792,12 @@ export function IntegrationsPage(): JSX.Element {
         throw new Error('Failed to get authorization URL');
       }
 
+      // Close modal and redirect
+      closeConnectModal();
       window.location.href = authUrl;
     } catch (error) {
       console.error('Error connecting calendar:', error);
-      setError(error instanceof Error ? error.message : 'Failed to connect calendar');
+      setConnectModalError(error instanceof Error ? error.message : 'Failed to connect calendar');
       setConnecting(null);
     }
   };
@@ -959,7 +1179,7 @@ export function IntegrationsPage(): JSX.Element {
                     ) : (
                       <button
                         type="button"
-                        onClick={() => handleConnect(integration)}
+                        onClick={() => void openConnectModal(integration)}
                         disabled={isConnecting || isLoading}
                         className="px-3 md:px-4 py-2 md:py-2.5 rounded-lg bg-ellieBlue text-white font-nunito text-xs md:text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
                       >
@@ -1572,6 +1792,187 @@ export function IntegrationsPage(): JSX.Element {
           )}
         </div>
       </div>
+      
+      {/* Calendar Connection Modal */}
+      {isConnectModalOpen && pendingIntegration && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6">
+          <div className="w-full max-w-sm rounded-[30px] bg-white p-6 text-center shadow-[0_25px_60px_rgba(0,0,0,0.15)]">
+            <div className="mb-4 flex items-start justify-end">
+              <button
+                type="button"
+                onClick={closeConnectModal}
+                className="text-red-500 transition hover:scale-105 disabled:opacity-60"
+                aria-label="Close dialog"
+                disabled={connecting === pendingIntegration?.id}
+              >
+                <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <h3 className="font-nunito text-2xl font-extrabold text-[#111928]">
+              Connect {pendingIntegration.name}
+            </h3>
+            <p className="mt-2 font-nunito text-sm text-[#5F6B7A]">
+              Select a folder to organize meetings from this calendar. This preference will be saved for all future meetings.
+            </p>
+            <div className="my-5 border-t border-[#E6E9F2]" />
+            
+            {/* Workspace Name */}
+            {connectModalWorkspaceName && (
+              <p className="mb-3 font-nunito text-xs font-semibold uppercase tracking-wide text-[#6B7A96]">
+                Workspace: <span className="text-[#1F2A44]">{connectModalWorkspaceName}</span>
+              </p>
+            )}
+            
+            {/* Folder Selection */}
+            <div className="space-y-4 text-left">
+              <div className="flex flex-col gap-2">
+                <label className="font-nunito text-sm font-semibold text-[#25324B]">
+                  Working on: <span className="text-xs font-normal text-[#6B7A96]">(Optional but recommended)</span>
+                </label>
+                {isLoadingConnectModalFolders ? (
+                  <div className="rounded-[10px] border border-[#A3AED0] px-4 py-3 font-nunito text-sm text-[#6B7A96]">
+                    Loading folders...
+                  </div>
+                ) : showCreateFolderInConnectModal ? (
+                  <div className="space-y-2">
+                    {connectModalWorkspaceName && (
+                      <p className="text-xs font-nunito text-[#6B7A96]">
+                        Creating folder in workspace: <span className="font-semibold text-[#25324B]">{connectModalWorkspaceName}</span>
+                      </p>
+                    )}
+                    <input
+                      type="text"
+                      value={newConnectModalFolderName}
+                      onChange={(event) => setNewConnectModalFolderName(event.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          void handleCreateFolderInConnectModal();
+                        }
+                      }}
+                      className="w-full rounded-[10px] border border-[#A3AED0] px-4 py-3 font-normal text-[#25324B] placeholder:text-[#A3AED0] focus:border-[#7C5CFF] focus:outline-none focus:ring-2 focus:ring-[#7C5CFF]/30"
+                      placeholder="Enter folder name"
+                      disabled={isCreatingConnectModalFolder}
+                      autoFocus
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={handleCreateFolderInConnectModal}
+                        disabled={isCreatingConnectModalFolder || !newConnectModalFolderName.trim()}
+                        className="flex-1 rounded-[10px] bg-[#327AAD] px-4 py-2 font-nunito text-sm font-semibold text-white transition hover:bg-[#286996] disabled:opacity-60"
+                      >
+                        {isCreatingConnectModalFolder ? 'Creating...' : 'Create Folder'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowCreateFolderInConnectModal(false);
+                          setNewConnectModalFolderName('');
+                        }}
+                        disabled={isCreatingConnectModalFolder}
+                        className="rounded-[10px] border border-[#B7C0D6] px-4 py-2 font-nunito text-sm font-semibold text-[#1F2A44] transition hover:bg-[#F7F8FC] disabled:opacity-60"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : connectModalFolders.length > 0 ? (
+                  <div className="relative">
+                    <select
+                      value={selectedConnectModalFolderId || ''}
+                      onChange={(event) => {
+                        const newFolderId = event.target.value || null;
+                        setSelectedConnectModalFolderId(newFolderId);
+                        // Save to localStorage for future connections
+                        if (newFolderId && pendingIntegration) {
+                          localStorage.setItem(`lastSelectedCalendarFolder_${pendingIntegration.platform}`, newFolderId);
+                        } else if (pendingIntegration) {
+                          localStorage.removeItem(`lastSelectedCalendarFolder_${pendingIntegration.platform}`);
+                        }
+                      }}
+                      className="w-full appearance-none rounded-[10px] border border-[#A3AED0] bg-white px-4 py-3 pr-10 font-nunito text-sm font-normal text-[#25324B] focus:border-[#7C5CFF] focus:outline-none focus:ring-2 focus:ring-[#7C5CFF]/30"
+                      disabled={connecting === pendingIntegration?.id}
+                    >
+                      <option value="">Select a folder (Optional)</option>
+                      {connectModalFolders.map((folder) => (
+                        <option key={folder.id} value={folder.id}>
+                          {folder.name}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
+                      <svg
+                        className="h-5 w-5 text-[#327AAD]"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 9l6 6 6-6" />
+                      </svg>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowCreateFolderInConnectModal(true)}
+                      className="mt-2 text-sm font-nunito text-[#327AAD] hover:underline"
+                      disabled={connecting === pendingIntegration?.id}
+                    >
+                      + Create new folder
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {connectModalWorkspaceName && (
+                      <p className="text-xs font-nunito text-[#6B7A96] mb-1">
+                        Workspace: <span className="font-semibold text-[#25324B]">{connectModalWorkspaceName}</span>
+                      </p>
+                    )}
+                    <p className="text-sm font-nunito text-[#6B7A96]">
+                      No folders yet. Create one to organize your meetings.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setShowCreateFolderInConnectModal(true)}
+                      className="w-full rounded-[10px] border border-[#327AAD] bg-white px-4 py-2 font-nunito text-sm font-semibold text-[#327AAD] transition hover:bg-[#327AAD]/5"
+                      disabled={connecting === pendingIntegration?.id}
+                    >
+                      + Create Folder
+                    </button>
+                  </div>
+                )}
+              </div>
+              
+              {connectModalError && (
+                <p className="rounded-lg border border-red-100 bg-red-50 px-3 py-2 font-nunito text-sm text-red-600">
+                  {connectModalError}
+                </p>
+              )}
+              
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end sm:gap-4 mt-6">
+                <button
+                  type="button"
+                  onClick={closeConnectModal}
+                  className="rounded-[10px] border border-[#B7C0D6] px-5 py-2 font-nunito text-sm font-semibold text-[#1F2A44] transition hover:bg-[#F7F8FC]"
+                  disabled={connecting === pendingIntegration?.id}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleConnect()}
+                  className="inline-flex items-center justify-center rounded-[10px] bg-[#327AAD] px-5 py-3 font-nunito text-base font-extrabold text-white transition hover:bg-[#286996] disabled:opacity-60"
+                  disabled={connecting === pendingIntegration?.id || isCreatingConnectModalFolder}
+                >
+                  {connecting === pendingIntegration?.id ? 'Connecting...' : 'Connect Calendar'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 }

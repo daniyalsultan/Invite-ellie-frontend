@@ -66,9 +66,11 @@ export interface Transcription {
   language: string | null;
   duration: number | null;
   utterances: any[] | null;
-  words: any[] | null;
-  created_at: string | null;
-  updated_at: string | null;
+    words: any[] | null;
+    workspace_id: string | null;
+    folder_id: string | null;
+    created_at: string | null;
+    updated_at: string | null;
 }
 
 /**
@@ -161,6 +163,8 @@ export async function getTranscriptions(userId: string): Promise<Transcription[]
     duration: item.duration,
     utterances: item.utterances || [],
     words: item.words || [],
+    workspace_id: item.workspace_id || null,
+    folder_id: item.folder_id || null,
     created_at: item.created_at,
     updated_at: item.updated_at,
   }));

@@ -27,6 +27,7 @@ import {
 } from './workspaceApi';
 import deleteIllustration from '../../assets/delete.png';
 import { FolderDetailView } from '../folder/FolderDetailView';
+import { FolderMeetingsModal } from '../folder/FolderMeetingsModal';
 
 type StatusMessage = {
   type: 'success' | 'error';
@@ -98,6 +99,8 @@ export function WorkspaceViewPage(): JSX.Element {
   const [showDeleteWorkspaceModal, setShowDeleteWorkspaceModal] = useState(false);
   const [selectedFolder, setSelectedFolder] = useState<FolderRecord | null>(null);
   const [isDetailViewOpen, setIsDetailViewOpen] = useState(false);
+  const [isFolderMeetingsModalOpen, setIsFolderMeetingsModalOpen] = useState(false);
+  const [selectedFolderForModal, setSelectedFolderForModal] = useState<FolderRecord | null>(null);
 
   const refreshWorkspace = useCallback(async () => {
     if (!workspaceId) {
@@ -362,8 +365,8 @@ export function WorkspaceViewPage(): JSX.Element {
   };
 
   const handleFolderClick = (folder: FolderRecord): void => {
-    setSelectedFolder(folder);
-    setIsDetailViewOpen(true);
+    setSelectedFolderForModal(folder);
+    setIsFolderMeetingsModalOpen(true);
   };
 
   const handleCloseDetailView = (): void => {
@@ -1274,6 +1277,19 @@ export function WorkspaceViewPage(): JSX.Element {
             </div>
           </div>
         </div>
+      )}
+      
+      {/* Folder Meetings Modal */}
+      {selectedFolderForModal && (
+        <FolderMeetingsModal
+          folderId={selectedFolderForModal.id}
+          folderName={selectedFolderForModal.name}
+          isOpen={isFolderMeetingsModalOpen}
+          onClose={() => {
+            setIsFolderMeetingsModalOpen(false);
+            setTimeout(() => setSelectedFolderForModal(null), 300);
+          }}
+        />
       )}
     </DashboardLayout>
   );
