@@ -377,17 +377,17 @@ export function TranscriptionsPage(): JSX.Element {
                 </a>
               </li>
               <li className="text-ellieGray">›</li>
-              <li className="text-ellieBlue">TRANSCRIPTIONS</li>
+              <li className="text-ellieBlue">ALL MEETINGS</li>
             </ol>
           </nav>
 
           {/* Page Title */}
           <div className="mb-4 md:mb-6 lg:mb-8">
             <h1 className="font-nunito text-xl md:text-2xl lg:text-3xl xl:text-4xl font-extrabold text-[#1F2A44] mb-2">
-              Transcriptions
+              All Meetings
             </h1>
             <p className="font-nunito text-sm text-ellieGray">
-              All your meeting transcriptions, summaries, and action items - including those from disconnected calendars
+              All your meetings, summaries, and action items - including those from disconnected calendars
             </p>
           </div>
 
@@ -415,7 +415,7 @@ export function TranscriptionsPage(): JSX.Element {
                 {/* Subtitle and Search Bar */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4 md:mb-6">
                   <h2 className="font-nunito text-lg md:text-xl lg:text-2xl font-bold text-[#25324B]">
-                    All Transcriptions
+                    All Meetings
                   </h2>
                   {/* Search Bar */}
                   <div className="relative flex-shrink-0 w-full sm:w-auto">
@@ -437,9 +437,9 @@ export function TranscriptionsPage(): JSX.Element {
                 {/* Mobile: Transcriptions Cards */}
                 <div className="lg:hidden grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
                   {loading ? (
-                    <div className="col-span-2 text-center py-8 text-gray-500">Loading transcriptions...</div>
+                    <div className="col-span-2 text-center py-8 text-gray-500">Loading meetings...</div>
                   ) : filteredTranscriptions.length === 0 ? (
-                    <div className="col-span-2 text-center py-8 text-gray-500">No transcriptions found</div>
+                    <div className="col-span-2 text-center py-8 text-gray-500">No meetings found</div>
                   ) : (
                     filteredTranscriptions.map((transcription) => (
                       <div
@@ -560,13 +560,13 @@ export function TranscriptionsPage(): JSX.Element {
                       {loading ? (
                         <tr>
                           <td colSpan={6} className="py-8 text-center text-gray-500">
-                            Loading transcriptions...
+                            Loading meetings...
                           </td>
                         </tr>
                       ) : filteredTranscriptions.length === 0 ? (
                         <tr>
                           <td colSpan={6} className="py-8 text-center text-gray-500">
-                            No transcriptions found
+                            No meetings found
                           </td>
                         </tr>
                       ) : (

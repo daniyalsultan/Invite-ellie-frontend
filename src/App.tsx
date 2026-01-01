@@ -20,6 +20,7 @@ import { DashboardPage } from './components/dashboard';
 import { WorkspacePage, CreateWorkspacePage, WorkspaceViewPage } from './components/workspace';
 import { TranscriptionsPage } from './components/transcriptions';
 import { UnresolvedMeetingsPage } from './components/unresolved/UnresolvedMeetingsPage';
+import { AssignFolderFromEmailPage } from './components/assign-folder/AssignFolderFromEmailPage';
 import { MeetingRecordingsPage } from './components/meetingrecordings';
 import { MeetingViewPage } from './components/meetingView';
 import { SearchResultsPage } from './components/search';
@@ -187,6 +188,7 @@ function App(): JSX.Element {
           <Route path="/workspaces/:workspaceId" element={<WorkspaceViewPage />} />
           <Route path="/transcriptions" element={<TranscriptionsPage />} />
           <Route path="/unresolved-meetings" element={<UnresolvedMeetingsPage />} />
+          <Route path="/assign-folder/:meetingId" element={<AssignFolderFromEmailPage />} />
           <Route path="/ask-ellie" element={<AskElliePage />} />
           <Route path="/meeting-recordings" element={<MeetingRecordingsPage />} />
           <Route path="/meeting-view" element={<MeetingViewPage />} />

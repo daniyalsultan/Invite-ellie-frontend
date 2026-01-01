@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import logo from '../../assets/logo.svg';
 import searchIcon from '../../assets/Vector.png';
-import notificationsIcon from '../../assets/noti.png';
 import { useAuth } from '../../context/AuthContext';
+import { NotificationBell } from '../notifications/NotificationBell';
 import defaultAvatar from '../../assets/user.png';
 
 export interface DashboardHeaderProps {
@@ -113,19 +113,8 @@ export function DashboardHeader({
 
           {/* Right Side: Notifications, User Profile */}
           <div className="flex items-center gap-4 flex-shrink-0">
-            {/* Notification Icon with Rectangle Container */}
-            <button
-              type="button"
-              className="relative p-1 rounded-lg bg-blue-50 hover:opacity-80 transition-opacity"
-              aria-label="Notifications"
-            >
-              <img
-                src={notificationsIcon}
-                alt="Notifications"
-                className="w-5 h-5 object-contain"
-              />
-              <span className="absolute -top-0.5 -left-0.5 w-2 h-2 bg-orange-500 rounded-full"></span>
-            </button>
+            {/* Notification Bell */}
+            <NotificationBell />
 
             {/* User Profile */}
             <div className="relative">

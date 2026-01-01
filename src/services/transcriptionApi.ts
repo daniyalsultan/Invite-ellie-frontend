@@ -14,7 +14,7 @@ function getRecallaiBaseUrl(): string | null {
   return url;
 }
 
-function buildRecallaiUrl(path: string): string | null {
+export function buildRecallaiUrl(path: string): string | null {
   const baseUrl = getRecallaiBaseUrl();
   if (!baseUrl) {
     return null;

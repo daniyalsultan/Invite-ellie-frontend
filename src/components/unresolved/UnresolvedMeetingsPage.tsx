@@ -99,8 +99,8 @@ export function UnresolvedMeetingsPage(): JSX.Element {
           setSelectedMeeting(unresolved[0]);
         }
       } catch (err) {
-        console.error('Error fetching unresolved meetings:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load unresolved meetings');
+        console.error('Error fetching unassigned meetings:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load unassigned meetings');
       } finally {
         setLoading(false);
       }
@@ -408,7 +408,7 @@ export function UnresolvedMeetingsPage(): JSX.Element {
 
       setAssignmentSuccess('Folder assigned successfully!');
       
-      // Remove meeting from unresolved list
+      // Remove meeting from unassigned list
       setUnresolvedMeetings(prev => prev.filter(m => m.id !== selectedMeeting.id));
       
       // Clear selection after a delay
@@ -472,14 +472,14 @@ export function UnresolvedMeetingsPage(): JSX.Element {
                 </a>
               </li>
               <li className="text-ellieGray">›</li>
-              <li className="text-ellieBlue">UNRESOLVED MEETINGS</li>
+              <li className="text-ellieBlue">UNASSIGNED MEETINGS</li>
             </ol>
           </nav>
 
           {/* Page Title */}
           <div className="mb-4 md:mb-6 lg:mb-8">
             <h1 className="font-nunito text-xl md:text-2xl lg:text-3xl xl:text-4xl font-extrabold text-[#1F2A44] mb-2">
-              Unresolved Meetings
+              Unassigned Meetings
             </h1>
             <p className="font-nunito text-sm text-ellieGray">
               Meetings that need to be assigned to a folder. Assign them to organize your workspace.
@@ -494,13 +494,13 @@ export function UnresolvedMeetingsPage(): JSX.Element {
 
           {/* Two Panel Layout */}
           <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
-            {/* Left Panel: Unresolved Meetings List */}
+            {/* Left Panel: Unassigned Meetings List */}
             <div className="flex-1 w-full lg:max-w-[65%] xl:max-w-[60%]">
               <div className="bg-white rounded-[12px] md:rounded-[18px] shadow-[0px_18px_30px_rgba(15,23,42,0.05)] p-4 md:p-6 lg:p-8">
                 {/* Subtitle and Search Bar */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4 md:mb-6">
                   <h2 className="font-nunito text-lg md:text-xl lg:text-2xl font-bold text-[#25324B]">
-                    Unresolved Meetings ({filteredMeetings.length})
+                    Unassigned Meetings ({filteredMeetings.length})
                   </h2>
                   {/* Search Bar */}
                   <div className="relative flex-shrink-0 w-full sm:w-auto">
@@ -522,10 +522,10 @@ export function UnresolvedMeetingsPage(): JSX.Element {
                 {/* Mobile: Meetings Cards */}
                 <div className="lg:hidden grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
                   {loading ? (
-                    <div className="col-span-2 text-center py-8 text-gray-500">Loading unresolved meetings...</div>
+                    <div className="col-span-2 text-center py-8 text-gray-500">Loading unassigned meetings...</div>
                   ) : filteredMeetings.length === 0 ? (
                     <div className="col-span-2 text-center py-8 text-gray-500">
-                      {searchQuery ? 'No meetings match your search' : 'No unresolved meetings. All meetings are organized!'}
+                      {searchQuery ? 'No meetings match your search' : 'No unassigned meetings. All meetings are organized!'}
                     </div>
                   ) : (
                     filteredMeetings.map((meeting) => (
@@ -543,7 +543,7 @@ export function UnresolvedMeetingsPage(): JSX.Element {
                               Meeting Title
                             </label>
                             <span className="px-2 py-0.5 rounded text-[10px] font-nunito font-semibold bg-orange-100 text-orange-800">
-                              Unresolved
+                              Unassigned
                             </span>
                           </div>
                           <p className="font-nunito text-sm md:text-base font-medium text-[#25324B] line-clamp-2">
@@ -607,13 +607,13 @@ export function UnresolvedMeetingsPage(): JSX.Element {
                       {loading ? (
                         <tr>
                           <td colSpan={4} className="py-8 text-center text-gray-500">
-                            Loading unresolved meetings...
+                            Loading unassigned meetings...
                           </td>
                         </tr>
                       ) : filteredMeetings.length === 0 ? (
                         <tr>
                           <td colSpan={4} className="py-8 text-center text-gray-500">
-                            {searchQuery ? 'No meetings match your search' : 'No unresolved meetings. All meetings are organized!'}
+                            {searchQuery ? 'No meetings match your search' : 'No unassigned meetings. All meetings are organized!'}
                           </td>
                         </tr>
                       ) : (
@@ -633,7 +633,7 @@ export function UnresolvedMeetingsPage(): JSX.Element {
                                     {meeting.meeting_title || 'Untitled Meeting'}
                                   </span>
                                   <span className="px-2 py-0.5 rounded text-xs font-nunito font-semibold bg-orange-100 text-orange-800">
-                                    Unresolved
+                                    Unassigned
                                   </span>
                                 </div>
                               </div>

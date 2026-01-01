@@ -1,22 +1,20 @@
-import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '../sidebar';
-
-interface Notification {
-  id: string;
-  title: string;
-  description: string;
-  isRead: boolean;
-}
+import { useNotifications } from '../../context/NotificationContext';
 
 export function NotificationsPage(): JSX.Element {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
+  const navigate = useNavigate();
 
-  const handleMarkAsRead = (id: string): void => {
-    setNotifications((prev) =>
-      prev.map((notification) =>
-        notification.id === id ? { ...notification, isRead: true } : notification
-      )
-    );
+  const handleNotificationClick = (notification: { id: string; meeting_id: string | null; read: boolean }) => {
+    if (!notification.read) {
+      void markAsRead(notification.id);
+    }
+    if (notification.meeting_id) {
+      navigate(`/unresolved-meetings?meeting=${notification.meeting_id}`);
+    } else {
+      navigate('/unresolved-meetings');
+    }
   };
 
   return (
@@ -37,9 +35,25 @@ export function NotificationsPage(): JSX.Element {
           </nav>
 
           {/* Page Title */}
-          <h1 className="font-spaceGrotesk text-2xl md:text-3xl lg:text-4xl font-bold text-ellieBlack mb-4 md:mb-6 lg:mb-8">
-            Notifications
-          </h1>
+          <div className="flex items-center justify-between mb-4 md:mb-6 lg:mb-8">
+            <h1 className="font-spaceGrotesk text-2xl md:text-3xl lg:text-4xl font-bold text-ellieBlack">
+              Notifications
+              {unreadCount > 0 && (
+                <span className="ml-3 px-3 py-1 bg-orange-500 text-white text-sm font-nunito font-semibold rounded-full">
+                  {unreadCount} new
+                </span>
+              )}
+            </h1>
+            {unreadCount > 0 && (
+              <button
+                type="button"
+                onClick={() => void markAllAsRead()}
+                className="font-nunito text-sm text-ellieBlue hover:underline font-semibold"
+              >
+                Mark all as read
+              </button>
+            )}
+          </div>
 
           {/* Notifications List */}
           {notifications.length === 0 ? (
@@ -48,39 +62,58 @@ export function NotificationsPage(): JSX.Element {
                 No notifications yet
               </p>
               <p className="font-nunito text-sm text-ellieGray mt-2">
-                You'll see notifications here when there are updates about your meetings and integrations.
+                You'll see notifications here when you have unresolved meetings that need folder assignment.
               </p>
+              <button
+                type="button"
+                onClick={() => navigate('/unresolved-meetings')}
+                className="mt-4 px-6 py-2 bg-ellieBlue text-white rounded-lg font-nunito font-semibold hover:opacity-90 transition-opacity"
+              >
+                View Unresolved Meetings
+              </button>
             </div>
           ) : (
             <div className="space-y-4 md:space-y-6">
               {notifications.map((notification) => (
                 <div
                   key={notification.id}
-                  className={`bg-[#E8F4F8] border border-[#CAE8E3] rounded-lg p-4 md:p-6 ${
-                    notification.isRead ? 'opacity-60' : ''
+                  onClick={() => handleNotificationClick(notification)}
+                  className={`w-full text-left bg-[#E8F4F8] border border-[#CAE8E3] rounded-lg p-4 md:p-6 hover:bg-[#D8E8F0] transition-colors cursor-pointer ${
+                    notification.read ? 'opacity-60' : ''
                   }`}
                 >
                   <div className="flex items-start gap-3 md:gap-4">
-                    {/* Orange Dot */}
-                    <div className="flex-shrink-0 mt-1">
-                      <span className="w-2 h-2 md:w-2.5 md:h-2.5 bg-orange-500 rounded-full block"></span>
-                    </div>
+                    {/* Orange Dot for unread */}
+                    {!notification.read && (
+                      <div className="flex-shrink-0 mt-1">
+                        <span className="w-2 h-2 md:w-2.5 md:h-2.5 bg-orange-500 rounded-full block"></span>
+                      </div>
+                    )}
+                    {notification.read && (
+                      <div className="flex-shrink-0 mt-1 w-2 h-2 md:w-2.5 md:h-2.5"></div>
+                    )}
 
                     {/* Notification Content */}
                     <div className="flex-1 min-w-0">
                       <h3 className="font-nunito text-sm md:text-base font-semibold text-ellieBlack mb-1 md:mb-2">
-                        {notification.title}
+                        {notification.meeting_title}
                       </h3>
-                      <p className="font-nunito text-xs md:text-sm text-ellieGray leading-relaxed">
-                        {notification.description}
+                      <p className="font-nunito text-xs md:text-sm text-ellieGray leading-relaxed mb-2">
+                        {notification.message}
+                      </p>
+                      <p className="font-nunito text-xs text-ellieGray">
+                        {new Date(notification.timestamp).toLocaleString()}
                       </p>
                     </div>
 
                     {/* Mark as Read Button */}
-                    {!notification.isRead && (
+                    {!notification.read && (
                       <button
                         type="button"
-                        onClick={() => handleMarkAsRead(notification.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void markAsRead(notification.id);
+                        }}
                         className="flex-shrink-0 px-3 md:px-4 py-2 md:py-2.5 rounded-lg bg-ellieBlue text-white font-nunito text-xs md:text-sm font-semibold hover:opacity-90 transition-opacity whitespace-nowrap"
                       >
                         Mark as Read

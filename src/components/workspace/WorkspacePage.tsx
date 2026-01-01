@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { DashboardLayout } from '../sidebar';
 import { useAuth } from '../../context/AuthContext';
@@ -68,8 +68,8 @@ export function WorkspacePage(): JSX.Element {
   const [statusMessage, setStatusMessage] = useState<StatusMessage | null>(null);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
-  const [searchInput, setSearchInput] = useState('');
-  const [activeSearch, setActiveSearch] = useState('');
+  // Search functionality - hidden
+  const activeSearch = '';
   const [mutatingWorkspaceId, setMutatingWorkspaceId] = useState<string | null>(null);
   const [modalState, setModalState] = useState<{ type: 'rename' | 'delete'; workspace: WorkspaceRecord } | null>(null);
   const [renameValue, setRenameValue] = useState('');
@@ -109,11 +109,12 @@ export function WorkspacePage(): JSX.Element {
     void loadWorkspaces();
   }, [loadWorkspaces]);
 
-  const handleSearchSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setPage(1);
-    setActiveSearch(searchInput.trim());
-  };
+  // Search functionality - hidden
+  // const handleSearchSubmit = (event: FormEvent<HTMLFormElement>) => {
+  //   event.preventDefault();
+  //   setPage(1);
+  //   setActiveSearch(searchInput.trim());
+  // };
 
 
   const deleteWorkspaceEntry = async (workspace: WorkspaceRecord) => {
@@ -324,17 +325,19 @@ export function WorkspacePage(): JSX.Element {
                 </Link>
               </li>
               <li className="text-ellieGray">›</li>
-              <li className="text-ellieBlue">Workspaces</li>
+              <li className="text-ellieBlue">Workspace</li>
             </ol>
           </nav>
 
           <div className="mb-4 flex flex-col gap-4 lg:mb-6">
             <div className="flex flex-col">
               <h1 className="font-nunito text-xl font-extrabold text-[#1F2A44] md:text-2xl lg:text-3xl xl:text-4xl">
-                Workspaces
+                Workspace
               </h1>
               <p className="font-nunito text-sm text-[#6B7A96]">{paginationSummary}</p>
             </div>
+            {/* Search and create button section - hidden */}
+            {/*
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-4">
               <form
                 onSubmit={handleSearchSubmit}
@@ -357,17 +360,6 @@ export function WorkspacePage(): JSX.Element {
                   >
                     Search
                   </button>
-                  {/* Reset button - hidden */}
-                  {/*
-                  <button
-                    type="button"
-                    onClick={handleResetFilters}
-                    className="inline-flex items-center justify-center rounded-lg border border-gray-300 px-4 py-2 font-nunito text-sm font-semibold text-[#25324B] transition hover:bg-gray-50"
-                    disabled={isLoading && !activeSearch}
-                  >
-                    Reset
-                  </button>
-                  */}
                 </div>
               </form>
               <Link
@@ -377,6 +369,7 @@ export function WorkspacePage(): JSX.Element {
                 Create a workspace
               </Link>
             </div>
+            */}
           </div>
 
           {statusMessage && (

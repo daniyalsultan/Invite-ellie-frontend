@@ -1,30 +1,34 @@
 import {
-  FormEvent,
+  // FormEvent, // Hidden - workspace edit form
   useCallback,
   useEffect,
   useMemo,
   useState,
 } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, /* useNavigate, */ useParams } from 'react-router-dom';
 import { DashboardLayout } from '../sidebar';
 import searchIcon from '../../assets/Vector.png';
 import folderIcon from '../../assets/folder.png';
 import threeDotIcon from '../../assets/three-dot.png';
 import { useAuth } from '../../context/AuthContext';
+import { useProfile } from '../../context/ProfileContext';
 import {
-  WORKSPACE_CATEGORY_OPTIONS,
-  WorkspaceCategory,
+  // WORKSPACE_CATEGORY_OPTIONS, // Hidden - workspace edit form
+  // WorkspaceCategory, // Hidden - workspace edit form
   WorkspaceRecord,
-  deleteWorkspace,
+  // deleteWorkspace, // Hidden - delete workspace button
   getWorkspace,
-  getWorkspaceCategoryLabel,
-  updateWorkspace,
+  listFolders,
+  getFolder,
+  // getWorkspaceCategoryLabel, // Hidden - workspace edit form
+  // updateWorkspace, // Hidden - workspace edit form
   MeetingRecord,
   MeetingStatus,
   FolderRecord,
   patchFolder,
   deleteFolder,
 } from './workspaceApi';
+import { getTranscriptions, type Transcription } from '../../services/transcriptionApi';
 import deleteIllustration from '../../assets/delete.png';
 import { FolderDetailView } from '../folder/FolderDetailView';
 import { FolderMeetingsModal } from '../folder/FolderMeetingsModal';
@@ -75,17 +79,19 @@ function sortMeetings(meetings: MeetingWithFolder[]): MeetingWithFolder[] {
 
 export function WorkspaceViewPage(): JSX.Element {
   const { workspaceId } = useParams<{ workspaceId: string }>();
-  const navigate = useNavigate();
+  // const navigate = useNavigate(); // Hidden - delete workspace button is hidden
   const { ensureFreshAccessToken } = useAuth();
+  const { profile } = useProfile();
 
   const [workspace, setWorkspace] = useState<WorkspaceRecord | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<StatusMessage | null>(null);
-  const [editName, setEditName] = useState('');
-  const [editCategory, setEditCategory] = useState<WorkspaceCategory>('PROJECT');
-  const [isSaving, setIsSaving] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
+  // Workspace edit form state - hidden
+  // const [editName, setEditName] = useState('');
+  // const [editCategory, setEditCategory] = useState<WorkspaceCategory>('PROJECT');
+  // const [isSaving, setIsSaving] = useState(false);
+  // const [isDeleting, setIsDeleting] = useState(false); // Hidden - delete workspace button is hidden
   const [folderSearch, setFolderSearch] = useState('');
   const [meetingSearch, setMeetingSearch] = useState('');
   const [selectedMeetingId, setSelectedMeetingId] = useState<string | null>(null);
@@ -96,11 +102,12 @@ export function WorkspaceViewPage(): JSX.Element {
   const [isRenamingFolder, setIsRenamingFolder] = useState(false);
   const [deleteModalFolder, setDeleteModalFolder] = useState<FolderRecord | null>(null);
   const [isDeletingFolder, setIsDeletingFolder] = useState(false);
-  const [showDeleteWorkspaceModal, setShowDeleteWorkspaceModal] = useState(false);
+  // const [showDeleteWorkspaceModal, setShowDeleteWorkspaceModal] = useState(false); // Hidden - delete workspace button is hidden
   const [selectedFolder, setSelectedFolder] = useState<FolderRecord | null>(null);
   const [isDetailViewOpen, setIsDetailViewOpen] = useState(false);
   const [isFolderMeetingsModalOpen, setIsFolderMeetingsModalOpen] = useState(false);
   const [selectedFolderForModal, setSelectedFolderForModal] = useState<FolderRecord | null>(null);
+  const [transcriptions, setTranscriptions] = useState<Transcription[]>([]);
 
   const refreshWorkspace = useCallback(async () => {
     if (!workspaceId) {
@@ -113,12 +120,42 @@ export function WorkspaceViewPage(): JSX.Element {
       if (!token) {
         throw new Error('Unable to authenticate. Please login again.');
       }
+      // Fetch workspace data
       const data = await getWorkspace(token, workspaceId);
-      setWorkspace(data);
-      setEditName(data.name);
-      setEditCategory(data.category ?? 'PROJECT');
+      
+      // Fetch folders for this workspace
+      const foldersResponse = await listFolders(token, {
+        workspace: workspaceId,
+        pageSize: 1000, // Get all folders
+      });
+      
+      // Fetch each folder individually to ensure meetings are included
+      // Some APIs only return meetings when fetching individual folders
+      const foldersWithMeetings = await Promise.all(
+        foldersResponse.results.map(async (folder) => {
+          try {
+            // Try to get folder with meetings
+            const folderWithMeetings = await getFolder(token, folder.id);
+            return folderWithMeetings;
+          } catch {
+            // If individual fetch fails, return the folder from list
+            return folder;
+          }
+        })
+      );
+      
+      // Update workspace with folders that include meetings
+      const workspaceWithFolders = {
+        ...data,
+        folders: foldersWithMeetings,
+      };
+      
+      setWorkspace(workspaceWithFolders);
+      // Workspace edit form state - hidden
+      // setEditName(data.name);
+      // setEditCategory(data.category ?? 'PROJECT');
       const firstMeeting =
-        data.folders?.flatMap((folder) => folder.meetings ?? []).find(Boolean)?.id ?? null;
+        foldersWithMeetings.flatMap((folder) => folder.meetings ?? []).find(Boolean)?.id ?? null;
       setSelectedMeetingId(firstMeeting);
     } catch (err) {
       const message =
@@ -135,6 +172,39 @@ export function WorkspaceViewPage(): JSX.Element {
   }, [refreshWorkspace]);
 
   const folders = useMemo(() => workspace?.folders ?? [], [workspace]);
+
+  // Fetch transcriptions (meetings) for this workspace
+  useEffect(() => {
+    if (!profile?.id || !workspaceId || !folders.length) {
+      setTranscriptions([]);
+      return;
+    }
+
+    const fetchTranscriptions = async () => {
+      try {
+        const allTranscriptions = await getTranscriptions(profile.id || '');
+        
+        // Get folder IDs for this workspace
+        const folderIds = folders.map((folder) => folder.id);
+        
+        // Filter transcriptions that belong to folders in this workspace
+        // Check both folder_id and workspace_id to match
+        const workspaceTranscriptions = allTranscriptions.filter((t: Transcription) => {
+          return (
+            (t.folder_id && folderIds.includes(t.folder_id)) ||
+            (t.workspace_id === workspaceId)
+          );
+        });
+        
+        setTranscriptions(workspaceTranscriptions);
+      } catch (err) {
+        console.error('Error fetching transcriptions:', err);
+        setTranscriptions([]);
+      }
+    };
+
+    void fetchTranscriptions();
+  }, [profile?.id, workspaceId, folders]);
 
   const filteredFolders = useMemo(() => {
     const query = folderSearch.trim().toLowerCase();
@@ -154,18 +224,63 @@ export function WorkspaceViewPage(): JSX.Element {
     );
   }, [folderSearch, folders]);
 
-  const allMeetings = useMemo(() => {
-    if (!folders.length) {
-      return [];
-    }
-    const meetings: MeetingWithFolder[] = folders.flatMap((folder) =>
-      (folder.meetings ?? []).map((meeting) => ({
-        ...meeting,
-        folderName: folder.name,
-      })),
-    );
-    return sortMeetings(meetings);
+  // Create a map of folder_id to folder name for quick lookup
+  const folderNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    folders.forEach((folder) => {
+      map.set(folder.id, folder.name);
+    });
+    return map;
   }, [folders]);
+
+  const allMeetings = useMemo(() => {
+    // Convert transcriptions to MeetingRecord format with folder names
+    const meetings: MeetingWithFolder[] = transcriptions.map((transcription) => {
+      const folderName = transcription.folder_id
+        ? folderNameMap.get(transcription.folder_id) || 'Unassigned'
+        : 'Unassigned';
+      
+      // Map transcription status to MeetingStatus
+      const mapStatus = (status: string | null | undefined): MeetingStatus => {
+        if (!status) return 'PENDING';
+        const upperStatus = status.toUpperCase();
+        // Map common status values
+        if (upperStatus === 'COMPLETE' || upperStatus === 'DONE') return 'COMPLETED';
+        if (upperStatus === 'TRANSCRIBE' || upperStatus === 'TRANSCRIBING') return 'TRANSCRIBING';
+        if (upperStatus === 'SUMMARIZE' || upperStatus === 'SUMMARIZING') return 'SUMMARIZING';
+        if (upperStatus === 'ERROR' || upperStatus === 'FAIL') return 'FAILED';
+        // Check if it's a valid MeetingStatus
+        if (['PENDING', 'TRANSCRIBING', 'SUMMARIZING', 'COMPLETED', 'FAILED'].includes(upperStatus)) {
+          return upperStatus as MeetingStatus;
+        }
+        return 'PENDING';
+      };
+      
+      // Map transcription to MeetingRecord format
+      const meeting: MeetingWithFolder = {
+        id: transcription.id,
+        folder: transcription.folder_id || '',
+        title: transcription.meeting_title || 'Untitled Meeting',
+        platform: transcription.platform || transcription.calendar_platform || 'Unknown',
+        duration: transcription.duration ? String(transcription.duration) : null,
+        paticipants: null, // Not available in transcription
+        status: mapStatus(transcription.status),
+        audio_url: transcription.meeting_url,
+        transcript: transcription.transcript_text,
+        summary: transcription.summary,
+        highlights: null,
+        action_items: transcription.action_items?.map((item) => 
+          typeof item === 'string' ? item : item.text
+        ) || null,
+        held_at: transcription.start_time,
+        created_at: transcription.created_at || undefined,
+        updated_at: transcription.updated_at || transcription.created_at || new Date().toISOString(),
+        folderName: folderName,
+      };
+      return meeting;
+    });
+    return sortMeetings(meetings);
+  }, [transcriptions, folderNameMap]);
 
   useEffect(() => {
     if (!allMeetings.length) {
@@ -191,79 +306,76 @@ export function WorkspaceViewPage(): JSX.Element {
     );
   }, [allMeetings, meetingSearch]);
 
-  const selectedMeeting = useMemo(
-    () => filteredMeetings.find((meeting) => meeting.id === selectedMeetingId) ?? allMeetings[0],
-    [allMeetings, filteredMeetings, selectedMeetingId],
-  );
+  // Workspace edit form handlers - hidden
+  // const handleUpdateWorkspace = async (event: FormEvent<HTMLFormElement>) => {
+  //   event.preventDefault();
+  //   if (!workspaceId) {
+  //     return;
+  //   }
+  //   if (!editName.trim()) {
+  //     setStatusMessage({ type: 'error', text: 'Workspace name cannot be empty.' });
+  //     return;
+  //   }
+  //   setIsSaving(true);
+  //   setStatusMessage(null);
+  //   try {
+  //     const token = await ensureFreshAccessToken();
+  //     if (!token) {
+  //       throw new Error('Unable to authenticate. Please login again.');
+  //     }
+  //     const updated = await updateWorkspace(token, workspaceId, {
+  //       name: editName.trim(),
+  //       category: editCategory,
+  //     });
+  //     setWorkspace(updated);
+  //     setStatusMessage({ type: 'success', text: 'Workspace updated successfully.' });
+  //   } catch (err) {
+  //     const message =
+  //       err instanceof Error ? err.message : 'Unable to update workspace. Please try again.';
+  //     setStatusMessage({ type: 'error', text: message });
+  //   } finally {
+  //     setIsSaving(false);
+  //   }
+  // };
 
-  const handleUpdateWorkspace = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!workspaceId) {
-      return;
-    }
-    if (!editName.trim()) {
-      setStatusMessage({ type: 'error', text: 'Workspace name cannot be empty.' });
-      return;
-    }
-    setIsSaving(true);
-    setStatusMessage(null);
-    try {
-      const token = await ensureFreshAccessToken();
-      if (!token) {
-        throw new Error('Unable to authenticate. Please login again.');
-      }
-      const updated = await updateWorkspace(token, workspaceId, {
-        name: editName.trim(),
-        category: editCategory,
-      });
-      setWorkspace(updated);
-      setStatusMessage({ type: 'success', text: 'Workspace updated successfully.' });
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : 'Unable to update workspace. Please try again.';
-      setStatusMessage({ type: 'error', text: message });
-    } finally {
-      setIsSaving(false);
-    }
-  };
+  // const handleDeleteWorkspace = () => {
+  //   setShowDeleteWorkspaceModal(true);
+  // };
 
-  const handleDeleteWorkspace = () => {
-    setShowDeleteWorkspaceModal(true);
-  };
+  // Delete workspace handler - hidden (button is hidden)
+  // const handleDeleteWorkspaceConfirm = async () => {
+  //   if (!workspaceId || !workspace) {
+  //     return;
+  //   }
+  //   setIsDeleting(true);
+  //   try {
+  //     const token = await ensureFreshAccessToken();
+  //     if (!token) {
+  //       throw new Error('Unable to authenticate. Please login again.');
+  //     }
+  //     await deleteWorkspace(token, workspaceId);
+  //     navigate('/workspaces', { replace: true });
+  //   } catch (err) {
+  //     const message =
+  //       err instanceof Error ? err.message : 'Unable to delete workspace. Please try again.';
+  //     setStatusMessage({ type: 'error', text: message });
+  //     setShowDeleteWorkspaceModal(false);
+  //   } finally {
+  //     setIsDeleting(false);
+  //   }
+  // };
 
-  const handleDeleteWorkspaceConfirm = async () => {
-    if (!workspaceId || !workspace) {
-      return;
-    }
-    setIsDeleting(true);
-    try {
-      const token = await ensureFreshAccessToken();
-      if (!token) {
-        throw new Error('Unable to authenticate. Please login again.');
-      }
-      await deleteWorkspace(token, workspaceId);
-      navigate('/workspaces', { replace: true });
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : 'Unable to delete workspace. Please try again.';
-      setStatusMessage({ type: 'error', text: message });
-      setShowDeleteWorkspaceModal(false);
-    } finally {
-      setIsDeleting(false);
-    }
-  };
+  // const closeDeleteWorkspaceModal = () => {
+  //   setShowDeleteWorkspaceModal(false);
+  // };
 
-  const closeDeleteWorkspaceModal = () => {
-    setShowDeleteWorkspaceModal(false);
-  };
-
-  const handleResetForm = () => {
-    if (!workspace) {
-      return;
-    }
-    setEditName(workspace.name);
-    setEditCategory(workspace.category ?? 'PROJECT');
-  };
+  // const handleResetForm = () => {
+  //   if (!workspace) {
+  //     return;
+  //   }
+  //   setEditName(workspace.name);
+  //   setEditCategory(workspace.category ?? 'PROJECT');
+  // };
 
   const handleMenuClick = (folderId: string, event: React.MouseEvent): void => {
     event.stopPropagation();
@@ -414,7 +526,7 @@ export function WorkspaceViewPage(): JSX.Element {
               <li className="text-ellieGray">›</li>
               <li>
                 <Link to="/workspaces" className="transition-colors hover:text-ellieBlack">
-                  Workspaces
+                  Workspace
                 </Link>
               </li>
               <li className="text-ellieGray">›</li>
@@ -441,6 +553,8 @@ export function WorkspaceViewPage(): JSX.Element {
             </div>
           ) : workspace ? (
             <>
+              {/* Workspace edit section - hidden */}
+              {/*
               <div className="mb-6 rounded-[18px] border border-gray-100 bg-white p-6 shadow-sm">
                 <div className="flex flex-wrap items-start gap-4">
                   <div className="flex-1">
@@ -520,6 +634,7 @@ export function WorkspaceViewPage(): JSX.Element {
                   </div>
                 </form>
               </div>
+              */}
 
               {statusMessage && (
                 <div
@@ -855,11 +970,8 @@ export function WorkspaceViewPage(): JSX.Element {
                               <th className="w-[20%] px-2 py-3 text-right font-nunito text-base font-semibold text-[#25324B]">
                                 Date/Time
                               </th>
-                              <th className="w-[20%] px-2 py-3 text-right font-nunito text-base font-semibold text-[#25324B]">
+                              <th className="w-[35%] px-2 py-3 text-right font-nunito text-base font-semibold text-[#25324B]">
                                 Folder
-                              </th>
-                              <th className="w-[15%] px-2 py-3 text-right font-nunito text-base font-semibold text-[#25324B]">
-                                Actions
                               </th>
                             </tr>
                           </thead>
@@ -883,15 +995,6 @@ export function WorkspaceViewPage(): JSX.Element {
                                         >
                                           {meeting.status}
                                         </span>
-                                        {meeting.audio_url && (
-                                          <button
-                                            type="button"
-                                            onClick={() => navigator.clipboard.writeText(meeting.audio_url ?? '')}
-                                            className="text-xs font-semibold text-ellieBlue underline"
-                                          >
-                                            Copy link
-                                          </button>
-                                        )}
                                       </div>
                                     </div>
                                   </td>
@@ -909,21 +1012,6 @@ export function WorkspaceViewPage(): JSX.Element {
                                     <span className="font-nunito text-sm text-[#25324B]">
                                       {meeting.folderName}
                                     </span>
-                                  </td>
-                                  <td className="px-2 py-4">
-                                    <div className="flex items-center justify-end gap-2">
-                                      <button
-                                        type="button"
-                                        onClick={() => setSelectedMeetingId(meeting.id)}
-                                        className={`rounded-lg px-3 py-2 font-nunito text-sm font-semibold ${
-                                          selectedMeeting?.id === meeting.id
-                                            ? 'bg-ellieBlue text-white'
-                                            : 'bg-blue-50 text-[#1F6FB5]'
-                                        }`}
-                                      >
-                                        View
-                                      </button>
-                                    </div>
                                   </td>
                                 </tr>
                               );
@@ -959,17 +1047,6 @@ export function WorkspaceViewPage(): JSX.Element {
                                   <span className="font-semibold text-[#25324B]">{formatted.date}</span>
                                   <span className="ml-1">{formatted.time}</span>
                                 </div>
-                                <button
-                                  type="button"
-                                  onClick={() => setSelectedMeetingId(meeting.id)}
-                                  className={`rounded-lg px-3 py-1.5 font-nunito text-sm font-semibold ${
-                                    selectedMeeting?.id === meeting.id
-                                      ? 'bg-ellieBlue text-white'
-                                      : 'bg-blue-50 text-[#1F6FB5]'
-                                  }`}
-                                >
-                                  View
-                                </button>
                               </div>
                             </div>
                           );
@@ -1232,7 +1309,8 @@ export function WorkspaceViewPage(): JSX.Element {
           </div>
         </div>
       )}
-      {/* Delete Workspace Modal */}
+      {/* Delete Workspace Modal - hidden */}
+      {/*
       {showDeleteWorkspaceModal && workspace && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6">
           <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-2xl">
@@ -1278,6 +1356,7 @@ export function WorkspaceViewPage(): JSX.Element {
           </div>
         </div>
       )}
+      */}
       
       {/* Folder Meetings Modal */}
       {selectedFolderForModal && (

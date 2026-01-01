@@ -40,8 +40,8 @@ export function Sidebar({ activeTab }: SidebarProps): JSX.Element {
   const topItems: SidebarItem[] = [
     { label: 'Dashboard', path: '/dashboard', icon: dashboardIcon },
     { label: 'Work Spaces', path: '/workspaces', icon: workspaceIcon },
-    { label: 'Transcriptions', path: '/transcriptions', icon: transcriptionIcon },
-    { label: 'Unresolved Meetings', path: '/unresolved-meetings', icon: transcriptionIcon },
+    { label: 'All Meetings', path: '/transcriptions', icon: transcriptionIcon },
+    { label: 'Unassigned Meetings', path: '/unresolved-meetings', icon: transcriptionIcon },
     { label: 'Live Meeting Assistant', path: '/ask-ellie', icon: logo },
     // { label: 'Meeting Recordings', path: '/meeting-recordings', icon: manageRecordingsIcon },
   ];
