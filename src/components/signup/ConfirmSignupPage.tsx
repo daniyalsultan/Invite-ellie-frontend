@@ -415,9 +415,9 @@ export function ConfirmSignupPage(): JSX.Element {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, email, emailInput]);
 
-  const handleGoToLogin = () => {
-    navigate('/login');
-  };
+  // const handleGoToLogin = () => {
+  //   navigate('/login');
+  // };
 
   const handleResendConfirmation = async () => {
     const emailToUse = email || emailInput.trim();
@@ -525,13 +525,13 @@ export function ConfirmSignupPage(): JSX.Element {
                   You can now continue to the dashboard or head to the login page. We’ve saved your session tokens locally, so you’ll stay signed in on this device.
                 </p>
                 <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
-                  <button
+                  {/* <button
                     type="button"
                     onClick={handleGoToLogin}
                     className="inline-flex items-center justify-center rounded-[12px] border border-ellieBlue px-6 py-3 font-nunito text-[16px] font-semibold text-ellieBlue transition hover:bg-ellieBlue/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ellieBlue"
                   >
                     Go to Login
-                  </button>
+                  </button> */}
                   <Link
                     to="/dashboard"
                     className="inline-flex items-center justify-center rounded-[12px] bg-ellieBlue px-6 py-3 font-nunito text-[16px] font-semibold text-white transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ellieBlue"

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '../sidebar';
 import { useProfile } from '../../context/ProfileContext';
@@ -45,6 +45,11 @@ export function TranscriptionsPage(): JSX.Element {
   const [exporting, setExporting] = useState<{ [key: string]: boolean }>({});
   const [exportMessage, setExportMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const [deleting, setDeleting] = useState<{ [key: string]: boolean }>({});
+  const [showImpactScoreTooltip, setShowImpactScoreTooltip] = useState(false);
+  const [tooltipPosition, setTooltipPosition] = useState<{ top: number; left: number; arrowLeft: number } | null>(null);
+  const iconRef = useRef<HTMLDivElement | null>(null);
+  const tooltipRef = useRef<HTMLDivElement | null>(null);
+  const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Fetch transcriptions on mount
   useEffect(() => {
@@ -122,6 +127,41 @@ export function TranscriptionsPage(): JSX.Element {
 
     void loadTranscript();
   }, [selectedTranscription?.id, profile?.id]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Handle click outside tooltip on mobile
+  useEffect(() => {
+    if (!showImpactScoreTooltip) return;
+
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node;
+      if (
+        iconRef.current &&
+        tooltipRef.current &&
+        !iconRef.current.contains(target) &&
+        !tooltipRef.current.contains(target)
+      ) {
+        setShowImpactScoreTooltip(false);
+      }
+    };
+
+    // Use both mouse and touch events for mobile
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [showImpactScoreTooltip]);
 
   // Filter transcript content based on search
   const filteredTranscriptContent = useMemo(() => {
@@ -800,7 +840,7 @@ export function TranscriptionsPage(): JSX.Element {
                 )}
 
                 {/* Transcription Content - Scrollable Container */}
-                <div className="flex-1 overflow-y-auto space-y-3 md:space-y-4 lg:space-y-6 pr-1 md:pr-2 min-h-0">
+                <div className="flex-1 overflow-y-auto overflow-x-visible space-y-3 md:space-y-4 lg:space-y-6 pr-1 md:pr-2 min-h-0">
                   {!selectedTranscription ? (
                     <div className="text-center py-8 text-gray-500">Select a transcription to view details</div>
                   ) : loadingTranscript ? (
@@ -815,9 +855,157 @@ export function TranscriptionsPage(): JSX.Element {
                     <>
                       {/* Show impact score section - always visible */}
                       {selectedTranscription.impact_score !== null && selectedTranscription.impact_score !== undefined && (
-                        <div className="mb-6 p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-200">
+                        <div className="mb-10 p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-200 relative overflow-visible">
                           <div className="flex items-center justify-between mb-3">
-                            <h3 className="font-nunito text-sm md:text-base font-bold text-[#25324B]">Meeting Impact Score</h3>
+                            <div className="flex items-center gap-2">
+                              <h3 className="font-nunito text-sm md:text-base font-bold text-[#25324B]">Meeting Impact Score</h3>
+                              <div 
+                                ref={iconRef}
+                                className="relative"
+                                onMouseEnter={() => {
+                                  // Clear any pending hide timeout
+                                  if (hoverTimeoutRef.current) {
+                                    clearTimeout(hoverTimeoutRef.current);
+                                    hoverTimeoutRef.current = null;
+                                  }
+                                  
+                                  if (iconRef.current) {
+                                    const rect = iconRef.current.getBoundingClientRect();
+                                    const tooltipWidth = 288;
+                                    const viewportWidth = window.innerWidth;
+                                    const spaceOnRight = viewportWidth - rect.right;
+                                    const spaceOnLeft = rect.left;
+                                    
+                                    if (spaceOnRight >= tooltipWidth || spaceOnRight > spaceOnLeft) {
+                                      // Position to the right
+                                      setTooltipPosition({
+                                        top: rect.top + rect.height + 8,
+                                        left: rect.right + 8,
+                                        arrowLeft: 12
+                                      });
+                                    } else {
+                                      // Position to the left
+                                      setTooltipPosition({
+                                        top: rect.top + rect.height + 8,
+                                        left: rect.left - tooltipWidth - 8,
+                                        arrowLeft: tooltipWidth - 20
+                                      });
+                                    }
+                                  }
+                                  setShowImpactScoreTooltip(true);
+                                }}
+                                onMouseLeave={(e) => {
+                                  // Add small delay before hiding to allow moving to tooltip
+                                  hoverTimeoutRef.current = setTimeout(() => {
+                                    // Check if mouse is over tooltip
+                                    if (tooltipRef.current) {
+                                      const tooltipRect = tooltipRef.current.getBoundingClientRect();
+                                      const mouseX = e.clientX;
+                                      const mouseY = e.clientY;
+                                      
+                                      if (
+                                        mouseX >= tooltipRect.left &&
+                                        mouseX <= tooltipRect.right &&
+                                        mouseY >= tooltipRect.top &&
+                                        mouseY <= tooltipRect.bottom
+                                      ) {
+                                        return; // Don't hide if mouse is over tooltip
+                                      }
+                                    }
+                                    setShowImpactScoreTooltip(false);
+                                  }, 150);
+                                }}
+                                onClick={(e) => {
+                                  // Mobile: toggle on click
+                                  e.stopPropagation();
+                                  if (iconRef.current) {
+                                    const rect = iconRef.current.getBoundingClientRect();
+                                    const tooltipWidth = 288;
+                                    const viewportWidth = window.innerWidth;
+                                    const spaceOnRight = viewportWidth - rect.right;
+                                    const spaceOnLeft = rect.left;
+                                    
+                                    if (spaceOnRight >= tooltipWidth || spaceOnRight > spaceOnLeft) {
+                                      setTooltipPosition({
+                                        top: rect.top + rect.height + 8,
+                                        left: rect.right + 8,
+                                        arrowLeft: 12
+                                      });
+                                    } else {
+                                      setTooltipPosition({
+                                        top: rect.top + rect.height + 8,
+                                        left: rect.left - tooltipWidth - 8,
+                                        arrowLeft: tooltipWidth - 20
+                                      });
+                                    }
+                                  }
+                                  setShowImpactScoreTooltip(prev => !prev);
+                                }}
+                              >
+                                <svg 
+                                  className="w-4 h-4 md:w-5 md:h-5 text-ellieBlue cursor-help" 
+                                  fill="currentColor" 
+                                  viewBox="0 0 20 20"
+                                  xmlns="http://www.w3.org/2000/svg"
+                                >
+                                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                                </svg>
+                              </div>
+                              {showImpactScoreTooltip && tooltipPosition && (
+                                <div 
+                                  ref={tooltipRef}
+                                  className="fixed z-[9999] w-64 md:w-72 p-3 bg-[#1F2A44] text-white text-xs rounded-lg shadow-xl font-nunito"
+                                  onMouseEnter={() => {
+                                    // Clear any pending hide timeout
+                                    if (hoverTimeoutRef.current) {
+                                      clearTimeout(hoverTimeoutRef.current);
+                                      hoverTimeoutRef.current = null;
+                                    }
+                                    setShowImpactScoreTooltip(true);
+                                  }}
+                                  onMouseLeave={() => {
+                                    // Add small delay before hiding
+                                    hoverTimeoutRef.current = setTimeout(() => {
+                                      setShowImpactScoreTooltip(false);
+                                    }, 100);
+                                  }}
+                                  onClick={(e) => {
+                                    // Mobile: prevent closing when clicking tooltip
+                                    e.stopPropagation();
+                                  }}
+                                  style={{ 
+                                      minWidth: '256px',
+                                      top: `${tooltipPosition.top}px`,
+                                      left: `${tooltipPosition.left}px`,
+                                      maxWidth: 'min(288px, calc(100vw - 2rem))'
+                                    }}
+                                  >
+                                    {/* Arrow pointing up to icon */}
+                                    <div 
+                                      className="absolute"
+                                      style={{ 
+                                        top: '-6px',
+                                        left: `${tooltipPosition.arrowLeft}px`,
+                                        width: 0,
+                                        height: 0,
+                                        borderLeft: '6px solid transparent',
+                                        borderRight: '6px solid transparent',
+                                        borderBottom: '6px solid #1F2A44'
+                                      }}
+                                    ></div>
+                                    <p className="font-semibold mb-2">Meeting Impact Score</p>
+                                    <p className="text-gray-200 leading-relaxed">
+                                      This score (0-100) evaluates meeting effectiveness based on four key factors:
+                                    </p>
+                                    <ul className="mt-2 space-y-1 text-gray-200 list-disc list-inside">
+                                      <li><strong>Decision Making</strong> (25 points): Quality and clarity of decisions made</li>
+                                      <li><strong>Action Clarity</strong> (25 points): Specificity of action items and ownership</li>
+                                      <li><strong>Stakeholder Engagement</strong> (25 points): Participation and involvement</li>
+                                      <li><strong>Productivity</strong> (25 points): Meeting efficiency and outcomes</li>
+                                    </ul>
+                                  </div>
+                                )}
+                            </div>
                             <div className="flex items-center gap-2">
                               <span className="font-nunito text-2xl md:text-3xl font-extrabold text-ellieBlue">
                                 {Math.round(selectedTranscription.impact_score)}
