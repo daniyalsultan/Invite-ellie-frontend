@@ -9,7 +9,6 @@ export default defineConfig({
     proxy: {
       '/api': {
         target: 'https://api.stage.inviteellie.ai',
-
         
         // target: 'http://localhost:8000',
         changeOrigin: true,
@@ -25,5 +24,14 @@ export default defineConfig({
         },
       },
     },
+  },
+  preview: {
+    host: true,
+    port: 3000,
+    allowedHosts: [
+      'beta.inviteellie.ai',
+      'invite-ellie-frontend.vercel.app',
+      'localhost',
+    ],
   },
 });
