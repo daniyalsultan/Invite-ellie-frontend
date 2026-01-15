@@ -8,7 +8,7 @@ export default defineConfig({
     host: true,
     proxy: {
       '/api': {
-        target: 'https://api.stage.inviteellie.ai',
+        target: 'https://api.inviteellie.ai',
         
         // target: 'http://localhost:8000',
         changeOrigin: true,
