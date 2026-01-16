@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { DashboardLayout } from '../sidebar';
 
 export function SettingsPage(): JSX.Element {
@@ -202,8 +203,27 @@ export function SettingsPage(): JSX.Element {
               </div>
             </div>
 
-            {/* Password Reset */}
+            {/* Privacy & Data */}
             <div className="bg-white border border-gray-200 rounded-lg p-4 md:p-6 shadow-sm lg:order-4">
+              <h2 className="font-nunito text-lg md:text-xl font-bold text-ellieBlack mb-4 md:mb-6">
+                Privacy & Data
+              </h2>
+              
+              <div className="space-y-4">
+                <Link
+                  to="/privacy"
+                  className="block w-full px-4 py-2.5 md:py-3 rounded-lg bg-ellieBlue text-white font-nunito text-sm md:text-base font-semibold hover:opacity-90 transition-opacity text-center"
+                >
+                  View Privacy Policy
+                </Link>
+                <p className="font-nunito text-xs md:text-sm text-ellieGray leading-relaxed">
+                  Learn how we collect, use, and protect your meeting data. Review your privacy rights and data controls.
+                </p>
+              </div>
+            </div>
+
+            {/* Password Reset */}
+            <div className="bg-white border border-gray-200 rounded-lg p-4 md:p-6 shadow-sm lg:order-5">
               <h2 className="font-nunito text-lg md:text-xl font-bold text-ellieBlack mb-4 md:mb-6">
                 Password Reset
               </h2>

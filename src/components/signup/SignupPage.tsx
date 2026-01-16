@@ -314,7 +314,11 @@ export function SignupPage(): JSX.Element {
                 className="mt-1 h-5 w-5 rounded border-[#7964A0] text-ellieBlue focus:ring-2 focus:ring-ellieBlue/30"
               />
               <label htmlFor="terms" className="font-nunito text-[16px] leading-[1.5] text-ellieGray">
-                I agree to the terms and confirm I want Ellie to securely store my meeting data for better memory and insights.
+                By signing up, you agree to our{' '}
+                <Link to="/privacy" className="font-semibold text-ellieBlue underline decoration-transparent transition hover:decoration-current">
+                  Privacy Policy
+                </Link>
+                {' '}and confirm I want Ellie to securely store my meeting data for better memory and insights.
               </label>
             </div>
 

@@ -1,4 +1,5 @@
 import { ChangeEvent, useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { DashboardLayout } from '../sidebar';
 import removeButtonIcon from '../../assets/profile-setup-removeButton.svg';
 import greenTickIcon from '../../assets/green white tick.png';
@@ -450,6 +451,19 @@ export function PreferencesPage(): JSX.Element {
                   />
                 </div>
               )}
+
+              {/* Privacy Policy Link */}
+              <div className="mb-4">
+                <Link
+                  to="/privacy"
+                  className="block w-full px-4 py-2.5 rounded-lg bg-ellieBlue text-white font-nunito text-sm font-semibold hover:opacity-90 transition-opacity text-center"
+                >
+                  View Privacy Policy
+                </Link>
+                <p className="mt-2 font-nunito text-xs text-ellieGray leading-relaxed text-center">
+                  Learn how we protect your data and your privacy rights
+                </p>
+              </div>
 
               {/* Delete Account Button */}
               <button

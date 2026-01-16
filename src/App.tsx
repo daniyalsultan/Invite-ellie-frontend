@@ -27,6 +27,8 @@ import { SearchResultsPage } from './components/search';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { ChatBot } from './components/chatbot';
 import { AskElliePage } from './components/askEllie';
+import { PrivacyPage } from './components/privacy';
+import { TermsOfServicePage } from './components/terms';
 
 function ScrollToHash(): null {
   const location = useLocation();
@@ -174,6 +176,8 @@ function App(): JSX.Element {
         <Route path="/new-password" element={<NewPasswordPage />} />
         <Route path="/search-results" element={<SearchResultsPage />} />
         <Route path="/auth/callback" element={<SSOCallbackPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/terms" element={<TermsOfServicePage />} />
         <Route element={<ProtectedRoute />}>
           <Route path="/setup-profile" element={<SetupProfilePage />} />
           <Route path="/integrations" element={<IntegrationsPage />} />
