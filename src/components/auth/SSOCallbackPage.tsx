@@ -8,12 +8,13 @@ export function SSOCallbackPage(): JSX.Element {
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const navigate = useNavigate();
-  const { establishSession } = useAuth();
+  const { establishSession, session } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(true);
 
   const apiBaseUrl = getApiBaseUrl();
   const hasHandledRef = useRef(false);
+  const sessionEstablishedRef = useRef(false);
 
   useEffect(() => {
     if (hasHandledRef.current) {
@@ -197,6 +198,9 @@ export function SSOCallbackPage(): JSX.Element {
             { rememberMe: true },
           );
 
+          // Mark that we've established the session
+          sessionEstablishedRef.current = true;
+
           // Auto-create workspace based on email domain
           // First fetch user profile to get email, then create workspace
           if (data.access_token && apiBaseUrl) {
@@ -232,8 +236,8 @@ export function SSOCallbackPage(): JSX.Element {
             console.warn('[SSOCallback] Missing access token or API base URL for workspace auto-creation');
           }
 
-          // Redirect to dashboard
-          navigate('/dashboard', { replace: true });
+          // Don't navigate immediately - let the useEffect below handle navigation
+          // once the session state is confirmed to be available
         } else {
           console.error('Invalid response format:', responseData);
           setError('Invalid response from server. Please try again.');
@@ -255,6 +259,23 @@ export function SSOCallbackPage(): JSX.Element {
 
     void handleCallback();
   }, [searchParams, location, navigate, establishSession, apiBaseUrl]);
+
+  // Monitor session state and navigate once it's available
+  // This ensures navigation happens after the session state is fully propagated
+  // and all context providers have had a chance to update
+  useEffect(() => {
+    if (sessionEstablishedRef.current && session?.accessToken) {
+      // Session is now available in React state, safe to navigate
+      // Use a small delay to ensure all context providers have updated
+      const timer = setTimeout(() => {
+        if (window.location.pathname === '/auth/callback') {
+          console.log('[SSOCallback] Session confirmed, navigating to dashboard');
+          navigate('/dashboard', { replace: true });
+        }
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+  }, [session, navigate]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-white">
