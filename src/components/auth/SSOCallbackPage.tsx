@@ -8,7 +8,7 @@ export function SSOCallbackPage(): JSX.Element {
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const navigate = useNavigate();
-  const { establishSession, session } = useAuth();
+  const { establishSession, session, isAuthenticated } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(true);
 
@@ -202,39 +202,10 @@ export function SSOCallbackPage(): JSX.Element {
           sessionEstablishedRef.current = true;
 
           // Auto-create workspace based on email domain
-          // First fetch user profile to get email, then create workspace
-          if (data.access_token && apiBaseUrl) {
-            console.log('[SSOCallback] Fetching user profile to get email for workspace auto-creation');
-            fetch(`${apiBaseUrl}/accounts/me/`, {
-              method: 'GET',
-              headers: {
-                Authorization: `Bearer ${data.access_token}`,
-              },
-            })
-              .then((profileResponse) => {
-                console.log('[SSOCallback] Profile response status:', profileResponse.status);
-                if (profileResponse.ok) {
-                  return profileResponse.json();
-                }
-                console.warn('[SSOCallback] Profile response not OK');
-                return null;
-              })
-              .then((profile: { email?: string } | null) => {
-                if (profile?.email) {
-                  console.log('[SSOCallback] Found email in profile, triggering workspace auto-creation:', profile.email);
-                  return autoCreateWorkspaceForEmail(data.access_token, profile.email);
-                } else {
-                  console.warn('[SSOCallback] No email found in profile:', profile);
-                }
-                return null;
-              })
-              .catch((error) => {
-                console.error('[SSOCallback] Failed to auto-create workspace after SSO:', error);
-                // Don't throw - this is a background operation
-              });
-          } else {
-            console.warn('[SSOCallback] Missing access token or API base URL for workspace auto-creation');
-          }
+          // This will be handled after navigation when the session is fully ready
+          // We'll let the ProfileContext fetch the profile, and then auto-create workspace
+          // This avoids 401 errors from trying to use the token too quickly
+          console.log('[SSOCallback] Session established, workspace auto-creation will happen after profile loads');
 
           // Don't navigate immediately - let the useEffect below handle navigation
           // once the session state is confirmed to be available
@@ -260,22 +231,66 @@ export function SSOCallbackPage(): JSX.Element {
     void handleCallback();
   }, [searchParams, location, navigate, establishSession, apiBaseUrl]);
 
-  // Monitor session state and navigate once it's available
+  // Monitor session state and navigate once it's available and authenticated
   // This ensures navigation happens after the session state is fully propagated
   // and all context providers have had a chance to update
   useEffect(() => {
-    if (sessionEstablishedRef.current && session?.accessToken) {
-      // Session is now available in React state, safe to navigate
-      // Use a small delay to ensure all context providers have updated
-      const timer = setTimeout(() => {
+    if (sessionEstablishedRef.current && isAuthenticated && session?.accessToken) {
+      // Session is now available and authenticated in React state
+      // Wait a bit longer to ensure React has fully processed the state update
+      // and the session is available in all contexts
+      const timer = setTimeout(async () => {
         if (window.location.pathname === '/auth/callback') {
-          console.log('[SSOCallback] Session confirmed, navigating to dashboard');
-          navigate('/dashboard', { replace: true });
+          console.log('[SSOCallback] Session confirmed and authenticated, preparing for navigation', {
+            hasAccessToken: !!session?.accessToken,
+            isAuthenticated,
+            userId: session?.userId,
+            expiresAt: session?.expiresAt,
+          });
+
+          // Now that session is ready, fetch profile to get email for workspace auto-creation
+          if (session.accessToken && apiBaseUrl) {
+            try {
+              console.log('[SSOCallback] Fetching user profile to get email for workspace auto-creation');
+              const profileResponse = await fetch(`${apiBaseUrl}/accounts/me/`, {
+                method: 'GET',
+                headers: {
+                  Authorization: `Bearer ${session.accessToken}`,
+                },
+              });
+
+              if (profileResponse.ok) {
+                const profile = await profileResponse.json() as { email?: string };
+                if (profile?.email) {
+                  console.log('[SSOCallback] Found email in profile, triggering workspace auto-creation:', profile.email);
+                  // Auto-create workspace in background (don't await - non-blocking)
+                  autoCreateWorkspaceForEmail(session.accessToken, profile.email).catch((error) => {
+                    console.error('[SSOCallback] Failed to auto-create workspace after SSO:', error);
+                    // Don't throw - this is a background operation, navigation should continue
+                  });
+                } else {
+                  console.warn('[SSOCallback] No email found in profile:', profile);
+                }
+              } else {
+                console.warn('[SSOCallback] Failed to fetch profile for workspace auto-creation, status:', profileResponse.status);
+                // Continue with navigation even if profile fetch fails
+              }
+            } catch (error) {
+              console.error('[SSOCallback] Error fetching profile for workspace auto-creation:', error);
+              // Continue with navigation even if profile fetch fails
+            }
+          }
+
+          setIsProcessing(false);
+          // Use a small additional delay before actual navigation to ensure state is stable
+          setTimeout(() => {
+            navigate('/dashboard', { replace: true });
+          }, 100);
         }
-      }, 200);
+      }, 500);
       return () => clearTimeout(timer);
     }
-  }, [session, navigate]);
+  }, [session, isAuthenticated, navigate, apiBaseUrl]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-white">
