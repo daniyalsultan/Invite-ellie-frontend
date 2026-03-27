@@ -8,7 +8,7 @@ export default defineConfig({
     host: true,
     proxy: {
       '/api': {
-        target: 'https://api.stage.inviteellie.ai',
+        target: 'https://innovative-sparkle-production-3b41.up.railway.app',
         
         // target: 'http://localhost:8000',
         changeOrigin: true,
@@ -32,6 +32,7 @@ export default defineConfig({
       'beta.inviteellie.ai',
       'invite-ellie-frontend.vercel.app',
       'localhost',
+      'invite-ellie-frontend-production.up.railway.app',
     ],
   },
 });
