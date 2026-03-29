@@ -1,7 +1,13 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useProfile } from '../../context/ProfileContext';
-import { getTranscriptions, getTranscription, type Transcription } from '../../services/transcriptionApi';
+import {
+  getTranscriptions,
+  getTranscription,
+  getFolderMeetingsOverview,
+  type Transcription,
+  type FolderMeetingsOverviewActionItem,
+} from '../../services/transcriptionApi';
 import { getSlackStatus } from '../../services/slackApi';
 import { getNotionStatus } from '../../services/notionApi';
 import { getHubSpotStatus } from '../../services/hubspotApi';
@@ -14,12 +20,38 @@ type FolderMeetingsModalProps = {
   onClose: () => void;
 };
 
+type DetailPanel = 'folder_overview' | 'meeting';
+
+function formatActionItemText(item: unknown): string {
+  if (typeof item === 'string') return item.trim();
+  if (item && typeof item === 'object' && 'text' in item && typeof (item as { text: string }).text === 'string') {
+    return (item as { text: string }).text.trim();
+  }
+  if (item && typeof item === 'object' && 'item' in item && typeof (item as { item: string }).item === 'string') {
+    return (item as { item: string }).item.trim();
+  }
+  return '';
+}
+
+/** Date · time for overview summary merge (module-level for useMemo). */
+function formatMeetingDateTimeLine(m: { start_time: string | null; created_at: string | null }): string {
+  const raw = m.start_time || m.created_at;
+  if (!raw) return 'Date unknown';
+  try {
+    const date = new Date(raw);
+    return `${date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })} · ${date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
+  } catch {
+    return 'Date unknown';
+  }
+}
+
 export function FolderMeetingsModal({ folderId, folderName, isOpen, onClose }: FolderMeetingsModalProps): JSX.Element | null {
   const { profile } = useProfile();
   const navigate = useNavigate();
   const [meetings, setMeetings] = useState<Transcription[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [detailPanel, setDetailPanel] = useState<DetailPanel>('folder_overview');
   const [selectedMeeting, setSelectedMeeting] = useState<Transcription | null>(null);
   const [fullTranscription, setFullTranscription] = useState<Transcription | null>(null);
   const [transcriptContent, setTranscriptContent] = useState<any>(null);
@@ -28,6 +60,22 @@ export function FolderMeetingsModal({ folderId, folderName, isOpen, onClose }: F
   const [transcriptionSearchQuery, setTranscriptionSearchQuery] = useState('');
   const [exporting, setExporting] = useState<{ [key: string]: boolean }>({});
   const [exportMessage, setExportMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+
+  const [overviewBackendSummary, setOverviewBackendSummary] = useState<string | null>(null);
+  const [overviewBackendActions, setOverviewBackendActions] = useState<FolderMeetingsOverviewActionItem[]>([]);
+  const [overviewLoading, setOverviewLoading] = useState(false);
+  const [overviewError, setOverviewError] = useState<string | null>(null);
+  const [overviewCached, setOverviewCached] = useState(false);
+
+  // Reset to meetings overview when opening or switching folders
+  useEffect(() => {
+    if (!isOpen) return;
+    setDetailPanel('folder_overview');
+    setSelectedMeeting(null);
+    setFullTranscription(null);
+    setTranscriptContent(null);
+    setTranscriptionSearchQuery('');
+  }, [isOpen, folderId]);
 
   // Fetch meetings for this folder
   useEffect(() => {
@@ -51,11 +99,6 @@ export function FolderMeetingsModal({ folderId, folderName, isOpen, onClose }: F
         });
         
         setMeetings(folderMeetings);
-        
-        // Auto-select first meeting if available
-        if (folderMeetings.length > 0 && !selectedMeeting) {
-          setSelectedMeeting(folderMeetings[0]);
-        }
       } catch (err) {
         console.error('Error fetching folder meetings:', err);
         setError(err instanceof Error ? err.message : 'Failed to load meetings');
@@ -66,6 +109,120 @@ export function FolderMeetingsModal({ folderId, folderName, isOpen, onClose }: F
 
     void fetchMeetings();
   }, [isOpen, profile?.id, folderId]);
+
+  const meetingsNewestFirst = useMemo(() => {
+    return [...meetings].sort((a, b) => {
+      const ta = new Date(a.start_time || a.created_at || 0).getTime();
+      const tb = new Date(b.start_time || b.created_at || 0).getTime();
+      return tb - ta;
+    });
+  }, [meetings]);
+
+  const folderOverviewStats = useMemo(() => {
+    const withSummary = meetings.filter((m) => (m.summary || '').trim().length > 0).length;
+    const totalActions = meetings.reduce((acc, m) => acc + (m.action_items?.length ?? 0), 0);
+    const withImpact = meetings.filter(
+      (m) => m.impact_score !== null && m.impact_score !== undefined,
+    ).length;
+    return { withSummary, totalActions, withImpact, total: meetings.length };
+  }, [meetings]);
+
+  const allFolderActionItems = useMemo(() => {
+    const rows: { meetingTitle: string; meetingId: string; text: string }[] = [];
+    for (const m of meetingsNewestFirst) {
+      const items = m.action_items || [];
+      for (const item of items) {
+        const text = formatActionItemText(item);
+        if (text) {
+          rows.push({
+            meetingTitle: m.meeting_title || 'Untitled Meeting',
+            meetingId: m.id,
+            text,
+          });
+        }
+      }
+    }
+    return rows;
+  }, [meetingsNewestFirst]);
+
+  /** Single merged summary text for all meetings (newest first), for Meetings Overview only. */
+  const combinedMeetingsSummary = useMemo(() => {
+    const parts: string[] = [];
+    for (const m of meetingsNewestFirst) {
+      const body = (m.summary || '').trim();
+      if (!body) continue;
+      const title = m.meeting_title || 'Untitled Meeting';
+      const when = formatMeetingDateTimeLine(m);
+      parts.push(`${title} (${when})\n\n${body}`);
+    }
+    return parts.join('\n\n────────────────────\n\n');
+  }, [meetingsNewestFirst]);
+
+  const meetingsFingerprint = useMemo(
+    () => meetings.map((m) => `${m.id}:${m.updated_at || ''}`).sort().join('|'),
+    [meetings],
+  );
+
+  useEffect(() => {
+    if (!isOpen || !profile?.id || !folderId || meetings.length === 0) {
+      setOverviewBackendSummary(null);
+      setOverviewBackendActions([]);
+      setOverviewLoading(false);
+      setOverviewError(null);
+      setOverviewCached(false);
+      return;
+    }
+
+    let cancelled = false;
+    setOverviewLoading(true);
+    setOverviewError(null);
+
+    void getFolderMeetingsOverview(folderId, profile.id)
+      .then((data) => {
+        if (cancelled) return;
+        setOverviewBackendSummary(typeof data.summary === 'string' ? data.summary : '');
+        setOverviewBackendActions(Array.isArray(data.action_items) ? data.action_items : []);
+        setOverviewCached(Boolean(data.cached));
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setOverviewError(err instanceof Error ? err.message : 'Overview request failed');
+        setOverviewBackendSummary(null);
+        setOverviewBackendActions([]);
+        setOverviewCached(false);
+      })
+      .finally(() => {
+        if (!cancelled) setOverviewLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, folderId, profile?.id, meetingsFingerprint]);
+
+  const displayOverviewSummary = useMemo(() => {
+    const backend = (overviewBackendSummary || '').trim();
+    if (backend) return overviewBackendSummary as string;
+    return combinedMeetingsSummary;
+  }, [overviewBackendSummary, combinedMeetingsSummary]);
+
+  const displayOverviewActionRows = useMemo(() => {
+    const normalized = overviewBackendActions
+      .map((row) => ({
+        text: (row.text || '').trim(),
+        meetingTitle: (row.meeting_title || 'General').trim() || 'General',
+      }))
+      .filter((row) => row.text.length > 0);
+
+    if (normalized.length > 0) {
+      return normalized.map((row, idx) => ({
+        meetingId: `overview-${idx}`,
+        meetingTitle: row.meetingTitle,
+        text: row.text,
+      }));
+    }
+    return allFolderActionItems;
+  }, [overviewBackendActions, allFolderActionItems]);
 
   // Filter meetings based on search
   const filteredMeetings = useMemo(() => {
@@ -335,43 +492,182 @@ export function FolderMeetingsModal({ folderId, folderName, isOpen, onClose }: F
                 <div className="text-center py-8 text-gray-500">Loading meetings...</div>
               ) : error ? (
                 <div className="text-center py-8 text-red-500">{error}</div>
-              ) : filteredMeetings.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  {searchQuery ? 'No meetings match your search' : 'No meetings in this folder'}
-                </div>
+              ) : meetings.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">No meetings in this folder</div>
               ) : (
                 <div className="space-y-2">
-                  {filteredMeetings.map((meeting) => (
-                    <div
-                      key={meeting.id}
-                      onClick={() => setSelectedMeeting(meeting)}
-                      className={`p-4 rounded-lg border cursor-pointer transition-colors ${
-                        selectedMeeting?.id === meeting.id
-                          ? 'border-[#327AAD] bg-[#327AAD]/5'
-                          : 'border-gray-200 bg-white hover:bg-gray-50'
-                      }`}
-                    >
-                      <h3 className="font-nunito text-base font-bold text-[#25324B] line-clamp-2">
-                        {meeting.meeting_title || 'Untitled Meeting'}
-                      </h3>
-                      <p className="font-nunito text-xs text-[#6B7A96] mt-1">
-                        {formatDate(meeting.created_at)} • {formatTime(meeting.created_at)}
-                      </p>
-                      {meeting.summary && (
-                        <p className="font-nunito text-xs text-[#4B5674] mt-2 line-clamp-2">
-                          {meeting.summary}
-                        </p>
-                      )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDetailPanel('folder_overview');
+                      setSelectedMeeting(null);
+                      setFullTranscription(null);
+                      setTranscriptContent(null);
+                    }}
+                    className={`w-full text-left p-4 rounded-lg border cursor-pointer transition-colors ${
+                      detailPanel === 'folder_overview'
+                        ? 'border-[#327AAD] bg-[#327AAD]/5'
+                        : 'border-gray-200 bg-white hover:bg-gray-50'
+                    }`}
+                  >
+                    <h3 className="font-nunito text-base font-bold text-[#25324B]">Meetings Overview</h3>
+                    <p className="font-nunito text-xs text-[#6B7A96] mt-1">
+                      Summaries and actions across all {meetings.length} meeting{meetings.length === 1 ? '' : 's'}
+                    </p>
+                  </button>
+                  {filteredMeetings.length === 0 ? (
+                    <div className="text-center py-6 text-gray-500 font-nunito text-sm">
+                      No meetings match your search
                     </div>
-                  ))}
+                  ) : (
+                    filteredMeetings.map((meeting) => (
+                      <div
+                        key={meeting.id}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            setDetailPanel('meeting');
+                            setSelectedMeeting(meeting);
+                          }
+                        }}
+                        onClick={() => {
+                          setDetailPanel('meeting');
+                          setSelectedMeeting(meeting);
+                        }}
+                        className={`p-4 rounded-lg border cursor-pointer transition-colors ${
+                          detailPanel === 'meeting' && selectedMeeting?.id === meeting.id
+                            ? 'border-[#327AAD] bg-[#327AAD]/5'
+                            : 'border-gray-200 bg-white hover:bg-gray-50'
+                        }`}
+                      >
+                        <h3 className="font-nunito text-base font-bold text-[#25324B] line-clamp-2">
+                          {meeting.meeting_title || 'Untitled Meeting'}
+                        </h3>
+                        <p className="font-nunito text-xs text-[#6B7A96] mt-1">
+                          {formatDate(meeting.created_at)} • {formatTime(meeting.created_at)}
+                        </p>
+                        {meeting.summary && (
+                          <p className="font-nunito text-xs text-[#4B5674] mt-2 line-clamp-2">
+                            {meeting.summary}
+                          </p>
+                        )}
+                      </div>
+                    ))
+                  )}
                 </div>
               )}
             </div>
           </div>
 
-          {/* Right Panel - Meeting Details */}
+          {/* Right Panel — meetings overview or meeting details */}
           <div className="flex-1 flex flex-col overflow-hidden">
-            {selectedMeeting ? (
+            {detailPanel === 'folder_overview' ? (
+              <div className="flex-1 flex flex-col overflow-hidden bg-gradient-to-b from-[#F8FAFC] to-white">
+                <div className="p-6 border-b border-gray-200 bg-white/80">
+                  <h3 className="font-nunito text-xl font-bold text-[#25324B]">Meetings Overview</h3>
+                  <p className="font-nunito text-sm text-[#6B7A96] mt-1">
+                    Everything Ellie has captured for <span className="font-semibold text-[#4B5674]">{folderName}</span> — in one place.
+                  </p>
+                  {meetings.length > 0 && (
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <span className="inline-flex items-center rounded-full bg-[#327AAD]/10 px-3 py-1 font-nunito text-xs font-semibold text-[#327AAD]">
+                        {folderOverviewStats.total} meeting{folderOverviewStats.total === 1 ? '' : 's'}
+                      </span>
+                      {folderOverviewStats.withSummary > 0 && (
+                        <span className="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 font-nunito text-xs font-semibold text-emerald-800">
+                          {folderOverviewStats.withSummary} with summary
+                        </span>
+                      )}
+                      {folderOverviewStats.totalActions > 0 && (
+                        <span className="inline-flex items-center rounded-full bg-amber-50 px-3 py-1 font-nunito text-xs font-semibold text-amber-900">
+                          {folderOverviewStats.totalActions} action item{folderOverviewStats.totalActions === 1 ? '' : 's'}
+                        </span>
+                      )}
+                      {folderOverviewStats.withImpact > 0 && (
+                        <span className="inline-flex items-center rounded-full bg-violet-50 px-3 py-1 font-nunito text-xs font-semibold text-violet-800">
+                          {folderOverviewStats.withImpact} impact score{folderOverviewStats.withImpact === 1 ? '' : 's'}
+                        </span>
+                      )}
+                      {overviewCached && (overviewBackendSummary || '').trim() && (
+                        <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 font-nunito text-xs font-semibold text-slate-600">
+                          AI overview cached
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1 overflow-y-auto p-6 space-y-8">
+                  {loading ? (
+                    <p className="font-nunito text-sm text-[#6B7A96] text-center py-12">Loading folder…</p>
+                  ) : meetings.length === 0 ? (
+                    <p className="font-nunito text-sm text-[#6B7A96] text-center py-12">
+                      No meetings in this folder yet. When recordings finish, summaries and actions will appear here.
+                    </p>
+                  ) : (
+                    <>
+                      <section>
+                        <h4 className="font-nunito text-sm font-bold uppercase tracking-wide text-[#6B7A96] mb-3">
+                          Summary
+                        </h4>
+                        <article className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+                          {overviewLoading ? (
+                            <p className="font-nunito text-sm text-[#6B7A96]">Generating AI overview…</p>
+                          ) : displayOverviewSummary ? (
+                            <>
+                              {(overviewBackendSummary || '').trim() ? (
+                                <p className="font-nunito text-xs text-[#94A3C1] mb-2">Synthesized across all meetings</p>
+                              ) : null}
+                              <p className="font-nunito text-sm text-[#4B5674] whitespace-pre-wrap leading-relaxed">
+                                {displayOverviewSummary}
+                              </p>
+                            </>
+                          ) : (
+                            <p className="font-nunito text-sm text-[#94A3C1] italic">
+                              No summaries yet for meetings in this folder. They will appear here once processing
+                              completes.
+                            </p>
+                          )}
+                          {overviewError && !overviewLoading ? (
+                            <p className="font-nunito text-xs text-amber-800 mt-3 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                              AI overview unavailable ({overviewError}). Showing combined text from meetings when
+                              available.
+                            </p>
+                          ) : null}
+                        </article>
+                      </section>
+
+                      <section>
+                        <h4 className="font-nunito text-sm font-bold uppercase tracking-wide text-[#6B7A96] mb-3">
+                          Action items across meetings
+                        </h4>
+                        {displayOverviewActionRows.length === 0 ? (
+                          <p className="font-nunito text-sm text-[#94A3C1] italic rounded-2xl border border-dashed border-gray-200 bg-white p-6 text-center">
+                            No action items extracted yet. Open a meeting to see details after processing completes.
+                          </p>
+                        ) : (
+                          <ul className="space-y-2 rounded-2xl border border-gray-200 bg-white p-4">
+                            {displayOverviewActionRows.map((row, idx) => (
+                              <li
+                                key={`${row.meetingId}-${idx}`}
+                                className="flex gap-3 font-nunito text-sm text-[#4B5674] border-b border-gray-100 pb-3 last:border-0 last:pb-0"
+                              >
+                                <span className="text-[#327AAD] font-bold shrink-0">•</span>
+                                <div>
+                                  <p>{row.text}</p>
+                                  <p className="text-xs text-[#94A3C1] mt-1">From: {row.meetingTitle}</p>
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </section>
+                    </>
+                  )}
+                </div>
+              </div>
+            ) : selectedMeeting ? (
               <>
                 {/* Meeting Header */}
                 <div className="p-6 border-b border-gray-200">
@@ -562,7 +858,7 @@ export function FolderMeetingsModal({ folderId, folderName, isOpen, onClose }: F
                         {fullTranscription.action_items.map((item: any, index: number) => (
                           <li key={index} className="font-nunito text-sm text-[#4B5674] flex gap-2">
                             <span>•</span>
-                            <span>{typeof item === 'string' ? item : item.text || item.item}</span>
+                            <span>{formatActionItemText(item) || (typeof item === 'string' ? item : '')}</span>
                           </li>
                         ))}
                       </ul>
@@ -631,7 +927,7 @@ export function FolderMeetingsModal({ folderId, folderName, isOpen, onClose }: F
               </>
             ) : (
               <div className="flex-1 flex items-center justify-center">
-                <p className="font-nunito text-sm text-[#6B7A96]">Select a meeting to view details</p>
+                <p className="font-nunito text-sm text-[#6B7A96]">Select a meeting from the list or open Meetings Overview.</p>
               </div>
             )}
           </div>

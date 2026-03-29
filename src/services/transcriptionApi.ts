@@ -170,3 +170,70 @@ export async function getTranscriptions(userId: string): Promise<Transcription[]
   }));
 }
 
+export type FolderMeetingsOverviewActionItem = {
+  text: string;
+  meeting_title?: string;
+};
+
+export type FolderMeetingsOverviewResponse = {
+  summary: string;
+  action_items: FolderMeetingsOverviewActionItem[];
+  meetings_count?: number;
+  cached?: boolean;
+  source_signature?: string;
+};
+
+/**
+ * AI-synthesized single summary + merged action items for all meetings in a folder (Recall / Groq).
+ */
+export async function getFolderMeetingsOverview(
+  folderId: string,
+  userId: string,
+  options?: { refresh?: boolean },
+): Promise<FolderMeetingsOverviewResponse> {
+  const refresh = options?.refresh ? '&refresh=1' : '';
+  const recallaiUrl = buildRecallaiUrl(
+    `/api/folders/${encodeURIComponent(folderId)}/meetings-overview?userId=${encodeURIComponent(userId)}${refresh}`,
+  );
+  if (!recallaiUrl) {
+    throw new Error('Recallai backend URL is not configured.');
+  }
+
+  const response = await fetch(recallaiUrl, {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+      'ngrok-skip-browser-warning': 'true',
+    },
+  });
+
+  const contentType = response.headers.get('content-type') || '';
+  let body: unknown = null;
+  if (contentType.includes('application/json')) {
+    try {
+      body = await response.json();
+    } catch {
+      body = null;
+    }
+  } else {
+    body = await response.text();
+  }
+
+  if (!response.ok) {
+    const errObj = body && typeof body === 'object' ? (body as Record<string, unknown>) : null;
+    const msg =
+      (errObj && typeof errObj.error === 'string' && errObj.error) ||
+      `Failed to load folder overview (${response.status})`;
+    throw new Error(msg);
+  }
+
+  const data = body as Record<string, unknown>;
+  return {
+    summary: typeof data.summary === 'string' ? data.summary : '',
+    action_items: Array.isArray(data.action_items) ? (data.action_items as FolderMeetingsOverviewActionItem[]) : [],
+    meetings_count: typeof data.meetings_count === 'number' ? data.meetings_count : undefined,
+    cached: typeof data.cached === 'boolean' ? data.cached : undefined,
+    source_signature: typeof data.source_signature === 'string' ? data.source_signature : undefined,
+  };
+}
+
