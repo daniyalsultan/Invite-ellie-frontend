@@ -27,6 +27,11 @@ export interface ActionItem {
   start?: number;
   end?: number;
   speaker?: string;
+  /** Execution clarity (from Groq) */
+  owner?: string | null;
+  deadline?: string | null;
+  clarity?: 'clear' | 'vague';
+  blockers?: string | null;
 }
 
 export interface ContextualNudge {
@@ -55,6 +60,9 @@ export interface Transcription {
   summary: string | null;
   action_items: ActionItem[] | null;
   contextual_nudges?: ContextualNudge[] | null;
+  key_outcomes_signals?: string[] | null;
+  meeting_gaps?: string[] | null;
+  open_questions?: string[] | null;
   impact_score?: number | null;
   impact_breakdown?: {
     decision_making?: number;
@@ -71,6 +79,77 @@ export interface Transcription {
     folder_id: string | null;
     created_at: string | null;
     updated_at: string | null;
+}
+
+/** Parse action_items if the API returns a JSON string (some exports / DB drivers). */
+export function normalizeActionItems(value: unknown): ActionItem[] | null {
+  if (value == null) return null;
+  if (Array.isArray(value)) {
+    return value as ActionItem[];
+  }
+  if (typeof value === 'string' && value.trim().startsWith('[')) {
+    try {
+      const p = JSON.parse(value) as unknown;
+      return Array.isArray(p) ? (p as ActionItem[]) : null;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+/** Coerce API values to string[] (handles JSONField double-encoded as a JSON string). */
+export function normalizeStringArray(value: unknown): string[] {
+  if (value == null) return [];
+  if (Array.isArray(value)) {
+    return value
+      .filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
+      .map((s) => s.trim());
+  }
+  if (typeof value === 'string') {
+    const t = value.trim();
+    if (!t) return [];
+    if (t.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(t) as unknown;
+        if (Array.isArray(parsed)) {
+          return parsed
+            .filter((x): x is string => typeof x === 'string')
+            .map((s) => s.trim())
+            .filter(Boolean);
+        }
+      } catch {
+        return [t];
+      }
+    }
+    return [t];
+  }
+  return [];
+}
+
+function normalizeTranscriptionPayload(item: Record<string, unknown>): Transcription {
+  const rawNudges = item.contextual_nudges;
+  let contextual_nudges: ContextualNudge[] | null = null;
+  if (Array.isArray(rawNudges)) {
+    contextual_nudges = rawNudges as ContextualNudge[];
+  } else if (typeof rawNudges === 'string' && rawNudges.trim().startsWith('[')) {
+    try {
+      const p = JSON.parse(rawNudges) as unknown;
+      contextual_nudges = Array.isArray(p) ? (p as ContextualNudge[]) : [];
+    } catch {
+      contextual_nudges = [];
+    }
+  }
+
+  const actionItems = normalizeActionItems(item.action_items);
+  return {
+    ...(item as unknown as Transcription),
+    action_items: actionItems ?? (item.action_items as ActionItem[] | null),
+    key_outcomes_signals: normalizeStringArray(item.key_outcomes_signals),
+    meeting_gaps: normalizeStringArray(item.meeting_gaps),
+    open_questions: normalizeStringArray(item.open_questions),
+    contextual_nudges: contextual_nudges ?? (item.contextual_nudges as ContextualNudge[] | undefined) ?? [],
+  };
 }
 
 /**
@@ -95,7 +174,8 @@ export async function getTranscription(transcriptionId: string, userId: string):
     throw new Error(`Failed to fetch transcription: ${errorText}`);
   }
 
-  return await response.json();
+  const raw = (await response.json()) as Record<string, unknown>;
+  return normalizeTranscriptionPayload(raw);
 }
 
 /**
@@ -137,37 +217,7 @@ export async function getTranscriptions(userId: string): Promise<Transcription[]
   const data = await response.json();
   console.log('Transcriptions fetched successfully:', data.length, 'items');
   
-  // Map the response to match the Transcription interface
-  return data.map((item: any) => ({
-    id: item.id,
-    event_id: item.event_id,
-    calendar_id: item.calendar_id || null,
-    calendar_email: item.calendar_email || null,
-    calendar_platform: item.calendar_platform || null,
-    calendar_status: item.calendar_status || 'connected',
-    bot_id: item.bot_id,
-    assemblyai_transcript_id: item.assemblyai_transcript_id || '',
-    meeting_title: item.meeting_title || 'Untitled Meeting',
-    meeting_url: item.meeting_url,
-    start_time: item.start_time,
-    end_time: item.end_time,
-    platform: item.platform || null,
-    transcript_text: item.transcript_text || '',
-    summary: item.summary || '',
-    action_items: item.action_items || [],
-    contextual_nudges: item.contextual_nudges || [],
-    impact_score: item.impact_score ?? null,
-    impact_breakdown: item.impact_breakdown || null,
-    status: item.status || 'unknown',
-    language: item.language || 'en',
-    duration: item.duration,
-    utterances: item.utterances || [],
-    words: item.words || [],
-    workspace_id: item.workspace_id || null,
-    folder_id: item.folder_id || null,
-    created_at: item.created_at,
-    updated_at: item.updated_at,
-  }));
+  return data.map((item: Record<string, unknown>) => normalizeTranscriptionPayload(item));
 }
 
 export type FolderMeetingsOverviewActionItem = {

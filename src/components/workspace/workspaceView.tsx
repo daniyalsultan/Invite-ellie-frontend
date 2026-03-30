@@ -28,17 +28,30 @@ import {
   patchFolder,
   deleteFolder,
 } from './workspaceApi';
-import { getTranscriptions, type Transcription } from '../../services/transcriptionApi';
+import {
+  getTranscriptions,
+  normalizeStringArray,
+  type Transcription,
+  type ActionItem,
+} from '../../services/transcriptionApi';
 import deleteIllustration from '../../assets/delete.png';
 import { FolderDetailView } from '../folder/FolderDetailView';
 import { FolderMeetingsModal } from '../folder/FolderMeetingsModal';
+import { MeetingInsightsPanel } from '../meeting/MeetingInsightsPanel';
 
 type StatusMessage = {
   type: 'success' | 'error';
   text: string;
 };
 
-type MeetingWithFolder = MeetingRecord & { folderName: string };
+type MeetingWithFolder = MeetingRecord & {
+  folderName: string;
+  key_outcomes_signals?: string[];
+  meeting_gaps?: string[];
+  open_questions?: string[];
+  /** Structured action items for execution clarity (Recall / Groq) */
+  action_items_detail?: ActionItem[] | null;
+};
 
 const MEETING_STATUS_STYLES: Record<MeetingStatus, string> = {
   PENDING: 'bg-yellow-50 text-yellow-700',
@@ -272,6 +285,10 @@ export function WorkspaceViewPage(): JSX.Element {
         action_items: transcription.action_items?.map((item) => 
           typeof item === 'string' ? item : item.text
         ) || null,
+        action_items_detail: transcription.action_items ?? null,
+        key_outcomes_signals: normalizeStringArray(transcription.key_outcomes_signals),
+        meeting_gaps: normalizeStringArray(transcription.meeting_gaps),
+        open_questions: normalizeStringArray(transcription.open_questions),
         held_at: transcription.start_time,
         created_at: transcription.created_at || undefined,
         updated_at: transcription.updated_at || transcription.created_at || new Date().toISOString(),
@@ -1118,34 +1135,10 @@ export function WorkspaceViewPage(): JSX.Element {
                           </div>
                         </div>
 
-                        {selectedMeeting.summary ? (
-                          <div className="rounded-xl border border-gray-100 bg-white p-4">
-                            <h3 className="font-nunito text-sm font-semibold text-[#25324B]">Summary</h3>
-                            <p className="mt-2 font-nunito text-sm text-[#4B5674]">
-                              {selectedMeeting.summary}
-                            </p>
-                          </div>
-                        ) : (
-                          <p className="rounded-xl border border-dashed border-gray-200 p-4 text-sm text-[#6B7A96]">
-                            No summary available yet.
-                          </p>
-                        )}
-
-                        {selectedMeeting.action_items && selectedMeeting.action_items.length > 0 && (
-                          <div className="rounded-xl border border-gray-100 bg-white p-4">
-                            <h3 className="font-nunito text-sm font-semibold text-[#25324B]">
-                              Action items
-                            </h3>
-                            <ul className="mt-3 space-y-2 text-sm text-[#4B5674]">
-                              {selectedMeeting.action_items.map((item, index) => (
-                                <li key={`${selectedMeeting.id}-action-${index}`} className="flex gap-2">
-                                  <span>•</span>
-                                  <span>{item}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
+                        <MeetingInsightsPanel
+                          transcription={selectedMeeting as unknown as Transcription}
+                          compact
+                        />
                       </div>
                     ) : (
                       <p className="rounded-xl border border-dashed border-gray-200 px-4 py-6 text-center font-nunito text-sm text-[#6B7A96]">

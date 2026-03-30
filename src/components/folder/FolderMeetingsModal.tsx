@@ -8,6 +8,7 @@ import {
   type Transcription,
   type FolderMeetingsOverviewActionItem,
 } from '../../services/transcriptionApi';
+import { MeetingInsightsPanel } from '../meeting/MeetingInsightsPanel';
 import { getSlackStatus } from '../../services/slackApi';
 import { getNotionStatus } from '../../services/notionApi';
 import { getHubSpotStatus } from '../../services/hubspotApi';
@@ -121,10 +122,10 @@ export function FolderMeetingsModal({ folderId, folderName, isOpen, onClose }: F
   const folderOverviewStats = useMemo(() => {
     const withSummary = meetings.filter((m) => (m.summary || '').trim().length > 0).length;
     const totalActions = meetings.reduce((acc, m) => acc + (m.action_items?.length ?? 0), 0);
-    const withImpact = meetings.filter(
-      (m) => m.impact_score !== null && m.impact_score !== undefined,
+    const withSignals = meetings.filter(
+      (m) => Array.isArray(m.key_outcomes_signals) && m.key_outcomes_signals.length > 0,
     ).length;
-    return { withSummary, totalActions, withImpact, total: meetings.length };
+    return { withSummary, totalActions, withSignals, total: meetings.length };
   }, [meetings]);
 
   const allFolderActionItems = useMemo(() => {
@@ -465,9 +466,9 @@ export function FolderMeetingsModal({ folderId, folderName, isOpen, onClose }: F
         </div>
 
         {/* Content */}
-        <div className="flex-1 flex overflow-hidden">
+        <div className="flex min-h-0 flex-1 overflow-hidden">
           {/* Left Panel - Meetings List */}
-          <div className="w-1/3 border-r border-gray-200 flex flex-col">
+          <div className="flex min-h-0 w-1/3 flex-col border-r border-gray-200">
             {/* Search */}
             <div className="p-4 border-b border-gray-200">
               <div className="relative">
@@ -562,9 +563,9 @@ export function FolderMeetingsModal({ folderId, folderName, isOpen, onClose }: F
           </div>
 
           {/* Right Panel — meetings overview or meeting details */}
-          <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
             {detailPanel === 'folder_overview' ? (
-              <div className="flex-1 flex flex-col overflow-hidden bg-gradient-to-b from-[#F8FAFC] to-white">
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-gradient-to-b from-[#F8FAFC] to-white">
                 <div className="p-6 border-b border-gray-200 bg-white/80">
                   <h3 className="font-nunito text-xl font-bold text-[#25324B]">Meetings Overview</h3>
                   <p className="font-nunito text-sm text-[#6B7A96] mt-1">
@@ -585,9 +586,9 @@ export function FolderMeetingsModal({ folderId, folderName, isOpen, onClose }: F
                           {folderOverviewStats.totalActions} action item{folderOverviewStats.totalActions === 1 ? '' : 's'}
                         </span>
                       )}
-                      {folderOverviewStats.withImpact > 0 && (
+                      {folderOverviewStats.withSignals > 0 && (
                         <span className="inline-flex items-center rounded-full bg-violet-50 px-3 py-1 font-nunito text-xs font-semibold text-violet-800">
-                          {folderOverviewStats.withImpact} impact score{folderOverviewStats.withImpact === 1 ? '' : 's'}
+                          {folderOverviewStats.withSignals} with key signals
                         </span>
                       )}
                       {overviewCached && (overviewBackendSummary || '').trim() && (
@@ -668,9 +669,9 @@ export function FolderMeetingsModal({ folderId, folderName, isOpen, onClose }: F
                 </div>
               </div>
             ) : selectedMeeting ? (
-              <>
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
                 {/* Meeting Header */}
-                <div className="p-6 border-b border-gray-200">
+                <div className="flex-shrink-0 border-b border-gray-200 p-6">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1">
                       <h3 className="font-nunito text-xl font-bold text-[#25324B]">
@@ -763,129 +764,54 @@ export function FolderMeetingsModal({ folderId, folderName, isOpen, onClose }: F
 
                 {/* Error and Success Messages */}
                 {error && (
-                  <div className="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 font-nunito text-sm">
+                  <div className="mx-6 mt-4 flex-shrink-0 rounded-lg border border-red-200 bg-red-50 p-3 font-nunito text-sm text-red-700">
                     {error}
                   </div>
                 )}
 
                 {exportMessage && (
-                  <div className={`mx-6 mt-4 p-3 rounded-lg border font-nunito text-sm ${
-                    exportMessage.type === 'success' 
-                      ? 'bg-green-50 border-green-200 text-green-700' 
-                      : 'bg-red-50 border-red-200 text-red-700'
-                  }`}>
+                  <div
+                    className={`mx-6 mt-4 flex-shrink-0 rounded-lg border p-3 font-nunito text-sm ${
+                      exportMessage.type === 'success'
+                        ? 'border-green-200 bg-green-50 text-green-700'
+                        : 'border-red-200 bg-red-50 text-red-700'
+                    }`}
+                  >
                     {exportMessage.text}
                   </div>
                 )}
 
-                {/* Impact Score */}
-                {fullTranscription && fullTranscription.impact_score !== null && fullTranscription.impact_score !== undefined && (
-                  <div className="mx-6 mt-4 p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-200">
-                    <div className="flex items-center justify-between mb-3">
-                      <h4 className="font-nunito text-sm font-bold text-[#25324B]">Meeting Impact Score</h4>
-                      <div className="flex items-center gap-2">
-                        <span className="font-nunito text-2xl font-extrabold text-[#327AAD]">
-                          {Math.round(fullTranscription.impact_score)}
-                        </span>
-                        <span className="font-nunito text-xs text-[#6B7A96]">/ 100</span>
-                      </div>
-                    </div>
-                    {/* Impact score bar */}
-                    <div className="w-full bg-gray-200 rounded-full h-3 mb-3">
-                      <div
-                        className={`h-3 rounded-full transition-all ${
-                          fullTranscription.impact_score >= 75
-                            ? 'bg-green-500'
-                            : fullTranscription.impact_score >= 50
-                            ? 'bg-yellow-500'
-                            : 'bg-red-500'
-                        }`}
-                        style={{ width: `${fullTranscription.impact_score}%` }}
-                      />
-                    </div>
-                    {/* Impact breakdown */}
-                    {fullTranscription.impact_breakdown && (
-                      <div className="grid grid-cols-2 gap-2 mt-3">
-                        {fullTranscription.impact_breakdown.decision_making !== undefined && (
-                          <div className="text-xs">
-                            <span className="font-nunito text-[#6B7A96]">Decision Making:</span>
-                            <span className="font-nunito font-semibold text-[#25324B] ml-1">
-                              {Math.round(fullTranscription.impact_breakdown.decision_making)}/25
-                            </span>
-                          </div>
-                        )}
-                        {fullTranscription.impact_breakdown.action_clarity !== undefined && (
-                          <div className="text-xs">
-                            <span className="font-nunito text-[#6B7A96]">Action Clarity:</span>
-                            <span className="font-nunito font-semibold text-[#25324B] ml-1">
-                              {Math.round(fullTranscription.impact_breakdown.action_clarity)}/25
-                            </span>
-                          </div>
-                        )}
-                        {fullTranscription.impact_breakdown.stakeholder_engagement !== undefined && (
-                          <div className="text-xs">
-                            <span className="font-nunito text-[#6B7A96]">Stakeholder Engagement:</span>
-                            <span className="font-nunito font-semibold text-[#25324B] ml-1">
-                              {Math.round(fullTranscription.impact_breakdown.stakeholder_engagement)}/25
-                            </span>
-                          </div>
-                        )}
-                        {fullTranscription.impact_breakdown.productivity !== undefined && (
-                          <div className="text-xs">
-                            <span className="font-nunito text-[#6B7A96]">Productivity:</span>
-                            <span className="font-nunito font-semibold text-[#25324B] ml-1">
-                              {Math.round(fullTranscription.impact_breakdown.productivity)}/25
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Summary and Action Items */}
-                <div className="p-6 border-b border-gray-200 space-y-4 max-h-48 overflow-y-auto">
-                  {fullTranscription?.summary && (
-                    <div>
-                      <h4 className="font-nunito text-sm font-semibold text-[#25324B] mb-2">Summary</h4>
-                      <p className="font-nunito text-sm text-[#4B5674] whitespace-pre-wrap">{fullTranscription.summary}</p>
-                    </div>
-                  )}
-                  {fullTranscription?.action_items && fullTranscription.action_items.length > 0 && (
-                    <div>
-                      <h4 className="font-nunito text-sm font-semibold text-[#25324B] mb-2">Action Items</h4>
-                      <ul className="space-y-1">
-                        {fullTranscription.action_items.map((item: any, index: number) => (
-                          <li key={index} className="font-nunito text-sm text-[#4B5674] flex gap-2">
-                            <span>•</span>
-                            <span>{formatActionItemText(item) || (typeof item === 'string' ? item : '')}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-
-                {/* Transcription */}
-                <div className="flex-1 flex flex-col overflow-hidden">
-                  <div className="p-4 border-b border-gray-200">
-                    <div className="relative">
-                      <input
-                        type="text"
-                        value={transcriptionSearchQuery}
-                        onChange={(e) => setTranscriptionSearchQuery(e.target.value)}
-                        placeholder="Search transcript..."
-                        className="w-full rounded-lg border border-[#CBD3E3] bg-white px-9 py-2.5 font-nunito text-sm text-[#25324B] placeholder-[#94A3C1] focus:border-[#327AAD] focus:outline-none focus:ring-2 focus:ring-[#327AAD]/20"
-                      />
-                      <img
-                        src={searchIcon}
-                        alt="Search transcript"
-                        className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 object-contain"
+                {/* ~60% insights (scroll) / ~40% transcript (scroll) — transcript ~10% taller than before */}
+                <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                  <div className="flex min-h-0 flex-[6] flex-col overflow-hidden border-b border-gray-200">
+                    <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+                      <MeetingInsightsPanel
+                        transcription={fullTranscription ?? selectedMeeting}
+                        loading={loadingTranscript}
+                        compact
                       />
                     </div>
                   </div>
 
-                  <div className="flex-1 overflow-y-auto p-6">
+                  <div className="flex min-h-0 flex-[4] flex-col overflow-hidden bg-[#FAFBFC]">
+                    <div className="flex-shrink-0 border-b border-gray-200 p-4">
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={transcriptionSearchQuery}
+                          onChange={(e) => setTranscriptionSearchQuery(e.target.value)}
+                          placeholder="Search transcript..."
+                          className="w-full rounded-lg border border-[#CBD3E3] bg-white px-9 py-2.5 font-nunito text-sm text-[#25324B] placeholder-[#94A3C1] focus:border-[#327AAD] focus:outline-none focus:ring-2 focus:ring-[#327AAD]/20"
+                        />
+                        <img
+                          src={searchIcon}
+                          alt="Search transcript"
+                          className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 object-contain"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="min-h-0 flex-1 overflow-y-auto p-6">
                     {loadingTranscript ? (
                       <div className="text-center py-8 text-gray-500 font-nunito text-sm">Loading transcript...</div>
                     ) : !filteredTranscriptSegments || (Array.isArray(filteredTranscriptSegments) && filteredTranscriptSegments.length === 0) ? (
@@ -922,9 +848,10 @@ export function FolderMeetingsModal({ folderId, folderName, isOpen, onClose }: F
                         ))}
                       </div>
                     )}
+                    </div>
                   </div>
                 </div>
-              </>
+              </div>
             ) : (
               <div className="flex-1 flex items-center justify-center">
                 <p className="font-nunito text-sm text-[#6B7A96]">Select a meeting from the list or open Meetings Overview.</p>
