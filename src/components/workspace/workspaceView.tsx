@@ -37,7 +37,6 @@ import {
 import deleteIllustration from '../../assets/delete.png';
 import { FolderDetailView } from '../folder/FolderDetailView';
 import { FolderMeetingsModal } from '../folder/FolderMeetingsModal';
-import { MeetingInsightsPanel } from '../meeting/MeetingInsightsPanel';
 
 type StatusMessage = {
   type: 'success' | 'error';
