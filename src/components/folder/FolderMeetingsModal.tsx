@@ -13,6 +13,7 @@ import { getSlackStatus } from '../../services/slackApi';
 import { getNotionStatus } from '../../services/notionApi';
 import { getHubSpotStatus } from '../../services/hubspotApi';
 import searchIcon from '../../assets/Vector.png';
+import { splitOverviewSummaryToBullets } from '../../utils/overviewSummaryBullets';
 
 type FolderMeetingsModalProps = {
   folderId: string;
@@ -206,6 +207,11 @@ export function FolderMeetingsModal({ folderId, folderName, isOpen, onClose }: F
     if (backend) return overviewBackendSummary as string;
     return combinedMeetingsSummary;
   }, [overviewBackendSummary, combinedMeetingsSummary]);
+
+  const overviewSummaryBullets = useMemo(
+    () => splitOverviewSummaryToBullets(displayOverviewSummary || ''),
+    [displayOverviewSummary],
+  );
 
   const displayOverviewActionRows = useMemo(() => {
     const normalized = overviewBackendActions
@@ -620,9 +626,23 @@ export function FolderMeetingsModal({ folderId, folderName, isOpen, onClose }: F
                               {(overviewBackendSummary || '').trim() ? (
                                 <p className="font-nunito text-xs text-[#94A3C1] mb-2">Synthesized across all meetings</p>
                               ) : null}
-                              <p className="font-nunito text-sm text-[#4B5674] whitespace-pre-wrap leading-relaxed">
-                                {displayOverviewSummary}
-                              </p>
+                              {overviewSummaryBullets.length > 0 ? (
+                                <ul className="space-y-2.5">
+                                  {overviewSummaryBullets.map((line, idx) => (
+                                    <li
+                                      key={idx}
+                                      className="flex gap-3 font-nunito text-sm text-[#4B5674] leading-relaxed"
+                                    >
+                                      <span className="text-[#327AAD] font-bold shrink-0 pt-0.5">•</span>
+                                      <span className="min-w-0">{line}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <p className="font-nunito text-sm text-[#4B5674] whitespace-pre-wrap leading-relaxed">
+                                  {displayOverviewSummary}
+                                </p>
+                              )}
                             </>
                           ) : (
                             <p className="font-nunito text-sm text-[#94A3C1] italic">

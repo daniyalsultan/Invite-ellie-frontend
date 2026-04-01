@@ -30,13 +30,18 @@ import {
 } from './workspaceApi';
 import {
   getTranscriptions,
+  getTranscription,
+  getFolderMeetingsOverview,
   normalizeStringArray,
   type Transcription,
   type ActionItem,
+  type FolderMeetingsOverviewActionItem,
 } from '../../services/transcriptionApi';
 import deleteIllustration from '../../assets/delete.png';
 import { FolderDetailView } from '../folder/FolderDetailView';
 import { FolderMeetingsModal } from '../folder/FolderMeetingsModal';
+import { MeetingInsightsPanel } from '../meeting/MeetingInsightsPanel';
+import { splitOverviewSummaryToBullets } from '../../utils/overviewSummaryBullets';
 
 type StatusMessage = {
   type: 'success' | 'error';
@@ -89,6 +94,38 @@ function sortMeetings(meetings: MeetingWithFolder[]): MeetingWithFolder[] {
   });
 }
 
+function formatActionItemText(item: unknown): string {
+  if (typeof item === 'string') return item.trim();
+  if (
+    item &&
+    typeof item === 'object' &&
+    'text' in item &&
+    typeof (item as { text: string }).text === 'string'
+  ) {
+    return (item as { text: string }).text.trim();
+  }
+  if (
+    item &&
+    typeof item === 'object' &&
+    'item' in item &&
+    typeof (item as { item: string }).item === 'string'
+  ) {
+    return (item as { item: string }).item.trim();
+  }
+  return '';
+}
+
+function formatMeetingDateTimeLine(m: { held_at: string | null; created_at?: string }): string {
+  const raw = m.held_at || m.created_at;
+  if (!raw) return 'Date unknown';
+  try {
+    const date = new Date(raw);
+    return `${date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })} · ${date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
+  } catch {
+    return 'Date unknown';
+  }
+}
+
 export function WorkspaceViewPage(): JSX.Element {
   const { workspaceId } = useParams<{ workspaceId: string }>();
   // const navigate = useNavigate(); // Hidden - delete workspace button is hidden
@@ -120,6 +157,20 @@ export function WorkspaceViewPage(): JSX.Element {
   const [isFolderMeetingsModalOpen, setIsFolderMeetingsModalOpen] = useState(false);
   const [selectedFolderForModal, setSelectedFolderForModal] = useState<FolderRecord | null>(null);
   const [transcriptions, setTranscriptions] = useState<Transcription[]>([]);
+  const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
+  const [overviewBackendSummary, setOverviewBackendSummary] = useState<string | null>(null);
+  const [overviewBackendActions, setOverviewBackendActions] = useState<FolderMeetingsOverviewActionItem[]>(
+    [],
+  );
+  const [overviewLoading, setOverviewLoading] = useState(false);
+  const [overviewError, setOverviewError] = useState<string | null>(null);
+  const [overviewCached, setOverviewCached] = useState(false);
+  const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false);
+  const [selectedMeetingForModal, setSelectedMeetingForModal] = useState<MeetingWithFolder | null>(null);
+  const [fullModalTranscription, setFullModalTranscription] = useState<Transcription | null>(null);
+  const [modalTranscriptContent, setModalTranscriptContent] = useState<any>(null);
+  const [loadingModalTranscript, setLoadingModalTranscript] = useState(false);
+  const [modalTranscriptionSearch, setModalTranscriptionSearch] = useState('');
 
   const refreshWorkspace = useCallback(async () => {
     if (!workspaceId) {
@@ -310,17 +361,170 @@ export function WorkspaceViewPage(): JSX.Element {
 
   const filteredMeetings = useMemo(() => {
     const query = meetingSearch.trim().toLowerCase();
+    const byFolder = activeFolderId
+      ? allMeetings.filter((meeting) => meeting.folder === activeFolderId)
+      : allMeetings;
     if (!query) {
-      return allMeetings;
+      return byFolder;
     }
-    return allMeetings.filter(
+    return byFolder.filter(
       (meeting) =>
         meeting.title.toLowerCase().includes(query) ||
         meeting.folderName.toLowerCase().includes(query) ||
         meeting.status.toLowerCase().includes(query) ||
         (meeting.summary ?? '').toLowerCase().includes(query),
     );
-  }, [allMeetings, meetingSearch]);
+  }, [allMeetings, meetingSearch, activeFolderId]);
+
+  useEffect(() => {
+    if (!activeFolderId && filteredFolders.length > 0) {
+      setActiveFolderId(filteredFolders[0].id);
+    }
+  }, [activeFolderId, filteredFolders]);
+
+  useEffect(() => {
+    if (!activeFolderId || !profile?.id) {
+      setOverviewBackendSummary(null);
+      setOverviewBackendActions([]);
+      setOverviewLoading(false);
+      setOverviewError(null);
+      setOverviewCached(false);
+      return;
+    }
+    let cancelled = false;
+    setOverviewLoading(true);
+    setOverviewError(null);
+    void getFolderMeetingsOverview(activeFolderId, profile.id)
+      .then((data) => {
+        if (cancelled) return;
+        setOverviewBackendSummary(typeof data.summary === 'string' ? data.summary : '');
+        setOverviewBackendActions(Array.isArray(data.action_items) ? data.action_items : []);
+        setOverviewCached(Boolean(data.cached));
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setOverviewError(err instanceof Error ? err.message : 'Overview request failed');
+        setOverviewBackendSummary(null);
+        setOverviewBackendActions([]);
+        setOverviewCached(false);
+      })
+      .finally(() => {
+        if (!cancelled) setOverviewLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeFolderId, profile?.id]);
+
+  useEffect(() => {
+    if (!isMeetingModalOpen || !selectedMeetingForModal?.id || !profile?.id) {
+      return;
+    }
+    let cancelled = false;
+    const load = async () => {
+      try {
+        setLoadingModalTranscript(true);
+        const full = await getTranscription(selectedMeetingForModal.id, profile.id || '');
+        if (!cancelled) {
+          setFullModalTranscription(full);
+          setModalTranscriptContent(full.utterances || full.words || []);
+        }
+      } catch {
+        if (!cancelled) {
+          setFullModalTranscription(null);
+          setModalTranscriptContent(null);
+        }
+      } finally {
+        if (!cancelled) setLoadingModalTranscript(false);
+      }
+    };
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [isMeetingModalOpen, selectedMeetingForModal?.id, profile?.id]);
+
+  const activeFolder = useMemo(
+    () => (activeFolderId ? folders.find((f) => f.id === activeFolderId) ?? null : null),
+    [activeFolderId, folders],
+  );
+
+  const folderMeetingsForOverview = useMemo(
+    () => (activeFolderId ? allMeetings.filter((m) => m.folder === activeFolderId) : []),
+    [allMeetings, activeFolderId],
+  );
+
+  const folderOverviewStats = useMemo(() => {
+    const withSummary = folderMeetingsForOverview.filter((m) => (m.summary || '').trim().length > 0).length;
+    const totalActions = folderMeetingsForOverview.reduce(
+      (acc, m) => acc + (m.action_items?.length ?? 0),
+      0,
+    );
+    return { withSummary, totalActions, total: folderMeetingsForOverview.length };
+  }, [folderMeetingsForOverview]);
+
+  const combinedMeetingsSummary = useMemo(() => {
+    const parts: string[] = [];
+    for (const m of folderMeetingsForOverview) {
+      const body = (m.summary || '').trim();
+      if (!body) continue;
+      parts.push(`${m.title || 'Untitled Meeting'} (${formatMeetingDateTimeLine(m)})\n\n${body}`);
+    }
+    return parts.join('\n\n────────────────────\n\n');
+  }, [folderMeetingsForOverview]);
+
+  const allFolderActionItems = useMemo(() => {
+    const rows: { meetingTitle: string; meetingId: string; text: string }[] = [];
+    for (const m of folderMeetingsForOverview) {
+      const items = m.action_items || [];
+      for (const item of items) {
+        const text = formatActionItemText(item);
+        if (text) rows.push({ meetingTitle: m.title || 'Untitled Meeting', meetingId: m.id, text });
+      }
+    }
+    return rows;
+  }, [folderMeetingsForOverview]);
+
+  const displayOverviewSummary = useMemo(() => {
+    const backend = (overviewBackendSummary || '').trim();
+    if (backend) return overviewBackendSummary as string;
+    return combinedMeetingsSummary;
+  }, [overviewBackendSummary, combinedMeetingsSummary]);
+
+  const overviewSummaryBullets = useMemo(
+    () => splitOverviewSummaryToBullets(displayOverviewSummary || ''),
+    [displayOverviewSummary],
+  );
+
+  const displayOverviewActionRows = useMemo(() => {
+    const normalized = overviewBackendActions
+      .map((row) => ({
+        text: (row.text || '').trim(),
+        meetingTitle: (row.meeting_title || 'General').trim() || 'General',
+      }))
+      .filter((row) => row.text.length > 0);
+    if (normalized.length > 0) {
+      return normalized.map((row, idx) => ({
+        meetingId: `overview-${idx}`,
+        meetingTitle: row.meetingTitle,
+        text: row.text,
+      }));
+    }
+    return allFolderActionItems;
+  }, [overviewBackendActions, allFolderActionItems]);
+
+  const filteredModalTranscriptSegments = useMemo(() => {
+    if (!modalTranscriptContent || !modalTranscriptionSearch.trim()) return modalTranscriptContent || [];
+    const query = modalTranscriptionSearch.toLowerCase();
+    if (Array.isArray(modalTranscriptContent)) {
+      return modalTranscriptContent.filter((item: any) => {
+        const text = item.text || item.words?.map((w: any) => w.text).join(' ') || '';
+        const speaker = item.speaker || '';
+        return text.toLowerCase().includes(query) || speaker.toLowerCase().includes(query);
+      });
+    }
+    return modalTranscriptContent;
+  }, [modalTranscriptContent, modalTranscriptionSearch]);
 
   // Workspace edit form handlers - hidden
   // const handleUpdateWorkspace = async (event: FormEvent<HTMLFormElement>) => {
@@ -493,8 +697,19 @@ export function WorkspaceViewPage(): JSX.Element {
   };
 
   const handleFolderClick = (folder: FolderRecord): void => {
-    setSelectedFolderForModal(folder);
-    setIsFolderMeetingsModalOpen(true);
+    setActiveFolderId(folder.id);
+  };
+
+  const handleFolderDoubleClick = (folder: FolderRecord): void => {
+    setSelectedFolder(folder);
+    setIsDetailViewOpen(true);
+  };
+
+  const handleMeetingClick = (meeting: MeetingWithFolder): void => {
+    setSelectedMeetingId(meeting.id);
+    setSelectedMeetingForModal(meeting);
+    setModalTranscriptionSearch('');
+    setIsMeetingModalOpen(true);
   };
 
   const handleCloseDetailView = (): void => {
@@ -765,6 +980,7 @@ export function WorkspaceViewPage(): JSX.Element {
                         <div
                           key={folder.id}
                           onClick={() => handleFolderClick(folder)}
+                          onDoubleClick={() => handleFolderDoubleClick(folder)}
                           className="relative flex cursor-pointer flex-col gap-3 rounded-2xl border border-[#E3E7F2] bg-[#F7F9FC] px-4 py-5 shadow-[0_12px_24px_rgba(39,62,99,0.06)] transition hover:bg-[#E6EDFF]"
                         >
                           {/* Pin indicator in top right */}
@@ -847,6 +1063,7 @@ export function WorkspaceViewPage(): JSX.Element {
                         <div
                           key={folder.id}
                           onClick={() => handleFolderClick(folder)}
+                          onDoubleClick={() => handleFolderDoubleClick(folder)}
                           className="relative flex cursor-pointer items-center justify-between gap-4 rounded-[10px] bg-[rgba(50,122,173,0.05)] px-5 py-[10px] transition hover:bg-[rgba(50,122,173,0.08)]"
                         >
                           <div className="flex items-center gap-4">
@@ -998,7 +1215,8 @@ export function WorkspaceViewPage(): JSX.Element {
                               return (
                                 <tr
                                   key={meeting.id}
-                                  className="border-b border-[#EEE9FE] transition hover:bg-[#F6F7FB]"
+                                  onClick={() => handleMeetingClick(meeting)}
+                                  className="cursor-pointer border-b border-[#EEE9FE] transition hover:bg-[#F6F7FB]"
                                 >
                                   <td className="px-4 py-4">
                                     <div className="flex flex-col gap-1">
@@ -1043,7 +1261,8 @@ export function WorkspaceViewPage(): JSX.Element {
                           return (
                             <div
                               key={`${meeting.id}-mobile`}
-                              className="rounded-2xl border border-[#E6E9F2] p-4 shadow-[0_12px_24px_rgba(39,62,99,0.05)]"
+                              onClick={() => handleMeetingClick(meeting)}
+                              className="cursor-pointer rounded-2xl border border-[#E6E9F2] p-4 shadow-[0_12px_24px_rgba(39,62,99,0.05)]"
                             >
                               <div className="mb-3 flex items-center justify-between gap-3">
                                 <div className="flex-1">
@@ -1072,7 +1291,107 @@ export function WorkspaceViewPage(): JSX.Element {
                   )}
                 </div>
 
-                {/* Select a meeting and Meeting transcription sections - hidden */}
+                <div className="space-y-6 lg:pl-3">
+                  <div className="rounded-[12px] bg-white p-4 shadow-[0px_18px_30px_rgba(15,23,42,0.05)] md:rounded-[18px] md:p-6 lg:p-8">
+                    <div className="mb-4">
+                      <h3 className="font-nunito text-xl font-bold text-[#25324B]">Meetings Overview</h3>
+                      <p className="font-nunito text-sm text-[#6B7A96] mt-1">
+                        Everything Ellie has captured for{' '}
+                        <span className="font-semibold text-[#4B5674]">{activeFolder?.name ?? 'selected folder'}</span>{' '}
+                        — in one place.
+                      </p>
+                      {folderOverviewStats.total > 0 && (
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          <span className="inline-flex items-center rounded-full bg-[#327AAD]/10 px-3 py-1 font-nunito text-xs font-semibold text-[#327AAD]">
+                            {folderOverviewStats.total} meeting{folderOverviewStats.total === 1 ? '' : 's'}
+                          </span>
+                          {folderOverviewStats.withSummary > 0 && (
+                            <span className="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 font-nunito text-xs font-semibold text-emerald-800">
+                              {folderOverviewStats.withSummary} with summary
+                            </span>
+                          )}
+                          {folderOverviewStats.totalActions > 0 && (
+                            <span className="inline-flex items-center rounded-full bg-amber-50 px-3 py-1 font-nunito text-xs font-semibold text-amber-900">
+                              {folderOverviewStats.totalActions} action item{folderOverviewStats.totalActions === 1 ? '' : 's'}
+                            </span>
+                          )}
+                          {overviewCached && (overviewBackendSummary || '').trim() && (
+                            <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 font-nunito text-xs font-semibold text-slate-600">
+                              AI overview cached
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <div className="space-y-6">
+                      <section>
+                        <h4 className="font-nunito text-sm font-bold uppercase tracking-wide text-[#6B7A96] mb-3">Summary</h4>
+                        <article className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+                          {overviewLoading ? (
+                            <p className="font-nunito text-sm text-[#6B7A96]">Generating AI overview…</p>
+                          ) : displayOverviewSummary ? (
+                            <>
+                              {(overviewBackendSummary || '').trim() ? (
+                                <p className="font-nunito text-xs text-[#94A3C1] mb-2">Synthesized across all meetings</p>
+                              ) : null}
+                              {overviewSummaryBullets.length > 0 ? (
+                                <ul className="space-y-2.5">
+                                  {overviewSummaryBullets.map((line, idx) => (
+                                    <li
+                                      key={idx}
+                                      className="flex gap-3 font-nunito text-sm text-[#4B5674] leading-relaxed"
+                                    >
+                                      <span className="text-[#327AAD] font-bold shrink-0 pt-0.5">•</span>
+                                      <span className="min-w-0">{line}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <p className="font-nunito text-sm text-[#4B5674] whitespace-pre-wrap leading-relaxed">
+                                  {displayOverviewSummary}
+                                </p>
+                              )}
+                            </>
+                          ) : (
+                            <p className="font-nunito text-sm text-[#94A3C1] italic">
+                              No summaries yet for meetings in this folder. They will appear here once processing completes.
+                            </p>
+                          )}
+                          {overviewError && !overviewLoading ? (
+                            <p className="font-nunito text-xs text-amber-800 mt-3 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                              AI overview unavailable ({overviewError}). Showing combined text from meetings when available.
+                            </p>
+                          ) : null}
+                        </article>
+                      </section>
+
+                      <section>
+                        <h4 className="font-nunito text-sm font-bold uppercase tracking-wide text-[#6B7A96] mb-3">Action items across meetings</h4>
+                        {displayOverviewActionRows.length === 0 ? (
+                          <p className="font-nunito text-sm text-[#94A3C1] italic rounded-2xl border border-dashed border-gray-200 bg-white p-6 text-center">
+                            No action items extracted yet.
+                          </p>
+                        ) : (
+                          <ul className="space-y-2 rounded-2xl border border-gray-200 bg-white p-4">
+                            {displayOverviewActionRows.map((row, idx) => (
+                              <li
+                                key={`${row.meetingId}-${idx}`}
+                                className="flex gap-3 font-nunito text-sm text-[#4B5674] border-b border-gray-100 pb-3 last:border-0 last:pb-0"
+                              >
+                                <span className="text-[#327AAD] font-bold shrink-0">•</span>
+                                <div>
+                                  <p>{row.text}</p>
+                                  <p className="text-xs text-[#94A3C1] mt-1">From: {row.meetingTitle}</p>
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </section>
+
+                    </div>
+                  </div>
+                </div>
                 {/*
                 <div className="space-y-6 lg:pl-3">
                   <div className="rounded-[12px] bg-white p-4 shadow-[0px_18px_30px_rgba(15,23,42,0.05)] md:rounded-[18px] md:p-6 lg:p-8">
@@ -1087,122 +1406,8 @@ export function WorkspaceViewPage(): JSX.Element {
                           </p>
                         )}
                       </div>
-                      <div className="flex items-center gap-2">
-                        {selectedMeeting?.audio_url && (
-                          <a
-                            href={selectedMeeting.audio_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="rounded-lg bg-blue-50 p-2 text-[#1F6FB5]"
-                          >
-                            Download
-                          </a>
-                        )}
-                        {selectedMeeting?.audio_url && (
-                          <button
-                            type="button"
-                            onClick={() => navigator.clipboard.writeText(selectedMeeting.audio_url ?? '')}
-                            className="rounded-lg bg-purple-50 p-2 text-[#7C3AED]"
-                          >
-                            Share
-                          </button>
-                        )}
-                      </div>
                     </div>
-
-                    {selectedMeeting ? (
-                      <div className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4 rounded-xl border border-gray-100 bg-gray-50 p-4 font-nunito text-sm text-[#25324B]">
-                          <div>
-                            <p className="text-xs uppercase text-[#6B7A96]">Status</p>
-                            <p>{selectedMeeting.status}</p>
-                          </div>
-                          <div>
-                            <p className="text-xs uppercase text-[#6B7A96]">Held at</p>
-                            <p>
-                              {formatDateTime(selectedMeeting.held_at ?? selectedMeeting.updated_at).date}{' '}
-                              {formatDateTime(selectedMeeting.held_at ?? selectedMeeting.updated_at).time}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-xs uppercase text-[#6B7A96]">Duration</p>
-                            <p>{selectedMeeting.duration ?? '—'}</p>
-                          </div>
-                          <div>
-                            <p className="text-xs uppercase text-[#6B7A96]">Participants</p>
-                            <p>{selectedMeeting.paticipants ?? '—'}</p>
-                          </div>
-                        </div>
-
-                        <MeetingInsightsPanel
-                          transcription={selectedMeeting as unknown as Transcription}
-                          compact
-                        />
-                      </div>
-                    ) : (
-                      <p className="rounded-xl border border-dashed border-gray-200 px-4 py-6 text-center font-nunito text-sm text-[#6B7A96]">
-                        Select a meeting to view details.
-                      </p>
-                    )}
                   </div>
-
-                  <div className="flex flex-col rounded-[12px] bg-white p-4 shadow-[0px_18px_30px_rgba(15,23,42,0.05)] md:rounded-[18px] md:p-6 lg:p-8">
-                    <div className="mb-4 flex items-center justify-between">
-                      <h2 className="font-nunito text-lg font-bold text-[#25324B] md:text-xl">
-                        Meeting transcription
-                      </h2>
-                      {selectedMeeting?.transcript && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            navigator.clipboard.writeText(selectedMeeting?.transcript ?? '')
-                          }
-                          className="rounded-lg border border-gray-200 px-3 py-1.5 font-nunito text-xs font-semibold text-[#25324B]"
-                        >
-                          Copy all
-                        </button>
-                      )}
-                    </div>
-
-                    <div className="relative mb-4">
-                      <input
-                        type="text"
-                        value={transcriptionSearch}
-                        onChange={(event) => setTranscriptionSearch(event.target.value)}
-                        placeholder="Search transcript"
-                        className="w-full rounded-lg border border-[#CBD3E3] bg-white px-9 py-2.5 font-nunito text-sm text-[#25324B] placeholder-[#94A3C1] focus:border-ellieBlue focus:outline-none focus:ring-2 focus:ring-ellieBlue/20"
-                      />
-                      <img
-                        src={searchIcon}
-                        alt="Search transcription"
-                        className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 object-contain"
-                      />
-                    </div>
-
-                    {selectedMeeting?.transcript ? (
-                      <div className="max-h-[420px] space-y-3 overflow-y-auto pr-1">
-                        {filteredTranscriptSegments.length === 0 ? (
-                          <p className="rounded-xl border border-dashed border-gray-200 px-4 py-10 text-center font-nunito text-sm text-[#6B7A96]">
-                            No transcript segments match your search.
-                          </p>
-                        ) : (
-                          filteredTranscriptSegments.map((segment) => (
-                            <div
-                              key={segment.id}
-                              className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 font-nunito text-sm text-[#25324B]"
-                            >
-                              {segment.text}
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    ) : (
-                      <p className="rounded-xl border border-dashed border-gray-200 px-4 py-10 text-center font-nunito text-sm text-[#6B7A96]">
-                        No transcript available yet.
-                      </p>
-                    )}
-                  </div>
-                </div>
                 */}
               </div>
             </>
@@ -1361,6 +1566,89 @@ export function WorkspaceViewPage(): JSX.Element {
             setTimeout(() => setSelectedFolderForModal(null), 300);
           }}
         />
+      )}
+
+      {isMeetingModalOpen && selectedMeetingForModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="relative flex h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-[24px] bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+              <div>
+                <h3 className="font-nunito text-xl font-bold text-[#25324B]">
+                  {selectedMeetingForModal.title}
+                </h3>
+                <p className="font-nunito text-sm text-[#6B7A96]">
+                  {selectedMeetingForModal.folderName} •{' '}
+                  {formatDateTime(selectedMeetingForModal.held_at ?? selectedMeetingForModal.updated_at).date}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsMeetingModalOpen(false)}
+                className="rounded-full p-2 transition-colors hover:bg-gray-100"
+                aria-label="Close meeting details"
+              >
+                <svg className="h-5 w-5 text-gray-600" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
+              <div className="min-h-0 flex-1 overflow-y-auto border-b border-gray-200 p-4 lg:border-b-0 lg:border-r lg:p-6">
+                <MeetingInsightsPanel
+                  transcription={(fullModalTranscription as Transcription | null) ?? (selectedMeetingForModal as unknown as Transcription)}
+                  loading={loadingModalTranscript}
+                  compact
+                />
+              </div>
+              <div className="flex min-h-0 flex-[0.9] flex-col overflow-hidden">
+                <div className="border-b border-gray-200 p-4">
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={modalTranscriptionSearch}
+                      onChange={(e) => setModalTranscriptionSearch(e.target.value)}
+                      placeholder="Search transcript..."
+                      className="w-full rounded-lg border border-[#CBD3E3] bg-white px-9 py-2.5 font-nunito text-sm text-[#25324B] placeholder-[#94A3C1] focus:border-[#327AAD] focus:outline-none focus:ring-2 focus:ring-[#327AAD]/20"
+                    />
+                    <img
+                      src={searchIcon}
+                      alt="Search transcript"
+                      className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 object-contain"
+                    />
+                  </div>
+                </div>
+                <div className="min-h-0 flex-1 overflow-y-auto p-4 lg:p-6">
+                  {loadingModalTranscript ? (
+                    <div className="py-8 text-center font-nunito text-sm text-gray-500">Loading transcript...</div>
+                  ) : !filteredModalTranscriptSegments || (Array.isArray(filteredModalTranscriptSegments) && filteredModalTranscriptSegments.length === 0) ? (
+                    <div className="py-8 text-center font-nunito text-sm text-gray-500">
+                      {modalTranscriptionSearch ? 'No transcript segments match your search' : 'No transcript available'}
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {Array.isArray(filteredModalTranscriptSegments) &&
+                        filteredModalTranscriptSegments.map((segment: any, index: number) => (
+                          <div key={segment.id || index} className="flex gap-3">
+                            <div className="mt-1 h-8 w-8 flex-shrink-0 rounded-full bg-[#327AAD]/10 text-center font-nunito text-xs font-semibold leading-8 text-[#327AAD]">
+                              {segment.speaker?.charAt(0) || '?'}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="font-nunito text-sm font-semibold text-[#25324B]">
+                                {segment.speaker || 'Unknown Speaker'}
+                              </p>
+                              <p className="font-nunito text-sm leading-relaxed text-[#4B5674]">
+                                {segment.text || segment.words?.map((w: any) => w.text).join(' ') || ''}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </DashboardLayout>
   );
