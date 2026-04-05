@@ -31,18 +31,16 @@ import {
 import {
   getTranscriptions,
   getTranscription,
-  getFolderMeetingsOverview,
+  getFolderWorkspaceInsights,
   normalizeStringArray,
   type Transcription,
   type ActionItem,
-  type FolderMeetingsOverviewActionItem,
+  type WorkspaceFolderInsightsResponse,
 } from '../../services/transcriptionApi';
 import deleteIllustration from '../../assets/delete.png';
 import { FolderDetailView } from '../folder/FolderDetailView';
 import { FolderMeetingsModal } from '../folder/FolderMeetingsModal';
 import { MeetingInsightsPanel } from '../meeting/MeetingInsightsPanel';
-import { splitOverviewSummaryToBullets } from '../../utils/overviewSummaryBullets';
-
 type StatusMessage = {
   type: 'success' | 'error';
   text: string;
@@ -94,36 +92,11 @@ function sortMeetings(meetings: MeetingWithFolder[]): MeetingWithFolder[] {
   });
 }
 
-function formatActionItemText(item: unknown): string {
-  if (typeof item === 'string') return item.trim();
-  if (
-    item &&
-    typeof item === 'object' &&
-    'text' in item &&
-    typeof (item as { text: string }).text === 'string'
-  ) {
-    return (item as { text: string }).text.trim();
-  }
-  if (
-    item &&
-    typeof item === 'object' &&
-    'item' in item &&
-    typeof (item as { item: string }).item === 'string'
-  ) {
-    return (item as { item: string }).item.trim();
-  }
-  return '';
-}
-
-function formatMeetingDateTimeLine(m: { held_at: string | null; created_at?: string }): string {
-  const raw = m.held_at || m.created_at;
-  if (!raw) return 'Date unknown';
-  try {
-    const date = new Date(raw);
-    return `${date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })} · ${date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
-  } catch {
-    return 'Date unknown';
-  }
+function workspaceInsightFlagLine(flag: string, blockedBy: string | null): string {
+  if (flag === 'assign_owner') return '❌ Assign owner';
+  if (flag === 'define_deadline') return '⚠️ Define deadline';
+  if (flag === 'blocked') return blockedBy?.trim() ? `⚠️ Blocked by ${blockedBy.trim()}` : '⚠️ Blocked';
+  return flag;
 }
 
 export function WorkspaceViewPage(): JSX.Element {
@@ -158,13 +131,9 @@ export function WorkspaceViewPage(): JSX.Element {
   const [selectedFolderForModal, setSelectedFolderForModal] = useState<FolderRecord | null>(null);
   const [transcriptions, setTranscriptions] = useState<Transcription[]>([]);
   const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
-  const [overviewBackendSummary, setOverviewBackendSummary] = useState<string | null>(null);
-  const [overviewBackendActions, setOverviewBackendActions] = useState<FolderMeetingsOverviewActionItem[]>(
-    [],
-  );
-  const [overviewLoading, setOverviewLoading] = useState(false);
-  const [overviewError, setOverviewError] = useState<string | null>(null);
-  const [overviewCached, setOverviewCached] = useState(false);
+  const [workspaceInsights, setWorkspaceInsights] = useState<WorkspaceFolderInsightsResponse | null>(null);
+  const [workspaceInsightsLoading, setWorkspaceInsightsLoading] = useState(false);
+  const [workspaceInsightsError, setWorkspaceInsightsError] = useState<string | null>(null);
   const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false);
   const [selectedMeetingForModal, setSelectedMeetingForModal] = useState<MeetingWithFolder | null>(null);
   const [fullModalTranscription, setFullModalTranscription] = useState<Transcription | null>(null);
@@ -384,32 +353,26 @@ export function WorkspaceViewPage(): JSX.Element {
 
   useEffect(() => {
     if (!activeFolderId || !profile?.id) {
-      setOverviewBackendSummary(null);
-      setOverviewBackendActions([]);
-      setOverviewLoading(false);
-      setOverviewError(null);
-      setOverviewCached(false);
+      setWorkspaceInsights(null);
+      setWorkspaceInsightsLoading(false);
+      setWorkspaceInsightsError(null);
       return;
     }
     let cancelled = false;
-    setOverviewLoading(true);
-    setOverviewError(null);
-    void getFolderMeetingsOverview(activeFolderId, profile.id)
+    setWorkspaceInsightsLoading(true);
+    setWorkspaceInsightsError(null);
+    void getFolderWorkspaceInsights(activeFolderId, profile.id)
       .then((data) => {
         if (cancelled) return;
-        setOverviewBackendSummary(typeof data.summary === 'string' ? data.summary : '');
-        setOverviewBackendActions(Array.isArray(data.action_items) ? data.action_items : []);
-        setOverviewCached(Boolean(data.cached));
+        setWorkspaceInsights(data);
       })
       .catch((err) => {
         if (cancelled) return;
-        setOverviewError(err instanceof Error ? err.message : 'Overview request failed');
-        setOverviewBackendSummary(null);
-        setOverviewBackendActions([]);
-        setOverviewCached(false);
+        setWorkspaceInsightsError(err instanceof Error ? err.message : 'Workspace insights request failed');
+        setWorkspaceInsights(null);
       })
       .finally(() => {
-        if (!cancelled) setOverviewLoading(false);
+        if (!cancelled) setWorkspaceInsightsLoading(false);
       });
     return () => {
       cancelled = true;
@@ -462,56 +425,6 @@ export function WorkspaceViewPage(): JSX.Element {
     );
     return { withSummary, totalActions, total: folderMeetingsForOverview.length };
   }, [folderMeetingsForOverview]);
-
-  const combinedMeetingsSummary = useMemo(() => {
-    const parts: string[] = [];
-    for (const m of folderMeetingsForOverview) {
-      const body = (m.summary || '').trim();
-      if (!body) continue;
-      parts.push(`${m.title || 'Untitled Meeting'} (${formatMeetingDateTimeLine(m)})\n\n${body}`);
-    }
-    return parts.join('\n\n────────────────────\n\n');
-  }, [folderMeetingsForOverview]);
-
-  const allFolderActionItems = useMemo(() => {
-    const rows: { meetingTitle: string; meetingId: string; text: string }[] = [];
-    for (const m of folderMeetingsForOverview) {
-      const items = m.action_items || [];
-      for (const item of items) {
-        const text = formatActionItemText(item);
-        if (text) rows.push({ meetingTitle: m.title || 'Untitled Meeting', meetingId: m.id, text });
-      }
-    }
-    return rows;
-  }, [folderMeetingsForOverview]);
-
-  const displayOverviewSummary = useMemo(() => {
-    const backend = (overviewBackendSummary || '').trim();
-    if (backend) return overviewBackendSummary as string;
-    return combinedMeetingsSummary;
-  }, [overviewBackendSummary, combinedMeetingsSummary]);
-
-  const overviewSummaryBullets = useMemo(
-    () => splitOverviewSummaryToBullets(displayOverviewSummary || ''),
-    [displayOverviewSummary],
-  );
-
-  const displayOverviewActionRows = useMemo(() => {
-    const normalized = overviewBackendActions
-      .map((row) => ({
-        text: (row.text || '').trim(),
-        meetingTitle: (row.meeting_title || 'General').trim() || 'General',
-      }))
-      .filter((row) => row.text.length > 0);
-    if (normalized.length > 0) {
-      return normalized.map((row, idx) => ({
-        meetingId: `overview-${idx}`,
-        meetingTitle: row.meetingTitle,
-        text: row.text,
-      }));
-    }
-    return allFolderActionItems;
-  }, [overviewBackendActions, allFolderActionItems]);
 
   const filteredModalTranscriptSegments = useMemo(() => {
     if (!modalTranscriptContent || !modalTranscriptionSearch.trim()) return modalTranscriptContent || [];
@@ -1294,11 +1207,10 @@ export function WorkspaceViewPage(): JSX.Element {
                 <div className="space-y-6 lg:pl-3">
                   <div className="rounded-[12px] bg-white p-4 shadow-[0px_18px_30px_rgba(15,23,42,0.05)] md:rounded-[18px] md:p-6 lg:p-8">
                     <div className="mb-4">
-                      <h3 className="font-nunito text-xl font-bold text-[#25324B]">Meetings Overview</h3>
+                      <h3 className="font-nunito text-xl font-bold text-[#25324B]">Folder status &amp; actions</h3>
                       <p className="font-nunito text-sm text-[#6B7A96] mt-1">
-                        Everything Ellie has captured for{' '}
-                        <span className="font-semibold text-[#4B5674]">{activeFolder?.name ?? 'selected folder'}</span>{' '}
-                        — in one place.
+                        Status, gaps, and follow-ups across{' '}
+                        <span className="font-semibold text-[#4B5674]">{activeFolder?.name ?? 'selected folder'}</span>.
                       </p>
                       {folderOverviewStats.total > 0 && (
                         <div className="mt-4 flex flex-wrap gap-2">
@@ -1315,80 +1227,149 @@ export function WorkspaceViewPage(): JSX.Element {
                               {folderOverviewStats.totalActions} action item{folderOverviewStats.totalActions === 1 ? '' : 's'}
                             </span>
                           )}
-                          {overviewCached && (overviewBackendSummary || '').trim() && (
-                            <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 font-nunito text-xs font-semibold text-slate-600">
-                              AI overview cached
-                            </span>
-                          )}
                         </div>
                       )}
                     </div>
                     <div className="space-y-6">
                       <section>
-                        <h4 className="font-nunito text-sm font-bold uppercase tracking-wide text-[#6B7A96] mb-3">Summary</h4>
+                        <h4 className="font-nunito text-sm font-bold uppercase tracking-wide text-[#6B7A96] mb-3">Status</h4>
                         <article className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-                          {overviewLoading ? (
-                            <p className="font-nunito text-sm text-[#6B7A96]">Generating AI overview…</p>
-                          ) : displayOverviewSummary ? (
+                          {workspaceInsightsLoading ? (
+                            <p className="font-nunito text-sm text-[#6B7A96]">Loading folder insights…</p>
+                          ) : workspaceInsights ? (
                             <>
-                              {(overviewBackendSummary || '').trim() ? (
-                                <p className="font-nunito text-xs text-[#94A3C1] mb-2">Synthesized across all meetings</p>
-                              ) : null}
-                              {overviewSummaryBullets.length > 0 ? (
-                                <ul className="space-y-2.5">
-                                  {overviewSummaryBullets.map((line, idx) => (
+                              <p className="font-nunito text-sm font-semibold text-[#25324B]">
+                                {workspaceInsights.status_label}
+                              </p>
+                              {workspaceInsights.reasons.length > 0 ? (
+                                <ul className="mt-3 space-y-2">
+                                  {workspaceInsights.reasons.slice(0, 3).map((line, idx) => (
                                     <li
                                       key={idx}
-                                      className="flex gap-3 font-nunito text-sm text-[#4B5674] leading-relaxed"
+                                      className="font-nunito text-sm text-[#4B5674] flex gap-2 leading-snug"
                                     >
-                                      <span className="text-[#327AAD] font-bold shrink-0 pt-0.5">•</span>
-                                      <span className="min-w-0">{line}</span>
+                                      <span className="text-[#327AAD] font-bold shrink-0">•</span>
+                                      <span>{line}</span>
                                     </li>
                                   ))}
                                 </ul>
                               ) : (
-                                <p className="font-nunito text-sm text-[#4B5674] whitespace-pre-wrap leading-relaxed">
-                                  {displayOverviewSummary}
-                                </p>
+                                <p className="font-nunito text-sm text-[#6B7A96] mt-2">No blockers flagged for this folder.</p>
                               )}
                             </>
                           ) : (
                             <p className="font-nunito text-sm text-[#94A3C1] italic">
-                              No summaries yet for meetings in this folder. They will appear here once processing completes.
+                              Select a folder with meetings to see status.
                             </p>
                           )}
-                          {overviewError && !overviewLoading ? (
+                          {workspaceInsightsError && !workspaceInsightsLoading ? (
                             <p className="font-nunito text-xs text-amber-800 mt-3 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
-                              AI overview unavailable ({overviewError}). Showing combined text from meetings when available.
+                              Could not load folder insights ({workspaceInsightsError}).
                             </p>
                           ) : null}
                         </article>
                       </section>
 
                       <section>
-                        <h4 className="font-nunito text-sm font-bold uppercase tracking-wide text-[#6B7A96] mb-3">Action items across meetings</h4>
-                        {displayOverviewActionRows.length === 0 ? (
+                        <h4 className="font-nunito text-sm font-bold uppercase tracking-wide text-[#6B7A96] mb-3">
+                          Gaps across meetings
+                        </h4>
+                        <article className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+                          {!workspaceInsights || workspaceInsightsLoading ? (
+                            <p className="font-nunito text-sm text-[#6B7A96]">—</p>
+                          ) : workspaceInsights.gaps_across_meetings.length === 0 ? (
+                            <p className="font-nunito text-sm text-[#94A3C1] italic">No aggregated gaps for this folder.</p>
+                          ) : (
+                            <ul className="space-y-2">
+                              {workspaceInsights.gaps_across_meetings.slice(0, 5).map((g, idx) => (
+                                <li key={idx} className="font-nunito text-sm text-[#4B5674] flex gap-2 leading-snug">
+                                  <span className="shrink-0">{g.icon}</span>
+                                  <span>{g.text}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </article>
+                      </section>
+
+                      <section>
+                        <h4 className="font-nunito text-sm font-bold uppercase tracking-wide text-[#6B7A96] mb-3">
+                          Repeated issues
+                        </h4>
+                        <article className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+                          {!workspaceInsights || workspaceInsightsLoading ? (
+                            <p className="font-nunito text-sm text-[#6B7A96]">—</p>
+                          ) : workspaceInsights.repeated_issues.length === 0 ? (
+                            <p className="font-nunito text-sm text-[#94A3C1] italic">
+                              No cross-meeting patterns detected yet.
+                            </p>
+                          ) : (
+                            <ul className="space-y-2">
+                              {workspaceInsights.repeated_issues.map((line, idx) => (
+                                <li key={idx} className="font-nunito text-sm text-[#4B5674] flex gap-2 leading-snug">
+                                  <span className="text-[#327AAD] font-bold shrink-0">•</span>
+                                  <span>{line}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </article>
+                      </section>
+
+                      <section>
+                        <h4 className="font-nunito text-sm font-bold uppercase tracking-wide text-[#6B7A96] mb-3">
+                          Action items (aggregated)
+                        </h4>
+                        {!workspaceInsights || workspaceInsightsLoading ? (
+                          <p className="font-nunito text-sm text-[#6B7A96] rounded-2xl border border-gray-200 bg-white p-5">Loading…</p>
+                        ) : workspaceInsights.action_items.length === 0 ? (
                           <p className="font-nunito text-sm text-[#94A3C1] italic rounded-2xl border border-dashed border-gray-200 bg-white p-6 text-center">
                             No action items extracted yet.
                           </p>
                         ) : (
-                          <ul className="space-y-2 rounded-2xl border border-gray-200 bg-white p-4">
-                            {displayOverviewActionRows.map((row, idx) => (
+                          <ul className="max-h-96 space-y-4 overflow-y-auto rounded-2xl border border-gray-200 bg-white p-4">
+                            {workspaceInsights.action_items.map((row, idx) => (
                               <li
-                                key={`${row.meetingId}-${idx}`}
-                                className="flex gap-3 font-nunito text-sm text-[#4B5674] border-b border-gray-100 pb-3 last:border-0 last:pb-0"
+                                key={`${row.meeting_id}-${idx}`}
+                                className="border-b border-gray-100 pb-4 last:border-0 last:pb-0"
                               >
-                                <span className="text-[#327AAD] font-bold shrink-0">•</span>
-                                <div>
-                                  <p>{row.text}</p>
-                                  <p className="text-xs text-[#94A3C1] mt-1">From: {row.meetingTitle}</p>
-                                </div>
+                                <p className="font-nunito text-sm font-medium text-[#25324B]">{row.text}</p>
+                                <p className="font-nunito text-xs text-[#6B7A96] mt-1">
+                                  Owner: {row.owner_display} · Deadline: {row.deadline_display}
+                                </p>
+                                <p className="font-nunito text-xs text-[#94A3C1] mt-0.5">From: {row.meeting_title}</p>
+                                {row.flags.length > 0 ? (
+                                  <div className="mt-2 space-y-0.5 font-nunito text-xs text-[#4B5674]">
+                                    {row.flags.map((f) => (
+                                      <p key={f}>{workspaceInsightFlagLine(f, row.blocked_by)}</p>
+                                    ))}
+                                  </div>
+                                ) : null}
                               </li>
                             ))}
                           </ul>
                         )}
                       </section>
 
+                      {workspaceInsights &&
+                        !workspaceInsightsLoading &&
+                        workspaceInsights.short_summary_bullets.length > 0 && (
+                          <section>
+                            <h4 className="font-nunito text-sm font-bold uppercase tracking-wide text-[#6B7A96] mb-3">
+                              Short summary
+                            </h4>
+                            <article className="rounded-2xl border border-slate-200 bg-slate-50/80 p-5 shadow-sm">
+                              <ul className="space-y-2">
+                                {workspaceInsights.short_summary_bullets.slice(0, 4).map((line, idx) => (
+                                  <li key={idx} className="font-nunito text-sm text-[#4B5674] flex gap-2 leading-snug">
+                                    <span className="text-slate-500 font-bold shrink-0">•</span>
+                                    <span>{line}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </article>
+                          </section>
+                        )}
                     </div>
                   </div>
                 </div>

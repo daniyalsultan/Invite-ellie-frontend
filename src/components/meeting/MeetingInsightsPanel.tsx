@@ -4,6 +4,7 @@ import {
   normalizeStringArray,
   normalizeActionItems,
 } from '../../services/transcriptionApi';
+import { displayBlocker, displayDeadline, displayOwner, isAbsentScalar } from '../../utils/meetingDisplay';
 
 type Props = {
   transcription: Transcription | null;
@@ -225,7 +226,7 @@ export function MeetingInsightsPanel({
                 <span className="text-amber-700 font-bold shrink-0">•</span>
                 <span>
                   <span className="font-semibold text-[#25324B]">
-                    {isCriticalGap(line) ? '🔴 Critical' : '🟡 Needs clarity'}
+                    {isCriticalGap(line) ? '🔴 Critical gap' : '🟡 Gap'}
                   </span>
                   <span>: </span>
                   {line}
@@ -288,7 +289,7 @@ export function MeetingInsightsPanel({
                   typeof actionItem === 'object' && actionItem ? actionItem.clarity : undefined;
                 const blockers =
                   typeof actionItem === 'object' && actionItem ? actionItem.blockers : undefined;
-                const deadlineDefined = deadline != null && String(deadline).trim() !== '';
+                const deadlineDefined = !isAbsentScalar(deadline);
                 const needsClarityWarning = clarity === 'vague';
                 return (
                   <li
@@ -301,28 +302,18 @@ export function MeetingInsightsPanel({
                         {text}
                       </p>
                       <div className="font-nunito text-[11px] md:text-xs text-ellieGray space-y-0.5">
-                        {owner != null && String(owner).trim() !== '' && (
-                          <p>
-                            <span className="text-[#6B7A96]">Owner:</span> {String(owner)}
-                          </p>
-                        )}
                         <p>
-                          <span className="text-[#6B7A96]">Deadline:</span>{' '}
-                          {deadlineDefined ? String(deadline) : 'Not defined'}
+                          <span className="text-[#6B7A96]">Owner:</span> {displayOwner(owner)}
+                        </p>
+                        <p>
+                          <span className="text-[#6B7A96]">Deadline:</span> {displayDeadline(deadline)}
                         </p>
                         {!deadlineDefined && <p>⚠️ Define deadline</p>}
-                        {needsClarityWarning && <p>⚠️ Clarify timeline / scope</p>}
-                        {clarity === 'clear' && (
-                          <p>
-                            <span className="text-[#6B7A96]">Clarity:</span>{' '}
-                            Clear
-                          </p>
-                        )}
-                        {blockers != null && String(blockers).trim() !== '' && (
-                          <p>
-                            <span className="text-[#6B7A96]">Blocker:</span> {String(blockers)}
-                          </p>
-                        )}
+                        {needsClarityWarning && <p>⚠️ Define timeline</p>}
+                        {clarity === 'clear' && <p>✅ Ready for execution</p>}
+                        <p>
+                          <span className="text-[#6B7A96]">Blocker:</span> {displayBlocker(blockers)}
+                        </p>
                       </div>
                     </div>
                   </li>

@@ -287,3 +287,92 @@ export async function getFolderMeetingsOverview(
   };
 }
 
+export type WorkspaceGapLine = { icon: string; text: string; key?: string };
+
+export type WorkspaceActionInsightRow = {
+  text: string;
+  meeting_id: string;
+  meeting_title: string;
+  owner: string | null;
+  owner_display: string;
+  deadline: string | null;
+  deadline_display: string;
+  blocked_by: string | null;
+  flags: string[];
+  clarity?: string | null;
+};
+
+export type WorkspaceFolderInsightsResponse = {
+  status: 'on_track' | 'needs_attention' | 'at_risk';
+  status_label: string;
+  reasons: string[];
+  gaps_across_meetings: WorkspaceGapLine[];
+  repeated_issues: string[];
+  action_items: WorkspaceActionInsightRow[];
+  short_summary_bullets: string[];
+  meetings_count: number;
+  source_signature?: string;
+};
+
+/**
+ * Server-computed folder status, aggregated gaps, repeated themes, and action rows.
+ */
+export async function getFolderWorkspaceInsights(
+  folderId: string,
+  userId: string,
+): Promise<WorkspaceFolderInsightsResponse> {
+  const recallaiUrl = buildRecallaiUrl(
+    `/api/folders/${encodeURIComponent(folderId)}/workspace-insights?userId=${encodeURIComponent(userId)}`,
+  );
+  if (!recallaiUrl) {
+    throw new Error('Recallai backend URL is not configured.');
+  }
+
+  const response = await fetch(recallaiUrl, {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+      'ngrok-skip-browser-warning': 'true',
+    },
+  });
+
+  const contentType = response.headers.get('content-type') || '';
+  let body: unknown = null;
+  if (contentType.includes('application/json')) {
+    try {
+      body = await response.json();
+    } catch {
+      body = null;
+    }
+  } else {
+    body = await response.text();
+  }
+
+  if (!response.ok) {
+    const errObj = body && typeof body === 'object' ? (body as Record<string, unknown>) : null;
+    const msg =
+      (errObj && typeof errObj.error === 'string' && errObj.error) ||
+      `Failed to load workspace insights (${response.status})`;
+    throw new Error(msg);
+  }
+
+  const data = body as Record<string, unknown>;
+  const action_items = Array.isArray(data.action_items) ? (data.action_items as WorkspaceActionInsightRow[]) : [];
+
+  return {
+    status: data.status === 'needs_attention' || data.status === 'at_risk' ? data.status : 'on_track',
+    status_label: typeof data.status_label === 'string' ? data.status_label : '🟢 On Track',
+    reasons: Array.isArray(data.reasons) ? (data.reasons as string[]) : [],
+    gaps_across_meetings: Array.isArray(data.gaps_across_meetings)
+      ? (data.gaps_across_meetings as WorkspaceGapLine[])
+      : [],
+    repeated_issues: Array.isArray(data.repeated_issues) ? (data.repeated_issues as string[]) : [],
+    action_items,
+    short_summary_bullets: Array.isArray(data.short_summary_bullets)
+      ? (data.short_summary_bullets as string[])
+      : [],
+    meetings_count: typeof data.meetings_count === 'number' ? data.meetings_count : 0,
+    source_signature: typeof data.source_signature === 'string' ? data.source_signature : undefined,
+  };
+}
+

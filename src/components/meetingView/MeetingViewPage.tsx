@@ -8,6 +8,7 @@ import threeDotsIcon from '../../assets/3dotsinrow.png';
 import twoStarsIcon from '../../assets/twostars.png';
 import { useMeeting, useTranscripts, useAINotes } from '../../hooks/useMeetings';
 import { apiService } from '../../services/api';
+import { displayDeadline, displayOwner } from '../../utils/meetingDisplay';
 
 // Helper functions
 function formatDate(dateString?: string): string {
@@ -508,14 +509,23 @@ export function MeetingViewPage(): JSX.Element {
                             Action Items
                           </h3>
                           <ol className="space-y-3 md:space-y-4 list-decimal list-inside">
-                            {actionItems.map((item: any, index: number) => (
-                              <li key={index} className="font-nunito text-xs md:text-sm lg:text-base text-[#25324B] leading-relaxed">
-                                <span className="font-semibold">{item.text || item}</span>
-                                {item.owner && (
-                                  <span className="text-ellieGray"> (Owner: {item.owner}{item.due ? `, Due: ${item.due}` : ''})</span>
-                                )}
-                              </li>
-                            ))}
+                            {actionItems.map((item: any, index: number) => {
+                              const parts: string[] = [];
+                              if (typeof item === 'object' && item !== null) {
+                                if ('owner' in item) parts.push(`Owner: ${displayOwner(item.owner)}`);
+                                if ('due' in item) parts.push(`Due: ${displayDeadline(item.due)}`);
+                              }
+                              const meta = parts.length > 0 ? ` (${parts.join(', ')})` : '';
+                              return (
+                                <li
+                                  key={index}
+                                  className="font-nunito text-xs md:text-sm lg:text-base text-[#25324B] leading-relaxed"
+                                >
+                                  <span className="font-semibold">{item.text || item}</span>
+                                  {meta ? <span className="text-ellieGray">{meta}</span> : null}
+                                </li>
+                              );
+                            })}
                           </ol>
                         </div>
                       )}
