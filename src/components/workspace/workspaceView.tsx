@@ -407,10 +407,10 @@ export function WorkspaceViewPage(): JSX.Element {
     };
   }, [isMeetingModalOpen, selectedMeetingForModal?.id, profile?.id]);
 
-  const activeFolder = useMemo(
-    () => (activeFolderId ? folders.find((f) => f.id === activeFolderId) ?? null : null),
-    [activeFolderId, folders],
-  );
+  // const activeFolder = useMemo(
+  //   () => (activeFolderId ? folders.find((f) => f.id === activeFolderId) ?? null : null),
+  //   [activeFolderId, folders],
+  // );
 
   const folderMeetingsForOverview = useMemo(
     () => (activeFolderId ? allMeetings.filter((m) => m.folder === activeFolderId) : []),
@@ -1216,10 +1216,9 @@ export function WorkspaceViewPage(): JSX.Element {
                 <div className="space-y-6 lg:pl-3">
                   <div className="rounded-[12px] bg-white p-4 shadow-[0px_18px_30px_rgba(15,23,42,0.05)] md:rounded-[18px] md:p-6 lg:p-8">
                     <div className="mb-4">
-                      <h3 className="font-nunito text-xl font-bold text-[#25324B]">Folder status &amp; actions</h3>
+                      <h3 className="font-nunito text-xl font-bold text-[#25324B]">Workspace Intelligence</h3>
                       <p className="font-nunito text-sm text-[#6B7A96] mt-1">
-                        Status, gaps, and follow-ups across{' '}
-                        <span className="font-semibold text-[#4B5674]">{activeFolder?.name ?? 'selected folder'}</span>.
+                        Status, gaps, and follow-ups across meetings.
                       </p>
                       {folderOverviewStats.total > 0 && (
                         <div className="mt-4 flex flex-wrap gap-2">
