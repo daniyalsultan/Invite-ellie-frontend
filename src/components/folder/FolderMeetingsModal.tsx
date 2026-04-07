@@ -8,6 +8,7 @@ import {
   type Transcription,
   type FolderMeetingsOverviewActionItem,
 } from '../../services/transcriptionApi';
+import { displayDeadline, displayOwner, isAbsentScalar } from '../../utils/meetingDisplay';
 import { MeetingInsightsPanel } from '../meeting/MeetingInsightsPanel';
 import { getSlackStatus } from '../../services/slackApi';
 import { getNotionStatus } from '../../services/notionApi';
@@ -33,6 +34,27 @@ function formatActionItemText(item: unknown): string {
     return (item as { item: string }).item.trim();
   }
   return '';
+}
+
+function extractActionItemMeta(item: unknown) {
+  if (!item || typeof item !== 'object') {
+    return { owner: undefined, deadline: undefined, blockers: undefined, hasMeta: false };
+  }
+  const hasMeta =
+    'owner' in item ||
+    'speaker' in item ||
+    'deadline' in item ||
+    'due' in item ||
+    'blockers' in item;
+  if (!hasMeta) {
+    return { owner: undefined, deadline: undefined, blockers: undefined, hasMeta: false };
+  }
+  return {
+    owner: (item as any).owner ?? (item as any).speaker,
+    deadline: (item as any).deadline ?? (item as any).due,
+    blockers: (item as any).blockers,
+    hasMeta: true,
+  };
 }
 
 /** Date · time for overview summary merge (module-level for useMemo). */
@@ -218,6 +240,7 @@ export function FolderMeetingsModal({ folderId, folderName, isOpen, onClose }: F
       .map((row) => ({
         text: (row.text || '').trim(),
         meetingTitle: (row.meeting_title || 'General').trim() || 'General',
+        original: row,
       }))
       .filter((row) => row.text.length > 0);
 
@@ -226,9 +249,15 @@ export function FolderMeetingsModal({ folderId, folderName, isOpen, onClose }: F
         meetingId: `overview-${idx}`,
         meetingTitle: row.meetingTitle,
         text: row.text,
+        original: row.original,
       }));
     }
-    return allFolderActionItems;
+    return allFolderActionItems.map((row) => ({
+      meetingId: row.meetingId,
+      meetingTitle: row.meetingTitle,
+      text: row.text,
+      original: null,
+    }));
   }, [overviewBackendActions, allFolderActionItems]);
 
   // Filter meetings based on search
@@ -668,19 +697,43 @@ export function FolderMeetingsModal({ folderId, folderName, isOpen, onClose }: F
                             No action items extracted yet. Open a meeting to see details after processing completes.
                           </p>
                         ) : (
-                          <ul className="space-y-2 rounded-2xl border border-gray-200 bg-white p-4">
-                            {displayOverviewActionRows.map((row, idx) => (
-                              <li
-                                key={`${row.meetingId}-${idx}`}
-                                className="flex gap-3 font-nunito text-sm text-[#4B5674] border-b border-gray-100 pb-3 last:border-0 last:pb-0"
-                              >
-                                <span className="text-[#327AAD] font-bold shrink-0">•</span>
-                                <div>
-                                  <p>{row.text}</p>
-                                  <p className="text-xs text-[#94A3C1] mt-1">From: {row.meetingTitle}</p>
-                                </div>
-                              </li>
-                            ))}
+                          <ul className="space-y-3 rounded-2xl border border-gray-200 bg-white p-4">
+                            {displayOverviewActionRows.map((row, idx) => {
+                              const meta = extractActionItemMeta(row.original);
+                              const badges = [] as string[];
+                              if (meta.hasMeta && isAbsentScalar(meta.owner)) badges.push('❌ Assign owner');
+                              if (meta.hasMeta && isAbsentScalar(meta.deadline)) badges.push('⚠️ Define deadline');
+                              if (meta.hasMeta && !isAbsentScalar(meta.blockers)) badges.push(`⚠️ Blocked by ${String(meta.blockers).trim()}`);
+                              return (
+                                <li
+                                  key={`${row.meetingId}-${idx}`}
+                                  className="rounded-2xl border border-[#E5E7EB] bg-[#FAFAFB] p-4"
+                                >
+                                  <div className="flex items-start gap-3">
+                                    <span className="text-[#327AAD] font-bold shrink-0">•</span>
+                                    <div className="min-w-0">
+                                      <p className="font-nunito text-sm font-medium text-[#25324B]">{row.text}</p>
+                                      <p className="text-xs text-[#94A3C1] mt-1">From: {row.meetingTitle}</p>
+                                      {meta.hasMeta && (
+                                        <div className="mt-2 space-y-1 text-xs text-[#4B5674]">
+                                          <p><span className="text-[#6B7A96]">Owner:</span> {displayOwner(meta.owner)}</p>
+                                          <p><span className="text-[#6B7A96]">Deadline:</span> {displayDeadline(meta.deadline)}</p>
+                                        </div>
+                                      )}
+                                      {badges.length > 0 && (
+                                        <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold">
+                                          {badges.map((badge) => (
+                                            <span key={badge} className="inline-flex items-center rounded-full bg-[#FEF3C7] px-2.5 py-1 text-[#92400E]">
+                                              {badge}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </li>
+                              );
+                            })}
                           </ul>
                         )}
                       </section>

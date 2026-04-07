@@ -8,7 +8,7 @@ import threeDotsIcon from '../../assets/3dotsinrow.png';
 import twoStarsIcon from '../../assets/twostars.png';
 import { useMeeting, useTranscripts, useAINotes } from '../../hooks/useMeetings';
 import { apiService } from '../../services/api';
-import { displayDeadline, displayOwner } from '../../utils/meetingDisplay';
+import { displayDeadline, displayOwner, isAbsentScalar } from '../../utils/meetingDisplay';
 
 // Helper functions
 function formatDate(dateString?: string): string {
@@ -510,19 +510,46 @@ export function MeetingViewPage(): JSX.Element {
                           </h3>
                           <ol className="space-y-3 md:space-y-4 list-decimal list-inside">
                             {actionItems.map((item: any, index: number) => {
-                              const parts: string[] = [];
-                              if (typeof item === 'object' && item !== null) {
-                                if ('owner' in item) parts.push(`Owner: ${displayOwner(item.owner)}`);
-                                if ('due' in item) parts.push(`Due: ${displayDeadline(item.due)}`);
-                              }
-                              const meta = parts.length > 0 ? ` (${parts.join(', ')})` : '';
+                              const text = typeof item === 'string' ? item : item?.text || item?.item || '';
+                              const owner = typeof item === 'object' && item !== null ? item.owner ?? item.speaker : undefined;
+                              const deadline = typeof item === 'object' && item !== null ? item.deadline ?? item.due : undefined;
+                              const blockers = typeof item === 'object' && item !== null ? item.blockers : undefined;
+                              const hasMeta =
+                                typeof item === 'object' && item !== null &&
+                                ('owner' in item || 'speaker' in item || 'deadline' in item || 'due' in item || 'blockers' in item);
+                              const ownerMissing = hasMeta && isAbsentScalar(owner);
+                              const deadlineMissing = hasMeta && isAbsentScalar(deadline);
+                              const badged = [] as string[];
+                              if (ownerMissing) badged.push('❌ Assign owner');
+                              if (deadlineMissing) badged.push('⚠️ Define deadline');
+                              if (hasMeta && !isAbsentScalar(blockers)) badged.push(`⚠️ Blocked by ${String(blockers).trim()}`);
                               return (
                                 <li
                                   key={index}
-                                  className="font-nunito text-xs md:text-sm lg:text-base text-[#25324B] leading-relaxed"
+                                  className="rounded-2xl border border-[#E5E7EB] bg-white p-4"
                                 >
-                                  <span className="font-semibold">{item.text || item}</span>
-                                  {meta ? <span className="text-ellieGray">{meta}</span> : null}
+                                  <p className="font-nunito text-xs md:text-sm lg:text-base text-[#25324B] leading-relaxed font-semibold">
+                                    {text}
+                                  </p>
+                                  {hasMeta && (
+                                    <div className="mt-2 space-y-1 text-[11px] md:text-xs text-[#4B5674]">
+                                      <p>
+                                        <span className="text-[#6B7A96]">Owner:</span> {displayOwner(owner)}
+                                      </p>
+                                      <p>
+                                        <span className="text-[#6B7A96]">Deadline:</span> {displayDeadline(deadline)}
+                                      </p>
+                                    </div>
+                                  )}
+                                  {badged.length > 0 && (
+                                    <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold">
+                                      {badged.map((badge) => (
+                                        <span key={badge} className="inline-flex items-center rounded-full bg-[#FEF3C7] px-2.5 py-1 text-[#92400E]">
+                                          {badge}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
                                 </li>
                               );
                             })}

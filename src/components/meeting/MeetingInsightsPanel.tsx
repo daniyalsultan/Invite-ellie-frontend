@@ -1,10 +1,7 @@
 import { useState } from 'react';
 import type { Transcription, ActionItem } from '../../services/transcriptionApi';
-import {
-  normalizeStringArray,
-  normalizeActionItems,
-} from '../../services/transcriptionApi';
-import { displayBlocker, displayDeadline, displayOwner, isAbsentScalar } from '../../utils/meetingDisplay';
+import { normalizeStringArray, normalizeActionItems } from '../../services/transcriptionApi';
+import { isAbsentScalar } from '../../utils/meetingDisplay';
 
 type Props = {
   transcription: Transcription | null;
@@ -83,12 +80,45 @@ export function MeetingInsightsPanel({
     normalizeActionItems(rawActions as unknown) ??
     (Array.isArray(rawActions) ? (rawActions as ActionItem[]) : null);
 
-  const actionTexts = (actions ?? [])
-    .map((item) =>
-      typeof item === 'string' ? item : item?.text || (item as { item?: string })?.item || '',
-    )
-    .map((text) => text.trim())
-    .filter(Boolean);
+  const actionRows = (actions ?? []).map((actionItem: any) => {
+    const text = typeof actionItem === 'string'
+      ? String(actionItem).trim()
+      : String(actionItem?.text || (actionItem as { item?: string })?.item || '').trim();
+    const owner = typeof actionItem === 'object' && actionItem !== null
+      ? actionItem.owner ?? actionItem.speaker
+      : undefined;
+    const deadline = typeof actionItem === 'object' && actionItem !== null
+      ? actionItem.deadline ?? actionItem.due
+      : undefined;
+    const blockers = typeof actionItem === 'object' && actionItem !== null
+      ? actionItem.blockers
+      : undefined;
+    const hasMeta =
+      typeof actionItem === 'object' &&
+      actionItem !== null &&
+      ('owner' in actionItem || 'speaker' in actionItem || 'deadline' in actionItem || 'due' in actionItem || 'blockers' in actionItem);
+
+    const ownerDefined = !isAbsentScalar(owner);
+    const deadlineDefined = !isAbsentScalar(deadline);
+    const flags: string[] = [];
+    if (hasMeta && !ownerDefined) flags.push('assign_owner');
+    if (hasMeta && !deadlineDefined) flags.push('define_deadline');
+    if (hasMeta && !isAbsentScalar(blockers)) flags.push('blocked');
+
+    return {
+      text,
+      owner,
+      deadline,
+      blockers,
+      flags,
+      clarity: typeof actionItem === 'object' && actionItem !== null ? actionItem.clarity : undefined,
+      hasMeta,
+    };
+  }).filter((row) => row.text.length > 0);
+
+  const actionItemsNeedingAttention = actionRows.filter((row) => row.flags.length > 0);
+  const actionItemsReady = actionRows.filter((row) => row.flags.length === 0);
+  const actionTexts = actionRows.map((row) => row.text);
 
   const gapSet = new Set(gaps.map((g) => normalizedText(g)));
   const actionSet = new Set(actionTexts.map((a) => normalizedText(a)));
@@ -272,54 +302,47 @@ export function MeetingInsightsPanel({
         </h3>
         {loading ? (
           <p className="font-nunito text-xs md:text-sm text-[#6B7A96] italic">Loading…</p>
-        ) : actions && actions.length > 0 ? (
-            <ul className="space-y-4">
-              {actions.map((actionItem, index) => {
-                const text =
-                  typeof actionItem === 'string'
-                    ? actionItem
-                    : actionItem?.text || (actionItem as { item?: string })?.item || '';
-                const owner =
-                  typeof actionItem === 'object' && actionItem
-                    ? actionItem.owner ?? actionItem.speaker
-                    : undefined;
-                const deadline =
-                  typeof actionItem === 'object' && actionItem ? actionItem.deadline : undefined;
-                const clarity =
-                  typeof actionItem === 'object' && actionItem ? actionItem.clarity : undefined;
-                const blockers =
-                  typeof actionItem === 'object' && actionItem ? actionItem.blockers : undefined;
-                const deadlineDefined = !isAbsentScalar(deadline);
-                const needsClarityWarning = clarity === 'vague';
-                return (
-                  <li
-                    key={index}
-                    className="flex items-start gap-2 border-b border-green-100/80 pb-3 last:border-0 last:pb-0"
-                  >
-                    <span className="text-green-600 font-bold mt-1">•</span>
-                    <div className="flex-1 space-y-1">
-                      <p className="font-nunito text-xs md:text-sm text-[#25324B] leading-relaxed font-medium">
-                        {text}
-                      </p>
-                      <div className="font-nunito text-[11px] md:text-xs text-ellieGray space-y-0.5">
-                        <p>
-                          <span className="text-[#6B7A96]">Owner:</span> {displayOwner(owner)}
-                        </p>
-                        <p>
-                          <span className="text-[#6B7A96]">Deadline:</span> {displayDeadline(deadline)}
-                        </p>
-                        {!deadlineDefined && <p>⚠️ Define deadline</p>}
-                        {needsClarityWarning && <p>⚠️ Define timeline</p>}
-                        {clarity === 'clear' && <p>✅ Ready for execution</p>}
-                        <p>
-                          <span className="text-[#6B7A96]">Blocker:</span> {displayBlocker(blockers)}
-                        </p>
+        ) : actionRows.length > 0 ? (
+          <div className="space-y-4">
+            {actionItemsNeedingAttention.length > 0 && (
+              <div className="rounded-2xl border border-[#F3C6C6] bg-[#FEF3F2] p-4">
+                <div className="font-nunito text-xs font-semibold uppercase tracking-wide text-[#B91C1C] mb-3">
+                  Needs Attention
+                </div>
+                <ul className="space-y-3">
+                  {actionItemsNeedingAttention.map((row, idx) => (
+                    <li
+                      key={`attention-${idx}`}
+                      className="rounded-2xl border border-[#FBE0E6] bg-white p-4"
+                    >
+                      <p className="font-nunito text-sm font-medium text-[#25324B]">{row.text}</p>
+                      <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold">
+                        {row.flags.map((flag) => (
+                          <span key={flag} className="inline-flex items-center rounded-full bg-[#FEE2E2] px-2.5 py-1 text-[#B91C1C]">
+                            {flag === 'assign_owner' ? '❌ Assign owner' : flag === 'define_deadline' ? '⚠️ Define deadline' : '⚠️ Blocked'}
+                          </span>
+                        ))}
                       </div>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {actionItemsReady.length > 0 && (
+              <div className="rounded-2xl border border-[#DCFCE7] bg-[#F0FDF4] p-4">
+                <div className="font-nunito text-xs font-semibold uppercase tracking-wide text-[#166534] mb-3">
+                  Ready
+                </div>
+                <ul className="space-y-3">
+                  {actionItemsReady.map((row, idx) => (
+                    <li key={`ready-${idx}`} className="rounded-2xl border border-[#D1FAE5] bg-white p-4">
+                      <p className="font-nunito text-sm font-medium text-[#25324B]">{row.text}</p>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
         ) : (
           <p className="font-nunito text-xs md:text-sm text-[#6B7A96]">
             {processing ? 'Extracting action items…' : 'No action items for this meeting.'}

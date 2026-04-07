@@ -417,6 +417,15 @@ export function WorkspaceViewPage(): JSX.Element {
     [allMeetings, activeFolderId],
   );
 
+  const workspaceActionItemGroups = useMemo(() => {
+    if (!workspaceInsights) {
+      return { attention: [], ready: [] };
+    }
+    const attention = workspaceInsights.action_items.filter((row) => row.flags.length > 0);
+    const ready = workspaceInsights.action_items.filter((row) => row.flags.length === 0);
+    return { attention, ready };
+  }, [workspaceInsights]);
+
   const folderOverviewStats = useMemo(() => {
     const withSummary = folderMeetingsForOverview.filter((m) => (m.summary || '').trim().length > 0).length;
     const totalActions = folderMeetingsForOverview.reduce(
@@ -1327,27 +1336,66 @@ export function WorkspaceViewPage(): JSX.Element {
                             No action items extracted yet.
                           </p>
                         ) : (
-                          <ul className="max-h-96 space-y-4 overflow-y-auto rounded-2xl border border-gray-200 bg-white p-4">
-                            {workspaceInsights.action_items.map((row, idx) => (
-                              <li
-                                key={`${row.meeting_id}-${idx}`}
-                                className="border-b border-gray-100 pb-4 last:border-0 last:pb-0"
-                              >
-                                <p className="font-nunito text-sm font-medium text-[#25324B]">{row.text}</p>
-                                <p className="font-nunito text-xs text-[#6B7A96] mt-1">
-                                  Owner: {row.owner_display} · Deadline: {row.deadline_display}
-                                </p>
-                                <p className="font-nunito text-xs text-[#94A3C1] mt-0.5">From: {row.meeting_title}</p>
-                                {row.flags.length > 0 ? (
-                                  <div className="mt-2 space-y-0.5 font-nunito text-xs text-[#4B5674]">
-                                    {row.flags.map((f) => (
-                                      <p key={f}>{workspaceInsightFlagLine(f, row.blocked_by)}</p>
-                                    ))}
-                                  </div>
-                                ) : null}
-                              </li>
-                            ))}
-                          </ul>
+                          <div className="space-y-4 max-h-96 overflow-y-auto rounded-2xl border border-gray-200 bg-white p-4">
+                            {workspaceActionItemGroups.attention.length > 0 && (
+                              <div className="space-y-3">
+                                <div className="rounded-2xl bg-[#FFF5F5] border border-[#F3C6C6] px-3 py-2 text-sm font-semibold text-[#B12D2D]">
+                                  Needs Attention
+                                </div>
+                                <ul className="space-y-3">
+                                  {workspaceActionItemGroups.attention.map((row, idx) => (
+                                    <li
+                                      key={`attention-${row.meeting_id}-${idx}`}
+                                      className="rounded-2xl border border-[#F3C6C6] bg-[#FFFBFA] p-4"
+                                    >
+                                      <p className="font-nunito text-sm font-medium text-[#25324B]">{row.text}</p>
+                                      <p className="font-nunito text-xs text-[#6B7A96] mt-1">
+                                        Owner: {row.owner_display} · Deadline: {row.deadline_display}
+                                      </p>
+                                      <p className="font-nunito text-xs text-[#94A3C1] mt-0.5">From: {row.meeting_title}</p>
+                                      <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold">
+                                        {row.flags.map((f) => (
+                                          <span
+                                            key={f}
+                                            className={`inline-flex items-center rounded-full px-2.5 py-1 ${
+                                              f === 'assign_owner'
+                                                ? 'bg-[#FEE2E2] text-[#B91C1C]'
+                                                : f === 'define_deadline'
+                                                ? 'bg-[#FEF9C3] text-[#92400E]'
+                                                : 'bg-[#E0F2FE] text-[#0369A1]'
+                                            }`}
+                                          >
+                                            {workspaceInsightFlagLine(f, row.blocked_by)}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                            {workspaceActionItemGroups.ready.length > 0 && (
+                              <div className="space-y-3">
+                                <div className="rounded-2xl bg-[#F0FDF4] border border-[#BBF7D0] px-3 py-2 text-sm font-semibold text-[#166534]">
+                                  Ready
+                                </div>
+                                <ul className="space-y-3">
+                                  {workspaceActionItemGroups.ready.map((row, idx) => (
+                                    <li
+                                      key={`ready-${row.meeting_id}-${idx}`}
+                                      className="rounded-2xl border border-[#D1FAE5] bg-[#F7FEF6] p-4"
+                                    >
+                                      <p className="font-nunito text-sm font-medium text-[#25324B]">{row.text}</p>
+                                      <p className="font-nunito text-xs text-[#6B7A96] mt-1">
+                                        Owner: {row.owner_display} · Deadline: {row.deadline_display}
+                                      </p>
+                                      <p className="font-nunito text-xs text-[#94A3C1] mt-0.5">From: {row.meeting_title}</p>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                          </div>
                         )}
                       </section>
 

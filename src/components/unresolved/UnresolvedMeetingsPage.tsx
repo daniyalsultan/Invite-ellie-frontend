@@ -3,6 +3,7 @@ import { DashboardLayout } from '../sidebar';
 import { useProfile } from '../../context/ProfileContext';
 import { useAuth } from '../../context/AuthContext';
 import { getTranscriptions, type Transcription } from '../../services/transcriptionApi';
+import { displayDeadline, displayOwner, isAbsentScalar } from '../../utils/meetingDisplay';
 import { listFolders, createFolder, type FolderRecord, listWorkspaces } from '../workspace/workspaceApi';
 import { getUserWorkspaceByEmail, extractEmailDomain, getWorkspaceNameFromDomain } from '../../utils/workspaceAutoCreate';
 import searchIcon from '../../assets/Vector.png';
@@ -723,13 +724,42 @@ export function UnresolvedMeetingsPage(): JSX.Element {
                         <h3 className="font-nunito text-sm font-semibold text-[#25324B] mb-2">
                           Action Items
                         </h3>
-                        <ul className="space-y-2 text-sm text-[#4B5674]">
-                          {selectedMeeting.action_items.map((item: any, index: number) => (
-                            <li key={index} className="flex gap-2">
-                              <span>•</span>
-                              <span>{typeof item === 'string' ? item : item.text || item.item}</span>
-                            </li>
-                          ))}
+                        <ul className="space-y-3">
+                          {selectedMeeting.action_items.map((item: any, index: number) => {
+                            const text = typeof item === 'string' ? String(item).trim() : item.text || item.item || '';
+                            const owner = typeof item === 'object' && item !== null ? item.owner ?? item.speaker : undefined;
+                            const deadline = typeof item === 'object' && item !== null ? item.deadline ?? item.due : undefined;
+                            const blockers = typeof item === 'object' && item !== null ? item.blockers : undefined;
+                            const hasMeta =
+                              typeof item === 'object' && item !== null &&
+                              ('owner' in item || 'speaker' in item || 'deadline' in item || 'due' in item || 'blockers' in item);
+                            const ownerMissing = hasMeta && isAbsentScalar(owner);
+                            const deadlineMissing = hasMeta && isAbsentScalar(deadline);
+                            const badges = [] as string[];
+                            if (ownerMissing) badges.push('❌ Assign owner');
+                            if (deadlineMissing) badges.push('⚠️ Define deadline');
+                            if (hasMeta && !isAbsentScalar(blockers)) badges.push(`⚠️ Blocked by ${String(blockers).trim()}`);
+                            return (
+                              <li key={index} className="rounded-2xl border border-[#E5E7EB] bg-[#FBFBFB] p-4">
+                                <p className="font-nunito text-sm text-[#25324B] leading-relaxed">{text}</p>
+                                {hasMeta && (
+                                  <div className="mt-2 space-y-1 text-xs text-[#4B5674]">
+                                    <p><span className="text-[#6B7A96]">Owner:</span> {displayOwner(owner)}</p>
+                                    <p><span className="text-[#6B7A96]">Deadline:</span> {displayDeadline(deadline)}</p>
+                                  </div>
+                                )}
+                                {badges.length > 0 && (
+                                  <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold">
+                                    {badges.map((badge) => (
+                                      <span key={badge} className="inline-flex items-center rounded-full bg-[#FEF3C7] px-2.5 py-1 text-[#92400E]">
+                                        {badge}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                              </li>
+                            );
+                          })}
                         </ul>
                       </div>
                     )}
