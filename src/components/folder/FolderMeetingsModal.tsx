@@ -111,17 +111,17 @@ export function FolderMeetingsModal({ folderId, folderName, isOpen, onClose }: F
       try {
         setLoading(true);
         setError(null);
-        
+
         // Fetch all transcriptions and filter by folder_id
         const allTranscriptions = await getTranscriptions(profile.id || '');
-        
+
         // Filter transcriptions by folder_id
         // Note: The folder_id should be in the transcription data from Recall server
         const folderMeetings = allTranscriptions.filter((t: any) => {
           // Check if folder_id matches (could be in different places in the response)
           return t.folder_id === folderId || t.folderId === folderId;
         });
-        
+
         setMeetings(folderMeetings);
       } catch (err) {
         console.error('Error fetching folder meetings:', err);
@@ -323,21 +323,21 @@ export function FolderMeetingsModal({ folderId, folderName, isOpen, onClose }: F
       setError('Please log in to export transcriptions');
       return;
     }
-  
+
     const exportKey = `${transcriptionId}-${exportType}`;
-    
+
     try {
       setExporting(prev => ({ ...prev, [exportKey]: true }));
       setError(null);
       setExportMessage(null);
-  
+
       // Check connection status first - if not connected, redirect to connect page
       let isConnected = false;
-      
+
       if (exportType === 'slack') {
         const slackStatus = await getSlackStatus(profile.id);
         isConnected = slackStatus.connected;
-        
+
         if (!isConnected) {
           setExporting(prev => ({ ...prev, [exportKey]: false }));
           setError('You need to connect your Slack account first to export transcriptions. Redirecting to connection page...');
@@ -349,7 +349,7 @@ export function FolderMeetingsModal({ folderId, folderName, isOpen, onClose }: F
       } else if (exportType === 'notion') {
         const notionStatus = await getNotionStatus(profile.id);
         isConnected = notionStatus.connected;
-        
+
         if (!isConnected) {
           setExporting(prev => ({ ...prev, [exportKey]: false }));
           setError('You need to connect your Notion account first to export transcriptions. Redirecting to connection page...');
@@ -361,7 +361,7 @@ export function FolderMeetingsModal({ folderId, folderName, isOpen, onClose }: F
       } else if (exportType === 'hubspot') {
         const hubspotStatus = await getHubSpotStatus(profile.id);
         isConnected = hubspotStatus.connected;
-        
+
         if (!isConnected) {
           setExporting(prev => ({ ...prev, [exportKey]: false }));
           setError('You need to connect your HubSpot account first to export transcriptions. Redirecting to connection page...');
@@ -371,13 +371,13 @@ export function FolderMeetingsModal({ folderId, folderName, isOpen, onClose }: F
           return;
         }
       }
-  
+
       // Fetch full transcription data if not already loaded
       let fullTranscriptionData = fullTranscription;
       if (!fullTranscriptionData || fullTranscriptionData.id !== transcriptionId) {
         fullTranscriptionData = await getTranscription(transcriptionId, profile.id);
       }
-      
+
       // Prepare transcript text
       let transcriptText = '';
       if (fullTranscriptionData.transcript_text) {
@@ -387,10 +387,10 @@ export function FolderMeetingsModal({ folderId, folderName, isOpen, onClose }: F
           .map((u: any) => `${u.speaker || 'Unknown'}: ${u.text || ''}`)
           .join('\n');
       }
-  
+
       // Prepare action items
       const actionItems = fullTranscriptionData.action_items || [];
-  
+
       // Prepare export data
       const exportData = {
         user_id: profile.id,
@@ -401,10 +401,10 @@ export function FolderMeetingsModal({ folderId, folderName, isOpen, onClose }: F
         action_items: actionItems,
         channel: '#general', // Default Slack channel
       };
-  
+
       // Use direct Railway backend URL
       const exportUrl = `https://web-production-07092.up.railway.app/api/${exportType}/export`;
-      
+
       // Call export endpoint
       const response = await fetch(exportUrl, {
         method: 'POST',
@@ -414,11 +414,11 @@ export function FolderMeetingsModal({ folderId, folderName, isOpen, onClose }: F
         },
         body: JSON.stringify(exportData),
       });
-  
+
       // Check content type before parsing
       const contentType = response.headers.get('content-type');
       let result: any;
-      
+
       if (contentType && contentType.includes('application/json')) {
         result = await response.json();
       } else {
@@ -428,11 +428,11 @@ export function FolderMeetingsModal({ folderId, folderName, isOpen, onClose }: F
         }
         throw new Error(`Server error ${response.status}. Backend may not be running.`);
       }
-  
+
       if (!response.ok) {
         throw new Error(result.error || `Export failed: ${response.status}`);
       }
-  
+
       if (result.success) {
         const platformName = exportType === 'slack' ? 'Slack' : exportType === 'notion' ? 'Notion' : 'HubSpot';
         setExportMessage({
@@ -443,7 +443,7 @@ export function FolderMeetingsModal({ folderId, folderName, isOpen, onClose }: F
       } else {
         throw new Error(result.error || `Export failed`);
       }
-      
+
     } catch (error) {
       console.error(`[Export ${exportType.toUpperCase()}] Error:`, error);
       const errorMessage = error instanceof Error ? error.message : `Failed to export to ${exportType}`;
@@ -540,11 +540,10 @@ export function FolderMeetingsModal({ folderId, folderName, isOpen, onClose }: F
                       setFullTranscription(null);
                       setTranscriptContent(null);
                     }}
-                    className={`w-full text-left p-4 rounded-lg border cursor-pointer transition-colors ${
-                      detailPanel === 'folder_overview'
+                    className={`w-full text-left p-4 rounded-lg border cursor-pointer transition-colors ${detailPanel === 'folder_overview'
                         ? 'border-[#327AAD] bg-[#327AAD]/5'
                         : 'border-gray-200 bg-white hover:bg-gray-50'
-                    }`}
+                      }`}
                   >
                     <h3 className="font-nunito text-base font-bold text-[#25324B]">Meetings Overview</h3>
                     <p className="font-nunito text-xs text-[#6B7A96] mt-1">
@@ -572,11 +571,10 @@ export function FolderMeetingsModal({ folderId, folderName, isOpen, onClose }: F
                           setDetailPanel('meeting');
                           setSelectedMeeting(meeting);
                         }}
-                        className={`p-4 rounded-lg border cursor-pointer transition-colors ${
-                          detailPanel === 'meeting' && selectedMeeting?.id === meeting.id
+                        className={`p-4 rounded-lg border cursor-pointer transition-colors ${detailPanel === 'meeting' && selectedMeeting?.id === meeting.id
                             ? 'border-[#327AAD] bg-[#327AAD]/5'
                             : 'border-gray-200 bg-white hover:bg-gray-50'
-                        }`}
+                          }`}
                       >
                         <h3 className="font-nunito text-base font-bold text-[#25324B] line-clamp-2">
                           {meeting.meeting_title || 'Untitled Meeting'}
@@ -776,7 +774,7 @@ export function FolderMeetingsModal({ folderId, folderName, isOpen, onClose }: F
                         ) : (
                           <>
                             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 5.042a2.528 2.528 0 0 1-2.52-2.52A2.528 2.528 0 0 1 18.956 0a2.528 2.528 0 0 1 2.522 2.522v2.52h-2.522zM18.956 6.313a2.528 2.528 0 0 1 2.522 2.521 2.528 2.528 0 0 1-2.522 2.521h-6.313A2.528 2.528 0 0 1 10.121 8.834a2.528 2.528 0 0 1 2.522-2.521h6.313zM15.165 18.956a2.528 2.528 0 0 1 2.521 2.522A2.528 2.528 0 0 1 15.165 24a2.528 2.528 0 0 1-2.522-2.522v-2.52h2.522zM13.894 18.956a2.528 2.528 0 0 1-2.522-2.521 2.528 2.528 0 0 1 2.522-2.521h6.313A2.528 2.528 0 0 1 22.729 16.435a2.528 2.528 0 0 1-2.522 2.521h-6.313z"/>
+                              <path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 5.042a2.528 2.528 0 0 1-2.52-2.52A2.528 2.528 0 0 1 18.956 0a2.528 2.528 0 0 1 2.522 2.522v2.52h-2.522zM18.956 6.313a2.528 2.528 0 0 1 2.522 2.521 2.528 2.528 0 0 1-2.522 2.521h-6.313A2.528 2.528 0 0 1 10.121 8.834a2.528 2.528 0 0 1 2.522-2.521h6.313zM15.165 18.956a2.528 2.528 0 0 1 2.521 2.522A2.528 2.528 0 0 1 15.165 24a2.528 2.528 0 0 1-2.522-2.522v-2.52h2.522zM13.894 18.956a2.528 2.528 0 0 1-2.522-2.521 2.528 2.528 0 0 1 2.522-2.521h6.313A2.528 2.528 0 0 1 22.729 16.435a2.528 2.528 0 0 1-2.522 2.521h-6.313z" />
                             </svg>
                             Slack
                           </>
@@ -800,7 +798,7 @@ export function FolderMeetingsModal({ folderId, folderName, isOpen, onClose }: F
                         ) : (
                           <>
                             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M4.459 4.208c.746.606 1.026.56 2.428.466l13.215-.793c.28 0 .047-.28-.046-.326L17.86 1.968c-.42-.326-.981-.7-2.055-.607L3.01 2.295c-.466.046-.56.28-.374.466zm.793 3.08v13.904c0 .747.373 1.027 1.214.98l14.523-.84c.841-.046.935-.56.935-1.167V6.354c0-.606-.233-.933-.748-.887l-15.177.887c-.56.047-.747.327-.747.933zm14.337.745c.093.42 0 .841-.42.888l-.7.14v10.264c-.608.327-1.168.514-1.635.514-.748 0-.935-.234-1.495-.933l-4.577-7.186v6.952L12.21 19s0 .841-1.168.841l-3.222.186c-.093-.186 0-.653.327-.746l.84-.233V9.854L7.822 9.76c-.094-.42.14-1.026.793-1.073l3.456-.233 4.764 7.279v-6.44l-1.215-.139c-.093-.514.28-.887.747-.933z"/>
+                              <path d="M4.459 4.208c.746.606 1.026.56 2.428.466l13.215-.793c.28 0 .047-.28-.046-.326L17.86 1.968c-.42-.326-.981-.7-2.055-.607L3.01 2.295c-.466.046-.56.28-.374.466zm.793 3.08v13.904c0 .747.373 1.027 1.214.98l14.523-.84c.841-.046.935-.56.935-1.167V6.354c0-.606-.233-.933-.748-.887l-15.177.887c-.56.047-.747.327-.747.933zm14.337.745c.093.42 0 .841-.42.888l-.7.14v10.264c-.608.327-1.168.514-1.635.514-.748 0-.935-.234-1.495-.933l-4.577-7.186v6.952L12.21 19s0 .841-1.168.841l-3.222.186c-.093-.186 0-.653.327-.746l.84-.233V9.854L7.822 9.76c-.094-.42.14-1.026.793-1.073l3.456-.233 4.764 7.279v-6.44l-1.215-.139c-.093-.514.28-.887.747-.933z" />
                             </svg>
                             Notion
                           </>
@@ -825,7 +823,7 @@ export function FolderMeetingsModal({ folderId, folderName, isOpen, onClose }: F
                         ) : (
                           <>
                             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M17.1 8.6V2.4h-4.8v6.2h4.8zm-.5-7.1h5.3c.3 0 .5.2.5.5v7.1c0 .3-.2.5-.5.5h-5.3c-.3 0-.5-.2-.5-.5V2c0-.3.2-.5.5-.5zm-6.1 14.3c0-2.9-2.4-5.3-5.3-5.3S0 12.9 0 15.8s2.4 5.3 5.3 5.3 5.3-2.4 5.3-5.3zm-5.3 3.8c-2.1 0-3.8-1.7-3.8-3.8s1.7-3.8 3.8-3.8 3.8 1.7 3.8 3.8-1.7 3.8-3.8 3.8zm14.4-3.8c0-2.9-2.4-5.3-5.3-5.3s-5.3 2.4-5.3 5.3 2.4 5.3 5.3 5.3 5.3-2.4 5.3-5.3zm-5.3 3.8c-2.1 0-3.8-1.7-3.8-3.8s1.7-3.8 3.8-3.8 3.8 1.7 3.8 3.8-1.7 3.8-3.8 3.8zm-2.7-6.1V2.4H6.4v6.2h4.8zm-5.3 0H1.8c-.3 0-.5-.2-.5-.5V2c0-.3.2-.5.5-.5h5.3c.3 0 .5.2.5.5v6.1c0 .3-.2.5-.5.5z"/>
+                              <path d="M17.1 8.6V2.4h-4.8v6.2h4.8zm-.5-7.1h5.3c.3 0 .5.2.5.5v7.1c0 .3-.2.5-.5.5h-5.3c-.3 0-.5-.2-.5-.5V2c0-.3.2-.5.5-.5zm-6.1 14.3c0-2.9-2.4-5.3-5.3-5.3S0 12.9 0 15.8s2.4 5.3 5.3 5.3 5.3-2.4 5.3-5.3zm-5.3 3.8c-2.1 0-3.8-1.7-3.8-3.8s1.7-3.8 3.8-3.8 3.8 1.7 3.8 3.8-1.7 3.8-3.8 3.8zm14.4-3.8c0-2.9-2.4-5.3-5.3-5.3s-5.3 2.4-5.3 5.3 2.4 5.3 5.3 5.3 5.3-2.4 5.3-5.3zm-5.3 3.8c-2.1 0-3.8-1.7-3.8-3.8s1.7-3.8 3.8-3.8 3.8 1.7 3.8 3.8-1.7 3.8-3.8 3.8zm-2.7-6.1V2.4H6.4v6.2h4.8zm-5.3 0H1.8c-.3 0-.5-.2-.5-.5V2c0-.3.2-.5.5-.5h5.3c.3 0 .5.2.5.5v6.1c0 .3-.2.5-.5.5z" />
                             </svg>
                             HubSpot
                           </>
@@ -844,11 +842,10 @@ export function FolderMeetingsModal({ folderId, folderName, isOpen, onClose }: F
 
                 {exportMessage && (
                   <div
-                    className={`mx-6 mt-4 flex-shrink-0 rounded-lg border p-3 font-nunito text-sm ${
-                      exportMessage.type === 'success'
+                    className={`mx-6 mt-4 flex-shrink-0 rounded-lg border p-3 font-nunito text-sm ${exportMessage.type === 'success'
                         ? 'border-green-200 bg-green-50 text-green-700'
                         : 'border-red-200 bg-red-50 text-red-700'
-                    }`}
+                      }`}
                   >
                     {exportMessage.text}
                   </div>
@@ -862,6 +859,10 @@ export function FolderMeetingsModal({ folderId, folderName, isOpen, onClose }: F
                         transcription={fullTranscription ?? selectedMeeting}
                         loading={loadingTranscript}
                         compact
+                        isFirstMeetingInFolder={
+                          meetingsNewestFirst.length > 0 &&
+                          meetingsNewestFirst[meetingsNewestFirst.length - 1].id === selectedMeeting?.id
+                        }
                       />
                     </div>
                   </div>
@@ -885,42 +886,42 @@ export function FolderMeetingsModal({ folderId, folderName, isOpen, onClose }: F
                     </div>
 
                     <div className="min-h-0 flex-1 overflow-y-auto p-6">
-                    {loadingTranscript ? (
-                      <div className="text-center py-8 text-gray-500 font-nunito text-sm">Loading transcript...</div>
-                    ) : !filteredTranscriptSegments || (Array.isArray(filteredTranscriptSegments) && filteredTranscriptSegments.length === 0) ? (
-                      <div className="text-center py-8 text-gray-500 font-nunito text-sm">
-                        {transcriptionSearchQuery ? 'No transcript segments match your search' : 'No transcript available'}
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        {Array.isArray(filteredTranscriptSegments) && filteredTranscriptSegments.map((segment: any, index: number) => (
-                          <div key={segment.id || index} className="flex gap-4">
-                            <div className="flex-shrink-0">
-                              <div className="w-10 h-10 rounded-full bg-[#327AAD]/10 flex items-center justify-center">
-                                <span className="font-nunito text-sm font-semibold text-[#327AAD]">
-                                  {segment.speaker?.charAt(0) || '?'}
-                                </span>
-                              </div>
-                            </div>
-                            <div className="flex-1">
-                              <div className="flex items-center justify-between mb-1">
-                                <div className="font-nunito text-sm font-semibold text-[#25324B]">
-                                  {segment.speaker || 'Unknown Speaker'}
-                                </div>
-                                {segment.start && (
-                                  <span className="text-xs text-gray-400 font-nunito">
-                                    {Math.floor(segment.start / 60)}:{(segment.start % 60).toString().padStart(2, '0')}
+                      {loadingTranscript ? (
+                        <div className="text-center py-8 text-gray-500 font-nunito text-sm">Loading transcript...</div>
+                      ) : !filteredTranscriptSegments || (Array.isArray(filteredTranscriptSegments) && filteredTranscriptSegments.length === 0) ? (
+                        <div className="text-center py-8 text-gray-500 font-nunito text-sm">
+                          {transcriptionSearchQuery ? 'No transcript segments match your search' : 'No transcript available'}
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          {Array.isArray(filteredTranscriptSegments) && filteredTranscriptSegments.map((segment: any, index: number) => (
+                            <div key={segment.id || index} className="flex gap-4">
+                              <div className="flex-shrink-0">
+                                <div className="w-10 h-10 rounded-full bg-[#327AAD]/10 flex items-center justify-center">
+                                  <span className="font-nunito text-sm font-semibold text-[#327AAD]">
+                                    {segment.speaker?.charAt(0) || '?'}
                                   </span>
-                                )}
+                                </div>
                               </div>
-                              <div className="font-nunito text-sm text-[#4B5674] leading-relaxed">
-                                {segment.text || segment.words?.map((w: any) => w.text).join(' ') || ''}
+                              <div className="flex-1">
+                                <div className="flex items-center justify-between mb-1">
+                                  <div className="font-nunito text-sm font-semibold text-[#25324B]">
+                                    {segment.speaker || 'Unknown Speaker'}
+                                  </div>
+                                  {segment.start && (
+                                    <span className="text-xs text-gray-400 font-nunito">
+                                      {Math.floor(segment.start / 60)}:{(segment.start % 60).toString().padStart(2, '0')}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="font-nunito text-sm text-[#4B5674] leading-relaxed">
+                                  {segment.text || segment.words?.map((w: any) => w.text).join(' ') || ''}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

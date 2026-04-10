@@ -59,7 +59,7 @@ export function TranscriptionsPage(): JSX.Element {
         setError(null);
         const data = await getTranscriptions(profile.id || '');
         setTranscriptions(data);
-        
+
         // Update selectedTranscription if it's still selected
         if (selectedTranscription) {
           const updated = data.find(t => t.id === selectedTranscription.id);
@@ -130,7 +130,7 @@ export function TranscriptionsPage(): JSX.Element {
     }
 
     const query = transcriptionSearchQuery.toLowerCase();
-    
+
     // Handle array of utterances or words
     if (Array.isArray(transcriptContent)) {
       return transcriptContent.filter((item: any) => {
@@ -159,7 +159,7 @@ export function TranscriptionsPage(): JSX.Element {
     }
 
     const deleteKey = transcriptionId;
-    
+
     try {
       setDeleting(prev => ({ ...prev, [deleteKey]: true }));
       setError(null);
@@ -203,7 +203,7 @@ export function TranscriptionsPage(): JSX.Element {
 
       // Remove from local state
       setTranscriptions(prev => prev.filter(t => t.id !== transcriptionId));
-      
+
       // Clear selection if deleted meeting was selected
       if (selectedTranscription?.id === transcriptionId) {
         setSelectedTranscription(null);
@@ -215,7 +215,7 @@ export function TranscriptionsPage(): JSX.Element {
         text: 'Meeting deleted successfully!'
       });
       setTimeout(() => setExportMessage(null), 3000);
-      
+
     } catch (error) {
       console.error('[Delete Meeting] Error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to delete meeting';
@@ -230,21 +230,21 @@ export function TranscriptionsPage(): JSX.Element {
       setError('Please log in to export transcriptions');
       return;
     }
-  
+
     const exportKey = `${transcriptionId}-${exportType}`;
-    
+
     try {
       setExporting(prev => ({ ...prev, [exportKey]: true }));
       setError(null);
       setExportMessage(null);
-  
+
       // Check connection status first - if not connected, redirect to connect page
       let isConnected = false;
-      
+
       if (exportType === 'slack') {
         const slackStatus = await getSlackStatus(profile.id);
         isConnected = slackStatus.connected;
-        
+
         if (!isConnected) {
           setExporting(prev => ({ ...prev, [exportKey]: false }));
           setError('You need to connect your Slack account first to export transcriptions. Redirecting to connection page...');
@@ -256,7 +256,7 @@ export function TranscriptionsPage(): JSX.Element {
       } else if (exportType === 'notion') {
         const notionStatus = await getNotionStatus(profile.id);
         isConnected = notionStatus.connected;
-        
+
         if (!isConnected) {
           setExporting(prev => ({ ...prev, [exportKey]: false }));
           setError('You need to connect your Notion account first to export transcriptions. Redirecting to connection page...');
@@ -268,7 +268,7 @@ export function TranscriptionsPage(): JSX.Element {
       } else if (exportType === 'hubspot') {
         const hubspotStatus = await getHubSpotStatus(profile.id);
         isConnected = hubspotStatus.connected;
-        
+
         if (!isConnected) {
           setExporting(prev => ({ ...prev, [exportKey]: false }));
           setError('You need to connect your HubSpot account first to export transcriptions. Redirecting to connection page...');
@@ -278,10 +278,10 @@ export function TranscriptionsPage(): JSX.Element {
           return;
         }
       }
-  
+
       // Fetch full transcription data
       const fullTranscription = await getTranscription(transcriptionId, profile.id);
-      
+
       // Prepare transcript text
       let transcriptText = '';
       if (fullTranscription.transcript_text) {
@@ -291,10 +291,10 @@ export function TranscriptionsPage(): JSX.Element {
           .map((u: any) => `${u.speaker || 'Unknown'}: ${u.text || ''}`)
           .join('\n');
       }
-  
+
       // Prepare action items
       const actionItems = fullTranscription.action_items || [];
-  
+
       // Prepare export data
       const exportData = {
         user_id: profile.id,
@@ -305,13 +305,13 @@ export function TranscriptionsPage(): JSX.Element {
         action_items: actionItems,
         channel: '#general', // Default Slack channel
       };
-  
+
       // ✅ FIXED: Always use direct Railway backend URL (bypasses getApiBaseUrl() proxy issues)
       const exportUrl = `https://web-production-07092.up.railway.app/api/${exportType}/export`;
-      
+
       console.log('Exporting to:', exportUrl);
       console.log('[FIXED] Using direct Railway backend URL - no proxy confusion');
-  
+
       // Call export endpoint
       const response = await fetch(exportUrl, {
         method: 'POST',
@@ -321,28 +321,28 @@ export function TranscriptionsPage(): JSX.Element {
         },
         body: JSON.stringify(exportData),
       });
-  
+
       // Check content type before parsing
       const contentType = response.headers.get('content-type');
       let result: any;
-      
+
       if (contentType && contentType.includes('application/json')) {
         result = await response.json();
         console.log('Export response:', result);
       } else {
         const text = await response.text();
         console.error('Non-JSON response received:', text.substring(0, 200));
-        
+
         if (response.status === 404) {
           throw new Error('Backend /api/slack/export endpoint not deployed. Check Railway deployment.');
         }
         throw new Error(`Server error ${response.status}. Backend may not be running.`);
       }
-  
+
       if (!response.ok) {
         throw new Error(result.error || `Export failed: ${response.status}`);
       }
-  
+
       if (result.success) {
         const platformName = exportType === 'slack' ? 'Slack' : exportType === 'notion' ? 'Notion' : 'HubSpot';
         setExportMessage({
@@ -353,7 +353,7 @@ export function TranscriptionsPage(): JSX.Element {
       } else {
         throw new Error(result.error || `Export failed`);
       }
-      
+
     } catch (error) {
       console.error(`[Export ${exportType.toUpperCase()}] Error:`, error);
       const errorMessage = error instanceof Error ? error.message : `Failed to export to ${exportType}`;
@@ -362,7 +362,7 @@ export function TranscriptionsPage(): JSX.Element {
       setExporting(prev => ({ ...prev, [exportKey]: false }));
     }
   };
-  
+
 
   return (
     <DashboardLayout activeTab="/transcriptions">
@@ -398,11 +398,10 @@ export function TranscriptionsPage(): JSX.Element {
           )}
 
           {exportMessage && (
-            <div className={`mb-4 p-4 rounded-lg border ${
-              exportMessage.type === 'success' 
-                ? 'bg-green-50 border-green-200 text-green-700' 
+            <div className={`mb-4 p-4 rounded-lg border ${exportMessage.type === 'success'
+                ? 'bg-green-50 border-green-200 text-green-700'
                 : 'bg-red-50 border-red-200 text-red-700'
-            }`}>
+              }`}>
               {exportMessage.text}
             </div>
           )}
@@ -639,11 +638,10 @@ export function TranscriptionsPage(): JSX.Element {
                               </span>
                             </td>
                             <td className="py-4 px-4 whitespace-nowrap">
-                              <span className={`font-nunito text-base font-medium capitalize ${
-                                transcription.status === 'completed' ? 'text-green-600' :
-                                transcription.status === 'processing' ? 'text-yellow-600' :
-                                'text-gray-600'
-                              }`}>
+                              <span className={`font-nunito text-base font-medium capitalize ${transcription.status === 'completed' ? 'text-green-600' :
+                                  transcription.status === 'processing' ? 'text-yellow-600' :
+                                    'text-gray-600'
+                                }`}>
                                 {transcription.status || 'unknown'}
                               </span>
                             </td>
@@ -670,7 +668,7 @@ export function TranscriptionsPage(): JSX.Element {
                                   ) : (
                                     <>
                                       <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                                        <path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 5.042a2.528 2.528 0 0 1-2.52-2.52A2.528 2.528 0 0 1 18.956 0a2.528 2.528 0 0 1 2.522 2.522v2.52h-2.522zM18.956 6.313a2.528 2.528 0 0 1 2.522 2.521 2.528 2.528 0 0 1-2.522 2.521h-6.313A2.528 2.528 0 0 1 10.121 8.834a2.528 2.528 0 0 1 2.522-2.521h6.313zM15.165 18.956a2.528 2.528 0 0 1 2.521 2.522A2.528 2.528 0 0 1 15.165 24a2.528 2.528 0 0 1-2.522-2.522v-2.52h2.522zM13.894 18.956a2.528 2.528 0 0 1-2.522-2.521 2.528 2.528 0 0 1 2.522-2.521h6.313A2.528 2.528 0 0 1 22.729 16.435a2.528 2.528 0 0 1-2.522 2.521h-6.313z"/>
+                                        <path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 5.042a2.528 2.528 0 0 1-2.52-2.52A2.528 2.528 0 0 1 18.956 0a2.528 2.528 0 0 1 2.522 2.522v2.52h-2.522zM18.956 6.313a2.528 2.528 0 0 1 2.522 2.521 2.528 2.528 0 0 1-2.522 2.521h-6.313A2.528 2.528 0 0 1 10.121 8.834a2.528 2.528 0 0 1 2.522-2.521h6.313zM15.165 18.956a2.528 2.528 0 0 1 2.521 2.522A2.528 2.528 0 0 1 15.165 24a2.528 2.528 0 0 1-2.522-2.522v-2.52h2.522zM13.894 18.956a2.528 2.528 0 0 1-2.522-2.521 2.528 2.528 0 0 1 2.522-2.521h6.313A2.528 2.528 0 0 1 22.729 16.435a2.528 2.528 0 0 1-2.522 2.521h-6.313z" />
                                       </svg>
                                       Slack
                                     </>
@@ -697,7 +695,7 @@ export function TranscriptionsPage(): JSX.Element {
                                   ) : (
                                     <>
                                       <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                                        <path d="M4.459 4.208c.746.606 1.026.56 2.428.466l13.215-.793c.28 0 .047-.28-.046-.326L17.86 1.968c-.42-.326-.981-.7-2.055-.607L3.01 2.295c-.466.046-.56.28-.374.466zm.793 3.08v13.904c0 .747.373 1.027 1.214.98l14.523-.84c.841-.046.935-.56.935-1.167V6.354c0-.606-.233-.933-.748-.887l-15.177.887c-.56.047-.747.327-.747.933zm14.337.745c.093.42 0 .841-.42.888l-.7.14v10.264c-.608.327-1.168.514-1.635.514-.748 0-.935-.234-1.495-.933l-4.577-7.186v6.952L12.21 19s0 .841-1.168.841l-3.222.186c-.093-.186 0-.653.327-.746l.84-.233V9.854L7.822 9.76c-.094-.42.14-1.026.793-1.073l3.456-.233 4.764 7.279v-6.44l-1.215-.139c-.093-.514.28-.887.747-.933z"/>
+                                        <path d="M4.459 4.208c.746.606 1.026.56 2.428.466l13.215-.793c.28 0 .047-.28-.046-.326L17.86 1.968c-.42-.326-.981-.7-2.055-.607L3.01 2.295c-.466.046-.56.28-.374.466zm.793 3.08v13.904c0 .747.373 1.027 1.214.98l14.523-.84c.841-.046.935-.56.935-1.167V6.354c0-.606-.233-.933-.748-.887l-15.177.887c-.56.047-.747.327-.747.933zm14.337.745c.093.42 0 .841-.42.888l-.7.14v10.264c-.608.327-1.168.514-1.635.514-.748 0-.935-.234-1.495-.933l-4.577-7.186v6.952L12.21 19s0 .841-1.168.841l-3.222.186c-.093-.186 0-.653.327-.746l.84-.233V9.854L7.822 9.76c-.094-.42.14-1.026.793-1.073l3.456-.233 4.764 7.279v-6.44l-1.215-.139c-.093-.514.28-.887.747-.933z" />
                                       </svg>
                                       Notion
                                     </>
@@ -725,7 +723,7 @@ export function TranscriptionsPage(): JSX.Element {
                                   ) : (
                                     <>
                                       <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                                        <path d="M17.1 8.6V2.4h-4.8v6.2h4.8zm-.5-7.1h5.3c.3 0 .5.2.5.5v7.1c0 .3-.2.5-.5.5h-5.3c-.3 0-.5-.2-.5-.5V2c0-.3.2-.5.5-.5zm-6.1 14.3c0-2.9-2.4-5.3-5.3-5.3S0 12.9 0 15.8s2.4 5.3 5.3 5.3 5.3-2.4 5.3-5.3zm-5.3 3.8c-2.1 0-3.8-1.7-3.8-3.8s1.7-3.8 3.8-3.8 3.8 1.7 3.8 3.8-1.7 3.8-3.8 3.8zm14.4-3.8c0-2.9-2.4-5.3-5.3-5.3s-5.3 2.4-5.3 5.3 2.4 5.3 5.3 5.3 5.3-2.4 5.3-5.3zm-5.3 3.8c-2.1 0-3.8-1.7-3.8-3.8s1.7-3.8 3.8-3.8 3.8 1.7 3.8 3.8-1.7 3.8-3.8 3.8zm-2.7-6.1V2.4H6.4v6.2h4.8zm-5.3 0H1.8c-.3 0-.5-.2-.5-.5V2c0-.3.2-.5.5-.5h5.3c.3 0 .5.2.5.5v6.1c0 .3-.2.5-.5.5z"/>
+                                        <path d="M17.1 8.6V2.4h-4.8v6.2h4.8zm-.5-7.1h5.3c.3 0 .5.2.5.5v7.1c0 .3-.2.5-.5.5h-5.3c-.3 0-.5-.2-.5-.5V2c0-.3.2-.5.5-.5zm-6.1 14.3c0-2.9-2.4-5.3-5.3-5.3S0 12.9 0 15.8s2.4 5.3 5.3 5.3 5.3-2.4 5.3-5.3zm-5.3 3.8c-2.1 0-3.8-1.7-3.8-3.8s1.7-3.8 3.8-3.8 3.8 1.7 3.8 3.8-1.7 3.8-3.8 3.8zm14.4-3.8c0-2.9-2.4-5.3-5.3-5.3s-5.3 2.4-5.3 5.3 2.4 5.3 5.3 5.3 5.3-2.4 5.3-5.3zm-5.3 3.8c-2.1 0-3.8-1.7-3.8-3.8s1.7-3.8 3.8-3.8 3.8 1.7 3.8 3.8-1.7 3.8-3.8 3.8zm-2.7-6.1V2.4H6.4v6.2h4.8zm-5.3 0H1.8c-.3 0-.5-.2-.5-.5V2c0-.3.2-.5.5-.5h5.3c.3 0 .5.2.5.5v6.1c0 .3-.2.5-.5.5z" />
                                       </svg>
                                       HubSpot
                                     </>
@@ -809,6 +807,7 @@ export function TranscriptionsPage(): JSX.Element {
                       <MeetingInsightsPanel
                         transcription={selectedTranscription}
                         loading={loadingTranscript}
+                        isFirstMeetingInFolder={true}
                       />
 
                       {loadingTranscript ? (

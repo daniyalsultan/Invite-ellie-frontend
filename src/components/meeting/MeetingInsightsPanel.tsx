@@ -9,6 +9,8 @@ type Props = {
   loading?: boolean;
   /** Slightly tighter padding for modals */
   compact?: boolean;
+  /** Whether to show first-meeting UI differences */
+  isFirstMeetingInFolder?: boolean;
 };
 
 function normalizedText(value: unknown): string {
@@ -62,6 +64,7 @@ export function MeetingInsightsPanel({
   transcription,
   loading = false,
   compact = false,
+  isFirstMeetingInFolder,
 }: Props): JSX.Element | null {
   if (!transcription) return null;
 
@@ -191,7 +194,11 @@ export function MeetingInsightsPanel({
 
       <div className={`${mb} ${pad} bg-blue-50 rounded-lg border border-blue-200`}>
         <h3 className="font-nunito text-sm md:text-base font-bold text-ellieBlue mb-2">
-          What Changed in This Meeting
+          {isFirstMeetingInFolder === true
+            ? 'What happened in this meeting'
+            : isFirstMeetingInFolder === false
+              ? 'What changed since last meeting'
+              : 'What Changed in This Meeting'}
         </h3>
         {loading ? (
           <p className="font-nunito text-xs md:text-sm text-[#6B7A96] italic">Loading…</p>
@@ -284,7 +291,7 @@ export function MeetingInsightsPanel({
                 key={idx}
                 className="font-nunito text-xs md:text-sm text-[#25324B] flex gap-2 leading-relaxed"
               >
-                <span className="text-slate-500 font-bold shrink-0">?</span>
+                <span className="text-slate-400 font-bold shrink-0">•</span>
                 <span>{line}</span>
               </li>
             ))}

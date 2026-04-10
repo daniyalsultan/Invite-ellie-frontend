@@ -154,13 +154,13 @@ export function WorkspaceViewPage(): JSX.Element {
       }
       // Fetch workspace data
       const data = await getWorkspace(token, workspaceId);
-      
+
       // Fetch folders for this workspace
       const foldersResponse = await listFolders(token, {
         workspace: workspaceId,
         pageSize: 1000, // Get all folders
       });
-      
+
       // Fetch each folder individually to ensure meetings are included
       // Some APIs only return meetings when fetching individual folders
       const foldersWithMeetings = await Promise.all(
@@ -175,13 +175,13 @@ export function WorkspaceViewPage(): JSX.Element {
           }
         })
       );
-      
+
       // Update workspace with folders that include meetings
       const workspaceWithFolders = {
         ...data,
         folders: foldersWithMeetings,
       };
-      
+
       setWorkspace(workspaceWithFolders);
       // Workspace edit form state - hidden
       // setEditName(data.name);
@@ -215,10 +215,10 @@ export function WorkspaceViewPage(): JSX.Element {
     const fetchTranscriptions = async () => {
       try {
         const allTranscriptions = await getTranscriptions(profile.id || '');
-        
+
         // Get folder IDs for this workspace
         const folderIds = folders.map((folder) => folder.id);
-        
+
         // Filter transcriptions that belong to folders in this workspace
         // Check both folder_id and workspace_id to match
         const workspaceTranscriptions = allTranscriptions.filter((t: Transcription) => {
@@ -227,7 +227,7 @@ export function WorkspaceViewPage(): JSX.Element {
             (t.workspace_id === workspaceId)
           );
         });
-        
+
         setTranscriptions(workspaceTranscriptions);
       } catch (err) {
         console.error('Error fetching transcriptions:', err);
@@ -271,7 +271,7 @@ export function WorkspaceViewPage(): JSX.Element {
       const folderName = transcription.folder_id
         ? folderNameMap.get(transcription.folder_id) || 'Unassigned'
         : 'Unassigned';
-      
+
       // Map transcription status to MeetingStatus
       const mapStatus = (status: string | null | undefined): MeetingStatus => {
         if (!status) return 'PENDING';
@@ -287,7 +287,7 @@ export function WorkspaceViewPage(): JSX.Element {
         }
         return 'PENDING';
       };
-      
+
       // Map transcription to MeetingRecord format
       const meeting: MeetingWithFolder = {
         id: transcription.id,
@@ -301,7 +301,7 @@ export function WorkspaceViewPage(): JSX.Element {
         transcript: transcription.transcript_text,
         summary: transcription.summary,
         highlights: null,
-        action_items: transcription.action_items?.map((item) => 
+        action_items: transcription.action_items?.map((item) =>
           typeof item === 'string' ? item : item.text
         ) || null,
         action_items_detail: transcription.action_items ?? null,
@@ -792,11 +792,10 @@ export function WorkspaceViewPage(): JSX.Element {
               {statusMessage && (
                 <div
                   role="status"
-                  className={`mb-6 rounded-lg px-4 py-3 font-nunito text-sm ${
-                    statusMessage.type === 'success'
+                  className={`mb-6 rounded-lg px-4 py-3 font-nunito text-sm ${statusMessage.type === 'success'
                       ? 'border border-green-200 bg-green-50 text-green-700'
                       : 'border border-red-200 bg-red-50 text-red-700'
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center justify-between gap-4">
                     <span>{statusMessage.text}</span>
@@ -838,16 +837,14 @@ export function WorkspaceViewPage(): JSX.Element {
                       >
                         {/* List/Hamburger Button */}
                         <div
-                          className={`flex h-full w-1/2 items-center justify-center transition-colors ${
-                            viewMode === 'list'
+                          className={`flex h-full w-1/2 items-center justify-center transition-colors ${viewMode === 'list'
                               ? 'bg-[#327AAD]'
                               : 'bg-[rgba(217,217,217,0.3)]'
-                          }`}
+                            }`}
                         >
                           <svg
-                            className={`h-[17.64px] w-[18.13px] ${
-                              viewMode === 'list' ? 'text-[#D9D9D9]' : 'text-[#327AAD]'
-                            }`}
+                            className={`h-[17.64px] w-[18.13px] ${viewMode === 'list' ? 'text-[#D9D9D9]' : 'text-[#327AAD]'
+                              }`}
                             fill="none"
                             stroke="currentColor"
                             strokeWidth={2}
@@ -860,16 +857,14 @@ export function WorkspaceViewPage(): JSX.Element {
                         </div>
                         {/* Grid/Box Button */}
                         <div
-                          className={`flex h-full w-1/2 items-center justify-center transition-colors ${
-                            viewMode === 'grid'
+                          className={`flex h-full w-1/2 items-center justify-center transition-colors ${viewMode === 'grid'
                               ? 'bg-[#327AAD]'
                               : 'bg-[rgba(217,217,217,0.3)]'
-                          }`}
+                            }`}
                         >
                           <svg
-                            className={`h-[16.13px] w-[20.94px] ${
-                              viewMode === 'grid' ? 'text-[#D9D9D9]' : 'text-[#327AAD]'
-                            }`}
+                            className={`h-[16.13px] w-[20.94px] ${viewMode === 'grid' ? 'text-[#D9D9D9]' : 'text-[#327AAD]'
+                              }`}
                             fill="none"
                             stroke="currentColor"
                             strokeWidth={2}
@@ -891,193 +886,192 @@ export function WorkspaceViewPage(): JSX.Element {
                       No folders found
                     </p>
                   ) : (
-              <div
-                className={`transition-transform duration-300 ease-in-out ${
-                  isDetailViewOpen ? 'translate-x-full opacity-0' : 'translate-x-0 opacity-100'
-                }`}
-              >
-                  {viewMode === 'grid' ? (
-                    <div className="grid grid-cols-2 gap-3 md:gap-4">
-                      {filteredFolders.map((folder) => (
-                        <div
-                          key={folder.id}
-                          onClick={() => handleFolderClick(folder)}
-                          onDoubleClick={() => handleFolderDoubleClick(folder)}
-                          className="relative flex cursor-pointer flex-col gap-3 rounded-2xl border border-[#E3E7F2] bg-[#F7F9FC] px-4 py-5 shadow-[0_12px_24px_rgba(39,62,99,0.06)] transition hover:bg-[#E6EDFF]"
-                        >
-                          {/* Pin indicator in top right */}
-                          {folder.is_pinned && (
-                            <div className="absolute top-3 right-3">
-                              <svg
-                                className="h-4 w-4 text-amber-600"
-                                fill="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path d="M17 3H7C5.9 3 5 3.9 5 5V21L12 18L19 21V5C19 3.9 18.1 3 17 3Z" />
-                              </svg>
-                            </div>
-                          )}
-                          <div className="flex items-center justify-between">
-                            <div className="flex h-12 w-12 items-center justify-center rounded-md bg-[#D9E2F5]">
-                              <img src={folderIcon} alt="" className="h-8 w-8 object-contain" />
-                            </div>
-                          </div>
-                          <div>
-                            <p className="font-nunito text-sm font-semibold text-[#25324B] md:text-base">
-                              {folder.name}
-                            </p>
-                          </div>
-                          {/* Three dots button for grid view */}
-                          <div className="absolute bottom-3 right-3">
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleMenuClick(folder.id, e);
-                              }}
-                              className="flex items-center justify-center border-none bg-transparent p-0 transition-opacity hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-[#327AAD]/20"
-                              aria-label={`More options for ${folder.name}`}
+                    <div
+                      className={`transition-transform duration-300 ease-in-out ${isDetailViewOpen ? 'translate-x-full opacity-0' : 'translate-x-0 opacity-100'
+                        }`}
+                    >
+                      {viewMode === 'grid' ? (
+                        <div className="grid grid-cols-2 gap-3 md:gap-4">
+                          {filteredFolders.map((folder) => (
+                            <div
+                              key={folder.id}
+                              onClick={() => handleFolderClick(folder)}
+                              onDoubleClick={() => handleFolderDoubleClick(folder)}
+                              className="relative flex cursor-pointer flex-col gap-3 rounded-2xl border border-[#E3E7F2] bg-[#F7F9FC] px-4 py-5 shadow-[0_12px_24px_rgba(39,62,99,0.06)] transition hover:bg-[#E6EDFF]"
                             >
-                              <img src={threeDotIcon} alt="" className="h-6 w-6 object-contain" />
-                            </button>
-                            {/* Context Menu for grid view - shows Rename, Delete, Pin */}
-                            {openMenuId === folder.id && (
-                              <div className="absolute right-0 bottom-full mb-2 min-w-[160px] rounded-lg bg-white shadow-lg border border-gray-200 py-2 z-50">
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleRenameFolder(folder);
-                                  }}
-                                  className="w-full px-4 py-2 text-left font-nunito text-sm text-[#25324B] hover:bg-gray-50 transition"
-                                >
-                                  Rename folder
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDeleteFolder(folder);
-                                  }}
-                                  className="w-full px-4 py-2 text-left font-nunito text-sm text-[#25324B] hover:bg-gray-50 transition"
-                                >
-                                  Delete folder
-                                </button>
-                                <button
-                                  type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  void handlePinFolder(folder);
-                                }}
-                                className="w-full px-4 py-2 text-left font-nunito text-sm text-[#25324B] hover:bg-gray-50 transition"
-                              >
-                                {folder.is_pinned ? 'Unpin' : 'Pin'}
-                              </button>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="flex flex-col gap-2">
-                      {filteredFolders.map((folder) => (
-                        <div
-                          key={folder.id}
-                          onClick={() => handleFolderClick(folder)}
-                          onDoubleClick={() => handleFolderDoubleClick(folder)}
-                          className="relative flex cursor-pointer items-center justify-between gap-4 rounded-[10px] bg-[rgba(50,122,173,0.05)] px-5 py-[10px] transition hover:bg-[rgba(50,122,173,0.08)]"
-                        >
-                          <div className="flex items-center gap-4">
-                            <img
-                              src={folderIcon}
-                              alt=""
-                              className="h-[32.67px] w-[35.23px] object-contain opacity-40"
-                            />
-                            <div className="flex flex-col gap-0">
-                              <div className="flex items-center gap-2">
-                                <span className="font-nunito text-[20px] font-bold tracking-[-0.025em] text-[#000000] leading-[1.3639999389648438em]">
-                                  {folder.name}
-                                </span>
-                                {/* Pin indicator */}
-                                {folder.is_pinned && (
+                              {/* Pin indicator in top right */}
+                              {folder.is_pinned && (
+                                <div className="absolute top-3 right-3">
                                   <svg
-                                    className="h-4 w-4 text-amber-600 flex-shrink-0"
+                                    className="h-4 w-4 text-amber-600"
                                     fill="currentColor"
                                     viewBox="0 0 24 24"
                                   >
                                     <path d="M17 3H7C5.9 3 5 3.9 5 5V21L12 18L19 21V5C19 3.9 18.1 3 17 3Z" />
                                   </svg>
+                                </div>
+                              )}
+                              <div className="flex items-center justify-between">
+                                <div className="flex h-12 w-12 items-center justify-center rounded-md bg-[#D9E2F5]">
+                                  <img src={folderIcon} alt="" className="h-8 w-8 object-contain" />
+                                </div>
+                              </div>
+                              <div>
+                                <p className="font-nunito text-sm font-semibold text-[#25324B] md:text-base">
+                                  {folder.name}
+                                </p>
+                              </div>
+                              {/* Three dots button for grid view */}
+                              <div className="absolute bottom-3 right-3">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleMenuClick(folder.id, e);
+                                  }}
+                                  className="flex items-center justify-center border-none bg-transparent p-0 transition-opacity hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-[#327AAD]/20"
+                                  aria-label={`More options for ${folder.name}`}
+                                >
+                                  <img src={threeDotIcon} alt="" className="h-6 w-6 object-contain" />
+                                </button>
+                                {/* Context Menu for grid view - shows Rename, Delete, Pin */}
+                                {openMenuId === folder.id && (
+                                  <div className="absolute right-0 bottom-full mb-2 min-w-[160px] rounded-lg bg-white shadow-lg border border-gray-200 py-2 z-50">
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleRenameFolder(folder);
+                                      }}
+                                      className="w-full px-4 py-2 text-left font-nunito text-sm text-[#25324B] hover:bg-gray-50 transition"
+                                    >
+                                      Rename folder
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDeleteFolder(folder);
+                                      }}
+                                      className="w-full px-4 py-2 text-left font-nunito text-sm text-[#25324B] hover:bg-gray-50 transition"
+                                    >
+                                      Delete folder
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        void handlePinFolder(folder);
+                                      }}
+                                      className="w-full px-4 py-2 text-left font-nunito text-sm text-[#25324B] hover:bg-gray-50 transition"
+                                    >
+                                      {folder.is_pinned ? 'Unpin' : 'Pin'}
+                                    </button>
+                                  </div>
                                 )}
                               </div>
                             </div>
-                          </div>
-                          <div className="relative flex items-center gap-[10px]">
-                            {/* Three dots button */}
-                            <div className="relative">
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleMenuClick(folder.id, e);
-                                }}
-                                className="flex items-center justify-center border-none bg-transparent p-0 transition-opacity hover:opacity-80 focus:outline-none"
-                                aria-label={`More options for ${folder.name}`}
-                              >
-                                <img src={threeDotIcon} alt="" className="h-6 w-6 object-contain" />
-                              </button>
-                              {/* Context Menu for list view - shows Rename, Pin (no Delete since X button exists) */}
-                              {openMenuId === folder.id && (
-                                <div className="absolute right-0 top-full mt-2 min-w-[160px] rounded-lg bg-white shadow-lg border border-gray-200 py-2 z-50">
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="flex flex-col gap-2">
+                          {filteredFolders.map((folder) => (
+                            <div
+                              key={folder.id}
+                              onClick={() => handleFolderClick(folder)}
+                              onDoubleClick={() => handleFolderDoubleClick(folder)}
+                              className="relative flex cursor-pointer items-center justify-between gap-4 rounded-[10px] bg-[rgba(50,122,173,0.05)] px-5 py-[10px] transition hover:bg-[rgba(50,122,173,0.08)]"
+                            >
+                              <div className="flex items-center gap-4">
+                                <img
+                                  src={folderIcon}
+                                  alt=""
+                                  className="h-[32.67px] w-[35.23px] object-contain opacity-40"
+                                />
+                                <div className="flex flex-col gap-0">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-nunito text-[20px] font-bold tracking-[-0.025em] text-[#000000] leading-[1.3639999389648438em]">
+                                      {folder.name}
+                                    </span>
+                                    {/* Pin indicator */}
+                                    {folder.is_pinned && (
+                                      <svg
+                                        className="h-4 w-4 text-amber-600 flex-shrink-0"
+                                        fill="currentColor"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path d="M17 3H7C5.9 3 5 3.9 5 5V21L12 18L19 21V5C19 3.9 18.1 3 17 3Z" />
+                                      </svg>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="relative flex items-center gap-[10px]">
+                                {/* Three dots button */}
+                                <div className="relative">
                                   <button
                                     type="button"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      handleRenameFolder(folder);
+                                      handleMenuClick(folder.id, e);
                                     }}
-                                    className="w-full px-4 py-2 text-left font-nunito text-sm text-[#25324B] hover:bg-gray-50 transition"
+                                    className="flex items-center justify-center border-none bg-transparent p-0 transition-opacity hover:opacity-80 focus:outline-none"
+                                    aria-label={`More options for ${folder.name}`}
                                   >
-                                    Rename folder
+                                    <img src={threeDotIcon} alt="" className="h-6 w-6 object-contain" />
                                   </button>
-                                  <button
-                                    type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  void handlePinFolder(folder);
-                                }}
-                                className="w-full px-4 py-2 text-left font-nunito text-sm text-[#25324B] hover:bg-gray-50 transition"
-                              >
-                                {folder.is_pinned ? 'Unpin' : 'Pin'}
-                              </button>
+                                  {/* Context Menu for list view - shows Rename, Pin (no Delete since X button exists) */}
+                                  {openMenuId === folder.id && (
+                                    <div className="absolute right-0 top-full mt-2 min-w-[160px] rounded-lg bg-white shadow-lg border border-gray-200 py-2 z-50">
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleRenameFolder(folder);
+                                        }}
+                                        className="w-full px-4 py-2 text-left font-nunito text-sm text-[#25324B] hover:bg-gray-50 transition"
+                                      >
+                                        Rename folder
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          void handlePinFolder(folder);
+                                        }}
+                                        className="w-full px-4 py-2 text-left font-nunito text-sm text-[#25324B] hover:bg-gray-50 transition"
+                                      >
+                                        {folder.is_pinned ? 'Unpin' : 'Pin'}
+                                      </button>
+                                    </div>
+                                  )}
                                 </div>
-                              )}
+                                {/* X/Delete button */}
+                                <button
+                                  type="button"
+                                  className="flex h-8 w-8 items-center justify-center rounded-lg bg-transparent text-[#FF0000] transition hover:bg-[rgba(255,0,0,0.1)]"
+                                  aria-label={`Delete ${folder.name}`}
+                                >
+                                  <svg
+                                    className="h-4 w-4"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth={2}
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path d="M18 6L6 18M6 6l12 12" />
+                                  </svg>
+                                </button>
+                              </div>
                             </div>
-                            {/* X/Delete button */}
-                            <button
-                              type="button"
-                              className="flex h-8 w-8 items-center justify-center rounded-lg bg-transparent text-[#FF0000] transition hover:bg-[rgba(255,0,0,0.1)]"
-                              aria-label={`Delete ${folder.name}`}
-                            >
-                              <svg
-                                className="h-4 w-4"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth={2}
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                viewBox="0 0 24 24"
-                              >
-                                <path d="M18 6L6 18M6 6l12 12" />
-                              </svg>
-                            </button>
-                          </div>
+                          ))}
                         </div>
-                      ))}
+                      )}
                     </div>
                   )}
-                    </div>
-                  )}
-                  
+
                   {/* Folder Detail View */}
                   {selectedFolder && (
                     <FolderDetailView
@@ -1356,13 +1350,12 @@ export function WorkspaceViewPage(): JSX.Element {
                                         {row.flags.map((f) => (
                                           <span
                                             key={f}
-                                            className={`inline-flex items-center rounded-full px-2.5 py-1 ${
-                                              f === 'assign_owner'
+                                            className={`inline-flex items-center rounded-full px-2.5 py-1 ${f === 'assign_owner'
                                                 ? 'bg-[#FEE2E2] text-[#B91C1C]'
                                                 : f === 'define_deadline'
-                                                ? 'bg-[#FEF9C3] text-[#92400E]'
-                                                : 'bg-[#E0F2FE] text-[#0369A1]'
-                                            }`}
+                                                  ? 'bg-[#FEF9C3] text-[#92400E]'
+                                                  : 'bg-[#E0F2FE] text-[#0369A1]'
+                                              }`}
                                           >
                                             {workspaceInsightFlagLine(f, row.blocked_by)}
                                           </span>
@@ -1582,7 +1575,7 @@ export function WorkspaceViewPage(): JSX.Element {
         </div>
       )}
       */}
-      
+
       {/* Folder Meetings Modal */}
       {selectedFolderForModal && (
         <FolderMeetingsModal
@@ -1626,6 +1619,14 @@ export function WorkspaceViewPage(): JSX.Element {
                   transcription={(fullModalTranscription as Transcription | null) ?? (selectedMeetingForModal as unknown as Transcription)}
                   loading={loadingModalTranscript}
                   compact
+                  isFirstMeetingInFolder={
+                    selectedMeetingForModal
+                      ? (() => {
+                        const fm = allMeetings.filter(m => m.folder === selectedMeetingForModal.folder);
+                        return fm.length > 0 && fm[fm.length - 1].id === selectedMeetingForModal.id;
+                      })()
+                      : false
+                  }
                 />
               </div>
               <div className="flex min-h-0 flex-[0.9] flex-col overflow-hidden">
