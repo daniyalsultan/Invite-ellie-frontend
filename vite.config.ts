@@ -33,6 +33,8 @@ export default defineConfig({
       'invite-ellie-frontend.vercel.app',
       'localhost',
       'invite-ellie-frontend-production.up.railway.app',
+      'inviteellie.ai',
+      
     ],
   },
 });
