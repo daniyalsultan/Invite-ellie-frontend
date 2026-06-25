@@ -34,7 +34,7 @@ export default defineConfig({
       'localhost',
       'invite-ellie-frontend-production.up.railway.app',
       'inviteellie.ai',
-      
+      'www.inviteellie.ai',
     ],
   },
 });
