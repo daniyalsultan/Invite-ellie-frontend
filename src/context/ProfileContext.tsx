@@ -1,4 +1,4 @@
-import { ReactNode, createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { ReactNode, createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { useAuth } from './AuthContext';
 import { getApiBaseUrl } from '../utils/apiBaseUrl';
 
@@ -34,13 +34,16 @@ export function ProfileProvider({ children }: { children: ReactNode }): JSX.Elem
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const latestRequestIdRef = useRef(0);
 
   const refreshProfile = useCallback(async () => {
     if (!isAuthenticated || !apiBaseUrl) {
+      latestRequestIdRef.current += 1;
       setProfile(null);
       return;
     }
 
+    const requestId = ++latestRequestIdRef.current;
     setIsLoading(true);
     setError(null);
 
@@ -62,16 +65,24 @@ export function ProfileProvider({ children }: { children: ReactNode }): JSX.Elem
       }
 
       const data = (await response.json()) as UserProfile;
-      setProfile(data);
+      if (requestId === latestRequestIdRef.current) {
+        setProfile(data);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to load your profile.');
-      setProfile(null);
+      if (requestId === latestRequestIdRef.current) {
+        setError(err instanceof Error ? err.message : 'Unable to load your profile.');
+        setProfile(null);
+      }
     } finally {
-      setIsLoading(false);
+      if (requestId === latestRequestIdRef.current) {
+        setIsLoading(false);
+      }
     }
   }, [apiBaseUrl, ensureFreshAccessToken, isAuthenticated]);
 
   useEffect(() => {
+    latestRequestIdRef.current += 1;
+
     if (isAuthenticated) {
       void refreshProfile();
     } else {
