@@ -17,6 +17,7 @@ const USE_CASE_OPTIONS = [
 ];
 
 const USE_CASE_VALUES = USE_CASE_OPTIONS.map((option) => option.value);
+const DEFAULT_DELETE_MODE = (import.meta.env.VITE_DELETE_ACCOUNT_MODE ?? 'GRACE_PERIOD').toUpperCase();
 
 function GoogleIcon(): JSX.Element {
   return (
@@ -57,6 +58,7 @@ export function PreferencesPage(): JSX.Element {
   const [ssoProvider, setSsoProvider] = useState<string | undefined>(undefined);
   const [isSaving, setIsSaving] = useState(false);
   const [isSavingAvatar, setIsSavingAvatar] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -214,6 +216,74 @@ export function PreferencesPage(): JSX.Element {
     setProfileEmail(profile.email ?? undefined);
     setSsoProvider(profile.sso_provider ?? undefined);
   }, [profile]);
+
+  const handleDeleteAccount = async () => {
+    if (!apiBaseUrl) {
+      setStatusMessage({ type: 'error', text: 'API base URL is not configured.' });
+      return;
+    }
+
+    const confirmed = window.confirm(
+      'This will request deletion of your account and data export. You can still cancel within the grace period if needed. Continue?'
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setIsDeletingAccount(true);
+    setStatusMessage(null);
+
+    try {
+      const token = await ensureFreshAccessToken();
+      if (!token) {
+        throw new Error('Unable to authenticate. Please login again.');
+      }
+
+      const response = await fetch(`${apiBaseUrl}/accounts/deletion/request/`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({ deletion_type: DEFAULT_DELETE_MODE }),
+      });
+
+      let responseData: unknown = null;
+      const responseText = await response.text();
+      if (responseText) {
+        try {
+          responseData = JSON.parse(responseText);
+        } catch {
+          responseData = responseText;
+        }
+      }
+
+      if (!response.ok) {
+        const message =
+          responseData && typeof responseData === 'object' && responseData !== null && 'error' in responseData && typeof responseData.error === 'string'
+            ? responseData.error
+            : typeof responseData === 'string' && responseData.trim()
+              ? responseData
+              : 'Unable to request account deletion.';
+        throw new Error(message);
+      }
+
+      setStatusMessage({
+        type: 'success',
+        text: 'Deletion request submitted. You can still cancel it during the grace period.',
+      });
+    } catch (error) {
+      console.error('Failed to request account deletion:', error);
+      setStatusMessage({
+        type: 'error',
+        text: error instanceof Error ? error.message : 'Unable to request account deletion.',
+      });
+    } finally {
+      setIsDeletingAccount(false);
+    }
+  };
 
   const handleSaveChanges = async () => {
     if (!apiBaseUrl) {
@@ -468,9 +538,11 @@ export function PreferencesPage(): JSX.Element {
               {/* Delete Account Button */}
               <button
                 type="button"
-                className="w-full px-4 py-2.5 rounded-lg bg-red-500 text-white font-nunito text-sm font-semibold hover:bg-red-600 transition-colors"
+                onClick={handleDeleteAccount}
+                disabled={isDeletingAccount}
+                className="w-full px-4 py-2.5 rounded-lg bg-red-500 text-white font-nunito text-sm font-semibold hover:bg-red-600 transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
               >
-                Delete Account
+                {isDeletingAccount ? 'Processing...' : 'Delete Account'}
               </button>
             </div>
 
