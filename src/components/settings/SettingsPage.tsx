@@ -1,12 +1,48 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { DashboardLayout } from '../sidebar';
+import { useProfile } from '../../context/ProfileContext';
+import { getApiBaseUrl } from '../../utils/apiBaseUrl';
+
+const autoJoinMeetings = true;
+const showMeetingReminders = false;
+const notifyTranscriptsReady = true;
+const defaultLanguage = 'english-usa';
 
 export function SettingsPage(): JSX.Element {
-  const [autoJoinMeetings, setAutoJoinMeetings] = useState(true);
-  const [showMeetingReminders, setShowMeetingReminders] = useState(false);
-  const [notifyTranscriptsReady, setNotifyTranscriptsReady] = useState(true);
-  const [defaultLanguage, setDefaultLanguage] = useState('english-usa');
+  const { profile } = useProfile();
+  const [resetStatus, setResetStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+  const [resetError, setResetError] = useState<string | null>(null);
+
+  const handlePasswordReset = async () => {
+    if (!profile?.email) {
+      setResetStatus('error');
+      setResetError('No email on file for this account.');
+      return;
+    }
+
+    setResetStatus('sending');
+    setResetError(null);
+
+    try {
+      const apiBaseUrl = getApiBaseUrl();
+      const response = await fetch(`${apiBaseUrl}/accounts/password/reset/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: profile.email }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to send reset email.');
+      }
+
+      setResetStatus('sent');
+    } catch (err) {
+      setResetStatus('error');
+      setResetError(err instanceof Error ? err.message : 'Failed to send reset email.');
+    }
+  };
 
   return (
     <DashboardLayout activeTab="/settings">
@@ -25,28 +61,27 @@ export function SettingsPage(): JSX.Element {
             </ol>
           </nav>
 
-          {/* Page Title with Save Changes Button */}
+          {/* Page Title */}
           <div className="flex items-center justify-between mb-4 md:mb-6 lg:mb-8">
             <h1 className="font-spaceGrotesk text-2xl md:text-3xl lg:text-4xl font-bold text-ellieBlack">
               Settings
             </h1>
-            <button
-              type="button"
-              className="px-4 py-2 md:px-6 md:py-2.5 rounded-lg bg-ellieBlue text-white font-nunito text-xs md:text-sm font-semibold hover:opacity-90 transition-opacity"
-            >
-              Save Changes
-            </button>
           </div>
 
           {/* Two Column Layout */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
             {/* General Settings */}
             <div className="bg-white border border-gray-200 rounded-lg p-4 md:p-6 shadow-sm">
-              <h2 className="font-nunito text-lg md:text-xl font-bold text-ellieBlack mb-4 md:mb-6">
-                General Settings
-              </h2>
-              
-              <div className="space-y-4 md:space-y-6">
+              <div className="flex items-center gap-2 mb-4 md:mb-6">
+                <h2 className="font-nunito text-lg md:text-xl font-bold text-ellieBlack">
+                  General Settings
+                </h2>
+                <span className="px-2 py-0.5 rounded-full bg-gray-100 text-ellieGray font-nunito text-[10px] md:text-xs font-semibold uppercase tracking-wide">
+                  Coming soon
+                </span>
+              </div>
+
+              <div className="space-y-4 md:space-y-6 opacity-60">
                 {/* Auto-join Ellie for meetings */}
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
@@ -59,12 +94,13 @@ export function SettingsPage(): JSX.Element {
                   </div>
                   <button
                     type="button"
-                    onClick={() => setAutoJoinMeetings(!autoJoinMeetings)}
-                    className={`relative inline-flex h-6 w-11 md:h-7 md:w-12 flex-shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-ellieBlue focus:ring-offset-2 ${
+                    disabled
+                    className={`relative inline-flex h-6 w-11 md:h-7 md:w-12 flex-shrink-0 cursor-not-allowed rounded-full transition-colors duration-200 ease-in-out ${
                       autoJoinMeetings ? 'bg-ellieBlue' : 'bg-gray-300'
                     }`}
                     role="switch"
                     aria-checked={autoJoinMeetings}
+                    aria-disabled="true"
                   >
                     <span
                       className={`pointer-events-none inline-block h-5 w-5 md:h-6 md:w-6 transform rounded-full bg-white shadow transform ring-0 transition duration-200 ease-in-out ${
@@ -86,12 +122,13 @@ export function SettingsPage(): JSX.Element {
                   </div>
                   <button
                     type="button"
-                    onClick={() => setShowMeetingReminders(!showMeetingReminders)}
-                    className={`relative inline-flex h-6 w-11 md:h-7 md:w-12 flex-shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-ellieBlue focus:ring-offset-2 ${
+                    disabled
+                    className={`relative inline-flex h-6 w-11 md:h-7 md:w-12 flex-shrink-0 cursor-not-allowed rounded-full transition-colors duration-200 ease-in-out ${
                       showMeetingReminders ? 'bg-ellieBlue' : 'bg-gray-300'
                     }`}
                     role="switch"
                     aria-checked={showMeetingReminders}
+                    aria-disabled="true"
                   >
                     <span
                       className={`pointer-events-none inline-block h-5 w-5 md:h-6 md:w-6 transform rounded-full bg-white shadow transform ring-0 transition duration-200 ease-in-out ${
@@ -105,11 +142,16 @@ export function SettingsPage(): JSX.Element {
 
             {/* Transcription Settings - Swapped with Notification in desktop */}
             <div className="bg-white border border-gray-200 rounded-lg p-4 md:p-6 shadow-sm lg:order-2">
-              <h2 className="font-nunito text-lg md:text-xl font-bold text-ellieBlack mb-4 md:mb-6">
-                Transcription Settings
-              </h2>
-              
-              <div className="space-y-4">
+              <div className="flex items-center gap-2 mb-4 md:mb-6">
+                <h2 className="font-nunito text-lg md:text-xl font-bold text-ellieBlack">
+                  Transcription Settings
+                </h2>
+                <span className="px-2 py-0.5 rounded-full bg-gray-100 text-ellieGray font-nunito text-[10px] md:text-xs font-semibold uppercase tracking-wide">
+                  Coming soon
+                </span>
+              </div>
+
+              <div className="space-y-4 opacity-60">
                 <div>
                   <label className="block font-nunito text-sm md:text-base font-semibold text-ellieBlack mb-2">
                     Default Language
@@ -120,7 +162,7 @@ export function SettingsPage(): JSX.Element {
                   <div className="relative">
                     <select
                       value={defaultLanguage}
-                      onChange={(e) => setDefaultLanguage(e.target.value)}
+                      onChange={() => undefined}
                       className="w-full px-4 py-2.5 md:py-3 rounded-lg border border-gray-300 bg-white text-ellieBlack focus:outline-none focus:ring-2 focus:ring-ellieBlue focus:border-transparent font-nunito text-sm md:text-base appearance-none pr-10"
                       disabled
                     >
@@ -142,11 +184,16 @@ export function SettingsPage(): JSX.Element {
 
             {/* Notification Settings - Swapped with Transcription in desktop */}
             <div className="bg-white border border-gray-200 rounded-lg p-4 md:p-6 shadow-sm lg:order-3">
-              <h2 className="font-nunito text-lg md:text-xl font-bold text-ellieBlack mb-4 md:mb-6">
-                Notification Settings
-              </h2>
-              
-              <div className="space-y-4 md:space-y-6">
+              <div className="flex items-center gap-2 mb-4 md:mb-6">
+                <h2 className="font-nunito text-lg md:text-xl font-bold text-ellieBlack">
+                  Notification Settings
+                </h2>
+                <span className="px-2 py-0.5 rounded-full bg-gray-100 text-ellieGray font-nunito text-[10px] md:text-xs font-semibold uppercase tracking-wide">
+                  Coming soon
+                </span>
+              </div>
+
+              <div className="space-y-4 md:space-y-6 opacity-60">
                 {/* Notify when transcripts are ready */}
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
@@ -159,12 +206,13 @@ export function SettingsPage(): JSX.Element {
                   </div>
                   <button
                     type="button"
-                    onClick={() => setNotifyTranscriptsReady(!notifyTranscriptsReady)}
-                    className={`relative inline-flex h-6 w-11 md:h-7 md:w-12 flex-shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-ellieBlue focus:ring-offset-2 ${
+                    disabled
+                    className={`relative inline-flex h-6 w-11 md:h-7 md:w-12 flex-shrink-0 cursor-not-allowed rounded-full transition-colors duration-200 ease-in-out ${
                       notifyTranscriptsReady ? 'bg-ellieBlue' : 'bg-gray-300'
                     }`}
                     role="switch"
                     aria-checked={notifyTranscriptsReady}
+                    aria-disabled="true"
                   >
                     <span
                       className={`pointer-events-none inline-block h-5 w-5 md:h-6 md:w-6 transform rounded-full bg-white shadow transform ring-0 transition duration-200 ease-in-out ${
@@ -231,11 +279,23 @@ export function SettingsPage(): JSX.Element {
               <div className="space-y-4">
                 <button
                   type="button"
-                  className="w-full px-4 py-2.5 md:py-3 rounded-lg bg-ellieBlue text-white font-nunito text-sm md:text-base font-semibold hover:opacity-90 transition-opacity"
+                  onClick={handlePasswordReset}
+                  disabled={resetStatus === 'sending'}
+                  className="w-full px-4 py-2.5 md:py-3 rounded-lg bg-ellieBlue text-white font-nunito text-sm md:text-base font-semibold hover:opacity-90 transition-opacity disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  Reset via email
+                  {resetStatus === 'sending' ? 'Sending...' : 'Reset via email'}
                 </button>
-                
+                {resetStatus === 'sent' && (
+                  <p className="font-nunito text-xs md:text-sm text-green-600">
+                    Reset link sent to {profile?.email}. Check your inbox.
+                  </p>
+                )}
+                {resetStatus === 'error' && (
+                  <p className="font-nunito text-xs md:text-sm text-red-600">
+                    {resetError}
+                  </p>
+                )}
+
                 {/* <div>
                   <label className="block font-nunito text-sm md:text-base font-semibold text-ellieBlack mb-2">
                     New Password
