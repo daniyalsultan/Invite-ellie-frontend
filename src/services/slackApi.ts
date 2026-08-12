@@ -1,18 +1,15 @@
 // Slack API service for OAuth integration
+//
+// Talks to recall-server (VITE_RECALLAI_BASE_URL), which owns the Slack
+// OAuth flow and export logic alongside the calendar integrations.
 
-/**
- * 🔒 PRODUCTION LOCK
- * This file ALWAYS uses the Railway backend directly.
- * No ENV variables
- * No /api proxy logic
- * No CORS guessing
- * 
- * 🚀 START SERVER: https://web-production-07092.up.railway.app
- * 🔗 SLACK CONNECT: https://web-production-07092.up.railway.app/api/slack/connect
- * 🔗 SLACK STATUS:  https://web-production-07092.up.railway.app/api/slack/status  
- * 🔗 SLACK DISCONNECT: https://web-production-07092.up.railway.app/api/slack/disconnect
- * 🔗 SLACK EXPORT: https://web-production-07092.up.railway.app/api/slack/export
- */
+function getSlackApiBaseUrl(): string {
+  const baseUrl = import.meta.env.VITE_RECALLAI_BASE_URL;
+  if (!baseUrl || typeof baseUrl !== 'string' || !baseUrl.trim()) {
+    throw new Error('VITE_RECALLAI_BASE_URL is not configured');
+  }
+  return baseUrl.trim().replace(/\/$/, '');
+}
 
 export interface SlackConnectionStatus {
   connected: boolean;
@@ -25,7 +22,7 @@ export interface SlackConnectionStatus {
  * Get Slack OAuth authorization URL
  */
 export async function getSlackConnectUrl(userId: string): Promise<string> {
-  const apiUrl = `https://web-production-07092.up.railway.app/api/slack/connect?user_id=${userId}`;
+  const apiUrl = `${getSlackApiBaseUrl()}/api/slack/connect?user_id=${userId}`;
 
   try {
     const response = await fetch(apiUrl, {
@@ -58,7 +55,7 @@ export async function getSlackConnectUrl(userId: string): Promise<string> {
 export async function getSlackStatus(
   userId: string
 ): Promise<SlackConnectionStatus> {
-  const apiUrl = `https://web-production-07092.up.railway.app/api/slack/status?user_id=${userId}`;
+  const apiUrl = `${getSlackApiBaseUrl()}/api/slack/status?user_id=${userId}`;
 
   try {
     const response = await fetch(apiUrl, {
@@ -100,7 +97,7 @@ export async function slackExport(
   actionItems: any[],
   channel: string = '#general'
 ): Promise<{ success: boolean; message?: string; error?: string }> {
-  const apiUrl = `https://web-production-07092.up.railway.app/api/slack/export`;
+  const apiUrl = `${getSlackApiBaseUrl()}/api/slack/export`;
 
   try {
     const response = await fetch(apiUrl, {
@@ -145,7 +142,7 @@ export async function slackExport(
  * Disconnect Slack
  */
 export async function disconnectSlack(userId: string): Promise<void> {
-  const apiUrl = `https://web-production-07092.up.railway.app/api/slack/disconnect`;
+  const apiUrl = `${getSlackApiBaseUrl()}/api/slack/disconnect`;
 
   try {
     const response = await fetch(apiUrl, {
