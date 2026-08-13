@@ -234,8 +234,6 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
       return;
     }
 
-    setSession(storedSession);
-
     // A full-page reload (e.g. returning from an OAuth redirect chain) can land
     // on an already-expired access token. Refreshing it is async, but
     // isAuthenticated/ProtectedRoute check synchronously on the next render —
@@ -243,6 +241,15 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
     // bounces to /login before the refresh below even starts, even though a
     // valid refresh token exists. So: hold isInitializing until the refresh
     // (if one is needed) has actually resolved.
+    //
+    // Deliberately NOT calling setSession(storedSession) yet in the expired
+    // case below: doing so used to trigger the *other* effect further down
+    // (which reacts to session.expiresAt <= now) into firing its own
+    // concurrent refreshSession() call with the same refresh token. Supabase
+    // rotates refresh tokens, so the second concurrent use of that token
+    // fails right after the first succeeds — and that failure cleared the
+    // session the first call had just established, producing an immediate
+    // logout right after what should've been a successful reload.
     if (storedSession.expiresAt && storedSession.expiresAt <= Date.now() && storedSession.refreshToken) {
       fetch(`${apiBaseUrl}/accounts/token/refresh/`, {
         method: 'POST',
@@ -274,6 +281,7 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
       return;
     }
 
+    setSession(storedSession);
     setIsInitializing(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
