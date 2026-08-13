@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import groupImage from '../../assets/Group 41000.png';
 import { useAuth } from '../../context/AuthContext';
@@ -17,10 +17,19 @@ export function LoginPage(): JSX.Element {
 
   const apiBaseUrl = getApiBaseUrl();
 
-  const { login } = useAuth();
+  const { login, isAuthenticated, isInitializing } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const redirectPath = (location.state as { from?: string } | null)?.from ?? '/dashboard';
+
+  // A logged-in user landing here (e.g. opening the app in a new tab, which
+  // has its own localStorage-backed session already) should go straight to
+  // the dashboard instead of being shown the login form again.
+  useEffect(() => {
+    if (!isInitializing && isAuthenticated) {
+      navigate(redirectPath, { replace: true });
+    }
+  }, [isInitializing, isAuthenticated, navigate, redirectPath]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();

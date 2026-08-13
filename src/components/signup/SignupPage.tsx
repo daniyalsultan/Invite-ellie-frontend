@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import groupImage from '../../assets/Group 40999.png';
+import { useAuth } from '../../context/AuthContext';
 import { getApiBaseUrl } from '../../utils/apiBaseUrl';
 import { savePkceVerifier } from '../../utils/authStorage';
 
@@ -8,7 +9,18 @@ const apiBaseUrl = getApiBaseUrl();
 
 export function SignupPage(): JSX.Element {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { isAuthenticated, isInitializing } = useAuth();
   const locationState = location.state as { confirmationNotice?: string } | null;
+
+  // A logged-in user landing here (e.g. a new tab with its own
+  // localStorage-backed session already) should go straight to the
+  // dashboard instead of being shown the signup form again.
+  useEffect(() => {
+    if (!isInitializing && isAuthenticated) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [isInitializing, isAuthenticated, navigate]);
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
