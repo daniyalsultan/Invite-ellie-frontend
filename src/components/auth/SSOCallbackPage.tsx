@@ -5,6 +5,13 @@ import { getApiBaseUrl } from '../../utils/apiBaseUrl';
 import { takePkceVerifier } from '../../utils/authStorage';
 import { autoCreateWorkspaceForEmail } from '../../utils/workspaceAutoCreate';
 
+// Read (and remove) the verifier at module load, not inside the effect below.
+// This callback page is reached via a real full-page navigation from Supabase,
+// so the module only evaluates once per load — capturing it here, synchronously,
+// guarantees exactly one read no matter how React mounts/remounts the component,
+// instead of risking a remount consuming it a second time and finding it gone.
+const pkceVerifierForThisLoad = takePkceVerifier();
+
 export function SSOCallbackPage(): JSX.Element {
   const [searchParams] = useSearchParams();
   const location = useLocation();
@@ -116,7 +123,7 @@ export function SSOCallbackPage(): JSX.Element {
             'Accept': 'application/json',
           },
           credentials: 'include', // Kept as a fallback path; the verifier below is the real fix
-          body: JSON.stringify({ code, code_verifier: takePkceVerifier() }),
+          body: JSON.stringify({ code, code_verifier: pkceVerifierForThisLoad }),
         });
 
         let responseData: unknown = null;
