@@ -116,6 +116,30 @@ export function SSOCallbackPage(): JSX.Element {
           requestBody: { code },
         });
         
+        // Temporary diagnostic for the intermittent "PKCE verifier missing"
+        // bug — remove once root-caused.
+        let navigationType: string | null = null;
+        try {
+          navigationType = performance.getEntriesByType('navigation')[0]
+            ? (performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming).type
+            : null;
+        } catch {
+          /* ignore */
+        }
+        const clientDebug = JSON.stringify({
+          hadVerifierAtModuleLoad: pkceVerifierForThisLoad !== null,
+          sessionStorageKeys: (() => {
+            try {
+              return Object.keys(sessionStorage);
+            } catch {
+              return 'unavailable';
+            }
+          })(),
+          navigationType,
+          referrer: document.referrer,
+          url: window.location.href,
+        });
+
         const response = await fetch(apiUrl, {
           method: 'POST',
           headers: {
@@ -123,7 +147,7 @@ export function SSOCallbackPage(): JSX.Element {
             'Accept': 'application/json',
           },
           credentials: 'include', // Kept as a fallback path; the verifier below is the real fix
-          body: JSON.stringify({ code, code_verifier: pkceVerifierForThisLoad }),
+          body: JSON.stringify({ code, code_verifier: pkceVerifierForThisLoad, client_debug: clientDebug }),
         });
 
         let responseData: unknown = null;
