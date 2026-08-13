@@ -1,4 +1,4 @@
-import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   clearSession as clearStoredSession,
   loadSession,
@@ -35,6 +35,16 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
 
   const apiBaseUrl = useMemo(() => getApiBaseUrl(), []);
 
+  // Supabase refresh tokens are single-use/rotating. Several independent
+  // call sites can each decide "this token needs refreshing" around the
+  // same moment (the reactive effect below, ensureFreshAccessToken() called
+  // from various pages, etc.) — without de-duplication, two concurrent
+  // refresh requests both fire with the SAME refresh token; the first
+  // succeeds and the second then fails (token already consumed) and clears
+  // the session the first one just established. This ref makes concurrent
+  // callers share the one in-flight request instead.
+  const refreshInFlightRef = useRef<Promise<string | null> | null>(null);
+
   const persistSession = useCallback((nextSession: Session, storage: SessionStorageType = 'local') => {
     setSession({ ...nextSession, storage });
     saveSession(nextSession, storage);
@@ -46,11 +56,16 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
   }, []);
 
   const refreshSession = useCallback(async () => {
-    if (!apiBaseUrl || !session?.refreshToken) {
-      return null;
+    if (refreshInFlightRef.current) {
+      return refreshInFlightRef.current;
     }
 
-    try {
+    const run = async (): Promise<string | null> => {
+      if (!apiBaseUrl || !session?.refreshToken) {
+        return null;
+      }
+
+      try {
       const response = await fetch(`${apiBaseUrl}/accounts/token/refresh/`, {
         method: 'POST',
         headers: {
@@ -98,12 +113,19 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
         expiresAt,
       };
 
-      persistSession(nextSession, session.storage);
-      return data.access_token;
-    } catch {
-      clearSessionState();
-      return null;
-    }
+        persistSession(nextSession, session.storage);
+        return data.access_token;
+      } catch {
+        clearSessionState();
+        return null;
+      }
+    };
+
+    const promise = run().finally(() => {
+      refreshInFlightRef.current = null;
+    });
+    refreshInFlightRef.current = promise;
+    return promise;
   }, [apiBaseUrl, clearSessionState, persistSession, session]);
 
   const ensureFreshAccessToken = useCallback(async () => {
