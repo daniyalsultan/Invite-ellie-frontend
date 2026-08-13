@@ -2,15 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { getApiBaseUrl } from '../../utils/apiBaseUrl';
-import { takePkceVerifier } from '../../utils/authStorage';
+import { clearPkceVerifier, peekPkceVerifier } from '../../utils/authStorage';
 import { autoCreateWorkspaceForEmail } from '../../utils/workspaceAutoCreate';
-
-// Read (and remove) the verifier at module load, not inside the effect below.
-// This callback page is reached via a real full-page navigation from Supabase,
-// so the module only evaluates once per load — capturing it here, synchronously,
-// guarantees exactly one read no matter how React mounts/remounts the component,
-// instead of risking a remount consuming it a second time and finding it gone.
-const pkceVerifierForThisLoad = takePkceVerifier();
 
 export function SSOCallbackPage(): JSX.Element {
   const [searchParams] = useSearchParams();
@@ -116,6 +109,8 @@ export function SSOCallbackPage(): JSX.Element {
           requestBody: { code },
         });
         
+        const pkceVerifier = peekPkceVerifier();
+
         // Temporary diagnostic for the intermittent "PKCE verifier missing"
         // bug — remove once root-caused.
         let navigationType: string | null = null;
@@ -127,7 +122,14 @@ export function SSOCallbackPage(): JSX.Element {
           /* ignore */
         }
         const clientDebug = JSON.stringify({
-          hadVerifierAtModuleLoad: pkceVerifierForThisLoad !== null,
+          hasVerifier: pkceVerifier !== null,
+          localStorageKeys: (() => {
+            try {
+              return Object.keys(localStorage);
+            } catch {
+              return 'unavailable';
+            }
+          })(),
           sessionStorageKeys: (() => {
             try {
               return Object.keys(sessionStorage);
@@ -147,7 +149,7 @@ export function SSOCallbackPage(): JSX.Element {
             'Accept': 'application/json',
           },
           credentials: 'include', // Kept as a fallback path; the verifier below is the real fix
-          body: JSON.stringify({ code, code_verifier: pkceVerifierForThisLoad, client_debug: clientDebug }),
+          body: JSON.stringify({ code, code_verifier: pkceVerifier, client_debug: clientDebug }),
         });
 
         let responseData: unknown = null;
@@ -218,6 +220,12 @@ export function SSOCallbackPage(): JSX.Element {
           };
 
           const expiresAt = data.expires_in ? Date.now() + data.expires_in * 1000 : null;
+
+          // The exchange succeeded, so the verifier has served its purpose.
+          // Deliberately not cleared on the failure paths above: leaving it in
+          // place is harmless (each new sign-in attempt overwrites it) and lets
+          // a retry on the same URL still work.
+          clearPkceVerifier();
 
           // Establish session
           establishSession(

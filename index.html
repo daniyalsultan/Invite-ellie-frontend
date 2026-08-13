@@ -12,6 +12,30 @@
       rel="stylesheet"
     />
     <title>Invite Ellie</title>
+    <script>
+      // Canonicalise www -> apex before the app bundle loads.
+      //
+      // www.inviteellie.ai and inviteellie.ai are separate browser origins with
+      // separate localStorage/sessionStorage, but the OAuth redirect_to always
+      // comes back to the apex. Starting a sign-in on www therefore wrote the
+      // PKCE verifier to a storage bucket the callback could never read,
+      // producing "PKCE verifier missing" on the first attempt (and success on
+      // the retry, which by then started from the apex).
+      //
+      // This must run before /src/main.tsx so no storage is ever written on the
+      // wrong origin. Path, query and hash are preserved so an in-flight OAuth
+      // callback survives the hop.
+      (function () {
+        if (window.location.hostname === 'www.inviteellie.ai') {
+          window.location.replace(
+            'https://inviteellie.ai' +
+              window.location.pathname +
+              window.location.search +
+              window.location.hash
+          );
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

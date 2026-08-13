@@ -114,21 +114,41 @@ const PKCE_VERIFIER_KEY = 'ellie_sso_pkce_verifier';
 // third-party from the browser's POV and gets blocked unpredictably by
 // Safari ITP / Chrome's third-party-cookie rollout, causing intermittent
 // "PKCE verifier missing" failures on SSO login.
+//
+// Stored in localStorage, not sessionStorage: sessionStorage is scoped to a
+// single tab, so any flow that returns in a different tab loses the verifier
+// outright. The verifier is short-lived and single-use, and is cleared as
+// soon as the code exchange succeeds (or the flow definitively fails).
 export function savePkceVerifier(verifier: string): void {
   try {
-    sessionStorage.setItem(PKCE_VERIFIER_KEY, verifier);
+    localStorage.setItem(PKCE_VERIFIER_KEY, verifier);
   } catch {
     /* noop */
   }
 }
 
-export function takePkceVerifier(): string | null {
+// Deliberately non-destructive. The previous version removed the verifier on
+// read, which meant ANY page load that evaluated the callback module consumed
+// it — including a reload or back-navigation on the callback page itself,
+// after which the verifier was gone for good and the exchange could never
+// succeed. Callers read it here and call clearPkceVerifier() only once the
+// exchange has actually resolved.
+export function peekPkceVerifier(): string | null {
   try {
-    const verifier = sessionStorage.getItem(PKCE_VERIFIER_KEY);
-    sessionStorage.removeItem(PKCE_VERIFIER_KEY);
-    return verifier;
+    return localStorage.getItem(PKCE_VERIFIER_KEY);
   } catch {
     return null;
+  }
+}
+
+export function clearPkceVerifier(): void {
+  try {
+    localStorage.removeItem(PKCE_VERIFIER_KEY);
+    // Clear the legacy sessionStorage location too, so a verifier left over
+    // from the previous implementation can't shadow the new one.
+    sessionStorage.removeItem(PKCE_VERIFIER_KEY);
+  } catch {
+    /* noop */
   }
 }
 
