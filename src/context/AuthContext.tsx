@@ -228,10 +228,54 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
 
   useEffect(() => {
     const storedSession = loadSession();
-    if (storedSession) {
-      setSession(storedSession);
+
+    if (!storedSession) {
+      setIsInitializing(false);
+      return;
     }
+
+    setSession(storedSession);
+
+    // A full-page reload (e.g. returning from an OAuth redirect chain) can land
+    // on an already-expired access token. Refreshing it is async, but
+    // isAuthenticated/ProtectedRoute check synchronously on the next render —
+    // if we flip isInitializing to false here, that render sees "expired" and
+    // bounces to /login before the refresh below even starts, even though a
+    // valid refresh token exists. So: hold isInitializing until the refresh
+    // (if one is needed) has actually resolved.
+    if (storedSession.expiresAt && storedSession.expiresAt <= Date.now() && storedSession.refreshToken) {
+      fetch(`${apiBaseUrl}/accounts/token/refresh/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: storedSession.refreshToken }),
+      })
+        .then(async (response) => {
+          if (!response.ok) {
+            clearSessionState();
+            return;
+          }
+          const data = (await response.json()) as { access_token?: string; refresh_token: string; expires_in?: number };
+          if (!data.access_token) {
+            clearSessionState();
+            return;
+          }
+          persistSession(
+            {
+              accessToken: data.access_token,
+              refreshToken: data.refresh_token ?? storedSession.refreshToken,
+              userId: storedSession.userId,
+              expiresAt: data.expires_in ? Date.now() + data.expires_in * 1000 : storedSession.expiresAt,
+            },
+            storedSession.storage,
+          );
+        })
+        .catch(() => clearSessionState())
+        .finally(() => setIsInitializing(false));
+      return;
+    }
+
     setIsInitializing(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

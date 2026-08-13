@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import groupImage from '../../assets/Group 40999.png';
 import { getApiBaseUrl } from '../../utils/apiBaseUrl';
+import { savePkceVerifier } from '../../utils/authStorage';
 
 const apiBaseUrl = getApiBaseUrl();
 
@@ -168,6 +169,9 @@ export function SignupPage(): JSX.Element {
         'url' in responseData &&
         typeof responseData.url === 'string'
       ) {
+        if ('code_verifier' in responseData && typeof responseData.code_verifier === 'string') {
+          savePkceVerifier(responseData.code_verifier);
+        }
         window.location.href = responseData.url;
       } else {
         setErrorMessage('Invalid response from server.');

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { getApiBaseUrl } from '../../utils/apiBaseUrl';
+import { takePkceVerifier } from '../../utils/authStorage';
 import { autoCreateWorkspaceForEmail } from '../../utils/workspaceAutoCreate';
 
 export function SSOCallbackPage(): JSX.Element {
@@ -114,8 +115,8 @@ export function SSOCallbackPage(): JSX.Element {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
           },
-          credentials: 'include', // This is crucial for sending cookies in cross-origin requests
-          body: JSON.stringify({ code }),
+          credentials: 'include', // Kept as a fallback path; the verifier below is the real fix
+          body: JSON.stringify({ code, code_verifier: takePkceVerifier() }),
         });
 
         let responseData: unknown = null;

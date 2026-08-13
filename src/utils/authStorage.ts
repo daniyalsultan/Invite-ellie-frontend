@@ -107,6 +107,31 @@ function clearLegacyKeys(): void {
   }
 }
 
+const PKCE_VERIFIER_KEY = 'ellie_sso_pkce_verifier';
+
+// Held client-side rather than relying on the backend's session cookie:
+// frontend and backend are on different domains, so that cookie is
+// third-party from the browser's POV and gets blocked unpredictably by
+// Safari ITP / Chrome's third-party-cookie rollout, causing intermittent
+// "PKCE verifier missing" failures on SSO login.
+export function savePkceVerifier(verifier: string): void {
+  try {
+    sessionStorage.setItem(PKCE_VERIFIER_KEY, verifier);
+  } catch {
+    /* noop */
+  }
+}
+
+export function takePkceVerifier(): string | null {
+  try {
+    const verifier = sessionStorage.getItem(PKCE_VERIFIER_KEY);
+    sessionStorage.removeItem(PKCE_VERIFIER_KEY);
+    return verifier;
+  } catch {
+    return null;
+  }
+}
+
 function parseNumber(value: string | null): number | null {
   if (!value) {
     return null;

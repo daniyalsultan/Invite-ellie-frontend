@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import groupImage from '../../assets/Group 41000.png';
 import { useAuth } from '../../context/AuthContext';
 import { getApiBaseUrl } from '../../utils/apiBaseUrl';
+import { savePkceVerifier } from '../../utils/authStorage';
 import { GradientLoader } from '../common/GradientLoader';
 
 export function LoginPage(): JSX.Element {
@@ -99,6 +100,9 @@ export function LoginPage(): JSX.Element {
         'url' in responseData &&
         typeof responseData.url === 'string'
       ) {
+        if ('code_verifier' in responseData && typeof responseData.code_verifier === 'string') {
+          savePkceVerifier(responseData.code_verifier);
+        }
         window.location.href = responseData.url;
       } else {
         setErrorMessage('Invalid response from server.');
