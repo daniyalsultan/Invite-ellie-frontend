@@ -97,7 +97,7 @@ export function ChoosePlanPage(): JSX.Element {
           </p>
         </div>
 
-        <div className="mt-10 grid gap-6 sm:grid-cols-3">
+        <div className="mt-10 grid gap-6 md:grid-cols-3">
           {PLANS.map((plan) => (
             <button
               key={plan.id}
