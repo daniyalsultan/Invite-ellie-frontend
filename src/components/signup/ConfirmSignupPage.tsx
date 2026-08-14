@@ -498,6 +498,38 @@ export function ConfirmSignupPage(): JSX.Element {
     }
   };
 
+  if (alreadyConfirmed) {
+    return (
+      <div className="bg-white pb-[80px] pt-[40px] lg:pb-[120px] lg:pt-[60px]">
+        <div className="container-ellie">
+          <div className="mx-auto max-w-[600px] rounded-[24px] border border-[#7964A0]/20 bg-white px-8 py-12 shadow-sm">
+            <div className="text-center">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
+                <svg className="h-8 w-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <h1 className="font-nunito text-[32px] font-extrabold text-ellieBlack lg:text-[40px]">
+                Email Confirmed
+              </h1>
+              <p className="mt-3 font-nunito text-[18px] text-ellieGray">
+                Your email has been verified successfully. You can now log in to your account.
+              </p>
+            </div>
+            <div className="mt-8 flex justify-center">
+              <Link
+                to="/login"
+                className="inline-flex items-center justify-center rounded-[12px] bg-ellieBlue px-8 py-3 font-nunito text-[18px] font-semibold text-white transition hover:opacity-90"
+              >
+                Go to Login
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-white pb-[80px] pt-[40px] lg:pb-[120px] lg:pt-[60px]">
       <div className="container-ellie">
