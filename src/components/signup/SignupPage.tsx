@@ -195,8 +195,20 @@ export function SignupPage(): JSX.Element {
     }
   };
 
-  const handleGoogleSignup = () => initiateSSOSignup('google');
-  const handleMicrosoftSignup = () => initiateSSOSignup('microsoft');
+  const handleGoogleSignup = () => {
+    if (!agreedToTerms) {
+      setErrorMessage('Please accept the Privacy Policy before continuing.');
+      return;
+    }
+    initiateSSOSignup('google');
+  };
+  const handleMicrosoftSignup = () => {
+    if (!agreedToTerms) {
+      setErrorMessage('Please accept the Privacy Policy before continuing.');
+      return;
+    }
+    initiateSSOSignup('microsoft');
+  };
 
   return (
     <div className="bg-white pb-[80px] pt-[40px] lg:pb-[120px] lg:pt-[60px]">

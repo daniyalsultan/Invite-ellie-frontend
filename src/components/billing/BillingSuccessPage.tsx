@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '../sidebar';
 import { useProfile } from '../../context/ProfileContext';
@@ -18,13 +18,16 @@ export function BillingSuccessPage(): JSX.Element {
     profile.subscription_plan !== '' &&
     profile.subscription_plan !== 'free';
 
-  const navigateNext = useCallback(() => {
-    if (isFirstLogin) {
+  const isFirstLoginRef = useRef(isFirstLogin);
+  isFirstLoginRef.current = isFirstLogin;
+
+  const navigateNext = () => {
+    if (isFirstLoginRef.current) {
       navigate('/setup-profile', { replace: true });
     } else {
       navigate('/subscriptions', { replace: true });
     }
-  }, [isFirstLogin, navigate]);
+  };
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -34,7 +37,7 @@ export function BillingSuccessPage(): JSX.Element {
 
     if (hasPaidPlan) {
       setStatus('success');
-      timerRef.current = setTimeout(navigateNext, 3000);
+      timerRef.current = setTimeout(() => navigateNext(), 3000);
       return;
     }
 
@@ -45,11 +48,10 @@ export function BillingSuccessPage(): JSX.Element {
 
     const intervalId = setInterval(poll, 2000);
 
-    // Stop polling after 30 seconds and show success anyway
     const fallbackTimer = setTimeout(() => {
       clearInterval(intervalId);
       setStatus('success');
-      timerRef.current = setTimeout(navigateNext, 3000);
+      timerRef.current = setTimeout(() => navigateNext(), 3000);
     }, 30000);
 
     return () => {
@@ -63,9 +65,9 @@ export function BillingSuccessPage(): JSX.Element {
   useEffect(() => {
     if (hasPaidPlan && status === 'processing') {
       setStatus('success');
-      timerRef.current = setTimeout(navigateNext, 3000);
+      timerRef.current = setTimeout(() => navigateNext(), 3000);
     }
-  }, [hasPaidPlan, status, navigateNext]);
+  }, [hasPaidPlan, status]);
 
   return (
     <DashboardLayout activeTab="/subscriptions">
@@ -115,7 +117,11 @@ export function BillingSuccessPage(): JSX.Element {
                     type="button"
                     onClick={() => {
                       if (timerRef.current) clearTimeout(timerRef.current);
-                      navigateNext();
+                      if (isFirstLoginRef.current) {
+                        navigate('/setup-profile', { replace: true });
+                      } else {
+                        navigate('/subscriptions', { replace: true });
+                      }
                     }}
                     className="px-6 py-3 rounded-lg bg-ellieBlue text-white font-nunito text-base font-semibold hover:opacity-90 transition-opacity"
                   >
