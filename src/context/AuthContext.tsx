@@ -33,6 +33,13 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
   const [session, setSession] = useState<SessionWithStorage | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
 
+  // Mirror of `session` so ensureFreshAccessToken/refreshSession can stay
+  // identity-stable. If they closed over `session` directly, every session
+  // update would recreate them and re-run every data-fetching effect that
+  // lists them as a dependency (duplicate API calls on page load).
+  const sessionRef = useRef<SessionWithStorage | null>(null);
+  sessionRef.current = session;
+
   const apiBaseUrl = useMemo(() => getApiBaseUrl(), []);
 
   // Supabase refresh tokens are single-use/rotating. Several independent
@@ -61,6 +68,7 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
     }
 
     const run = async (): Promise<string | null> => {
+      const session = sessionRef.current;
       if (!apiBaseUrl || !session?.refreshToken) {
         return null;
       }
@@ -126,9 +134,10 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
     });
     refreshInFlightRef.current = promise;
     return promise;
-  }, [apiBaseUrl, clearSessionState, persistSession, session]);
+  }, [apiBaseUrl, clearSessionState, persistSession]);
 
   const ensureFreshAccessToken = useCallback(async () => {
+    const session = sessionRef.current;
     if (!session?.accessToken) {
       return null;
     }
@@ -145,7 +154,7 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
     }
 
     return refreshSession();
-  }, [refreshSession, session]);
+  }, [refreshSession]);
 
   const establishSession = useCallback(
     (nextSession: Session, options?: { rememberMe?: boolean }) => {

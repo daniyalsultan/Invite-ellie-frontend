@@ -7,7 +7,7 @@ const FIRST_LOGIN_ROUTES = ['/choose-plan', '/setup-profile', '/billing/success'
 
 export function ProtectedRoute(): JSX.Element {
   const { isAuthenticated, isInitializing } = useAuth();
-  const { profile, isLoading: isProfileLoading } = useProfile();
+  const { profile, error: profileError } = useProfile();
   const location = useLocation();
 
   const isFirstLoginRoute = FIRST_LOGIN_ROUTES.includes(location.pathname);
@@ -17,13 +17,23 @@ export function ProtectedRoute(): JSX.Element {
     profile.subscription_plan !== '' &&
     profile.subscription_plan !== 'free';
 
-  if (isInitializing || (isProfileLoading && !isFirstLoginRoute)) {
+  if (isInitializing) {
     return <FullScreenLoader label="For unforgettable meetings!" />;
   }
 
   if (!isAuthenticated) {
     const redirectTo = `${location.pathname}${location.search}${location.hash}`;
     return <Navigate to="/login" replace state={{ from: redirectTo }} />;
+  }
+
+  // Hold the loader until the first profile load settles. Gating on
+  // "profile not yet available" (rather than isLoading) keeps pages from
+  // mounting in the gap before ProfileContext's fetch effect flips
+  // isLoading on — that gap caused pages to mount, fire their data
+  // fetches, unmount behind the loader, then remount and fetch again.
+  // It also stops background profile refreshes from unmounting the app.
+  if (profile === null && profileError === null && !isFirstLoginRoute) {
+    return <FullScreenLoader label="For unforgettable meetings!" />;
   }
 
   if (isFirstLogin && !isFirstLoginRoute) {
