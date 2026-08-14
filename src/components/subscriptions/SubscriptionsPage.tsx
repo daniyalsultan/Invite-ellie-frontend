@@ -33,7 +33,6 @@ const PLANS: Plan[] = [
       'Up to 60 meetings / month',
       'Enhanced summaries with highlights',
       'Slack + Notion exports',
-      'Email/PDF sharing',
     ],
   },
   {

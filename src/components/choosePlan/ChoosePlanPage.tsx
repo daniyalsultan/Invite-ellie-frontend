@@ -24,7 +24,7 @@ const PLANS: PlanOption[] = [
     name: 'Insight',
     price: 20,
     description: 'Advanced summaries, exports, and team visibility.',
-    features: ['Up to 60 meetings / month', 'Enhanced summaries with highlights', 'Slack + Notion exports', 'Email/PDF sharing'],
+    features: ['Up to 60 meetings / month', 'Enhanced summaries with highlights', 'Slack + Notion exports'],
   },
   {
     id: 'ALIGNMENT',
