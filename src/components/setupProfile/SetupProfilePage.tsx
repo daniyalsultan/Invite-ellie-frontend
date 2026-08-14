@@ -349,7 +349,8 @@ export function SetupProfilePage(): JSX.Element {
     }
   };
 
-  const disableInputs = isSubmitting || isSavingAvatar;
+  const disableInputs = isSubmitting;
+  const disableAvatarButtons = isSubmitting || isSavingAvatar;
 
   return (
     <div className="bg-white pb-[80px] pt-[40px] lg:pb-[120px] lg:pt-[60px]">
@@ -379,7 +380,7 @@ export function SetupProfilePage(): JSX.Element {
                     className="absolute left-3 bottom-3 h-[35px] w-[38px] transition hover:opacity-90"
                     aria-label="Change avatar"
                     onClick={handleUploadClick}
-                    disabled={disableInputs}
+                    disabled={disableAvatarButtons}
                   >
                     <img src={uploadButtonGraphic} alt="" className="h-full w-full" />
                   </button>
@@ -388,7 +389,7 @@ export function SetupProfilePage(): JSX.Element {
                     className="absolute right-3 bottom-3 h-[35px] w-[35px] transition hover:opacity-90"
                     aria-label="Remove avatar"
                     onClick={handleRemoveAvatar}
-                    disabled={disableInputs}
+                    disabled={disableAvatarButtons}
                   >
                     <img src={removeButtonGraphic} alt="" className="h-full w-full" />
                   </button>
@@ -398,7 +399,7 @@ export function SetupProfilePage(): JSX.Element {
                   type="button"
                   onClick={handleUploadClick}
                   className="flex h-full w-full flex-col items-center justify-center gap-3 rounded-[18px] border-2 border-dashed border-[#A7B0C5] bg-white text-center font-nunito text-[16px] text-ellieNavy transition hover:border-ellieBlue hover:bg-ellieBlue/5"
-                  disabled={disableInputs}
+                  disabled={disableAvatarButtons}
                 >
                   <span className="text-[34px]">📁</span>
                   <span className="font-extrabold">Upload profile photo</span>

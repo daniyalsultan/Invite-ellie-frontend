@@ -144,7 +144,7 @@ export function OnboardingIntegrationsPage(): JSX.Element {
     setConnecting(cal.id);
     setError(null);
     try {
-      const urls = await getCalendarConnectUrls(profile.id, null, null);
+      const urls = await getCalendarConnectUrls(profile.id, null, null, '/connect-integrations');
       const url = cal.platform === 'google_calendar' ? urls.googleCalendar : urls.microsoftOutlook;
       if (url) window.location.href = url;
       else throw new Error('Failed to get authorization URL');
@@ -160,9 +160,10 @@ export function OnboardingIntegrationsPage(): JSX.Element {
     setError(null);
     try {
       let url: string;
-      if (exp.id === 'slack') url = await getSlackConnectUrl(profile.id);
-      else if (exp.id === 'notion') url = await getNotionConnectUrl(profile.id);
-      else url = await getHubSpotConnectUrl(profile.id);
+      const returnTo = '/connect-integrations';
+      if (exp.id === 'slack') url = await getSlackConnectUrl(profile.id, returnTo);
+      else if (exp.id === 'notion') url = await getNotionConnectUrl(profile.id, returnTo);
+      else url = await getHubSpotConnectUrl(profile.id, returnTo);
       window.location.href = url;
     } catch (err) {
       setError(err instanceof Error ? err.message : `Failed to connect to ${exp.name}`);

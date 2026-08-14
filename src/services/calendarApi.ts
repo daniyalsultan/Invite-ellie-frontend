@@ -285,7 +285,8 @@ export async function getConnectedCalendars(
 export async function getCalendarConnectUrls(
   userId: string,
   folderId?: string | null,
-  workspaceId?: string | null
+  workspaceId?: string | null,
+  returnTo?: string
 ): Promise<{ googleCalendar: string; microsoftOutlook: string }> {
   const recallaiUrl = buildRecallaiUrl('/api/calendar/connect-urls');
   if (!recallaiUrl) {
@@ -301,6 +302,9 @@ export async function getCalendarConnectUrls(
     }
     if (workspaceId) {
       params.append('workspaceId', workspaceId);
+    }
+    if (returnTo) {
+      params.append('returnTo', returnTo);
     }
     const url = `${recallaiUrl}?${params.toString()}`;
     console.log('Fetching connect URLs from:', url);

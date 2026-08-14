@@ -21,8 +21,10 @@ export interface SlackConnectionStatus {
 /**
  * Get Slack OAuth authorization URL
  */
-export async function getSlackConnectUrl(userId: string): Promise<string> {
-  const apiUrl = `${getSlackApiBaseUrl()}/api/slack/connect?user_id=${userId}`;
+export async function getSlackConnectUrl(userId: string, returnTo?: string): Promise<string> {
+  const params = new URLSearchParams({ user_id: userId });
+  if (returnTo) params.append('returnTo', returnTo);
+  const apiUrl = `${getSlackApiBaseUrl()}/api/slack/connect?${params.toString()}`;
 
   try {
     const response = await fetch(apiUrl, {

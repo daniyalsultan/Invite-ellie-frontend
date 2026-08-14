@@ -26,11 +26,13 @@ export interface NotionConnectionStatus {
 /**
  * Get Notion OAuth authorization URL
  */
-export async function getNotionConnectUrl(userId: string): Promise<string> {
+export async function getNotionConnectUrl(userId: string, returnTo?: string): Promise<string> {
   const apiUrl = buildNotionApiUrl('/api/notion/connect');
+  const params = new URLSearchParams({ user_id: userId });
+  if (returnTo) params.append('returnTo', returnTo);
 
   try {
-    const response = await fetch(`${apiUrl}?user_id=${userId}`, {
+    const response = await fetch(`${apiUrl}?${params.toString()}`, {
       method: 'GET',
       headers: {
         Accept: 'application/json',

@@ -3,11 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '../sidebar';
 import { useProfile } from '../../context/ProfileContext';
 import { useAuth } from '../../context/AuthContext';
+import { getApiBaseUrl } from '../../utils/apiBaseUrl';
 
 export function BillingSuccessPage(): JSX.Element {
   const navigate = useNavigate();
   const { profile, refreshProfile } = useProfile();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, ensureFreshAccessToken } = useAuth();
   const [status, setStatus] = useState<'processing' | 'success' | 'transitioning'>('processing');
   const pollCountRef = useRef(0);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -42,6 +43,19 @@ export function BillingSuccessPage(): JSX.Element {
 
     const poll = async () => {
       pollCountRef.current += 1;
+      try {
+        const token = await ensureFreshAccessToken();
+        if (token) {
+          const apiUrl = getApiBaseUrl();
+          if (apiUrl) {
+            await fetch(`${apiUrl}/accounts/stripe/subscription/`, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+          }
+        }
+      } catch {
+        // ignore — the fetch triggers backend-side sync
+      }
       await refreshProfile();
     };
 

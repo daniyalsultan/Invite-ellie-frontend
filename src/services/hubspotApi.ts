@@ -20,8 +20,10 @@ export interface HubSpotConnectionStatus {
 /**
  * Get HubSpot OAuth authorization URL
  */
-export async function getHubSpotConnectUrl(userId: string): Promise<string> {
-  const apiUrl = `${getHubSpotApiBaseUrl()}/api/hubspot/connect?user_id=${userId}`;
+export async function getHubSpotConnectUrl(userId: string, returnTo?: string): Promise<string> {
+  const params = new URLSearchParams({ user_id: userId });
+  if (returnTo) params.append('returnTo', returnTo);
+  const apiUrl = `${getHubSpotApiBaseUrl()}/api/hubspot/connect?${params.toString()}`;
 
   try {
     const response = await fetch(apiUrl, {
