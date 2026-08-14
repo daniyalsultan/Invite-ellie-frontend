@@ -107,12 +107,10 @@ export function ConfirmSignupPage(): JSX.Element {
   }, [email, emailInput]);
 
   useEffect(() => {
-    // If we have an error from URL, don't redirect
-    if (urlError) {
+    if (urlError || alreadyConfirmed) {
       return;
     }
 
-    // If no token, redirect to signup
     if (!token) {
       navigate('/signup', {
         replace: true,
@@ -121,7 +119,7 @@ export function ConfirmSignupPage(): JSX.Element {
         },
       });
     }
-  }, [token, urlError, navigate]);
+  }, [token, urlError, alreadyConfirmed, navigate]);
 
   // Use ref to prevent multiple API calls
   const hasCalledApi = useRef(false);

@@ -100,13 +100,19 @@ function AuthRedirectHandler(): null {
         return;
       }
 
-      if (type === 'email' && token) {
+      if ((type === 'email' || type === 'signup') && token) {
         const params = new URLSearchParams();
         params.set('token', token);
         if (email) {
           params.set('email', email);
         }
         navigate(`/confirm-signup?${params.toString()}`, { replace: true });
+        return;
+      }
+
+      const accessTokenConfirm = hashParams.get('access_token');
+      if (type === 'signup' && accessTokenConfirm) {
+        navigate('/confirm-signup?confirmed=true', { replace: true });
         return;
       }
     }
