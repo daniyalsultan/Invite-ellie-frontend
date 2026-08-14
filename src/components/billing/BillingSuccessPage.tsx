@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '../sidebar';
 import { useProfile } from '../../context/ProfileContext';
@@ -6,154 +6,127 @@ import { useAuth } from '../../context/AuthContext';
 
 export function BillingSuccessPage(): JSX.Element {
   const navigate = useNavigate();
-  const { profile } = useProfile();
+  const { profile, refreshProfile } = useProfile();
   const { isAuthenticated } = useAuth();
-  const [hasShownSuccess, setHasShownSuccess] = useState(false);
-  const [redirectTimer, setRedirectTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
+  const [status, setStatus] = useState<'processing' | 'success'>('processing');
+  const pollCountRef = useRef(0);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const isFirstLogin = profile?.first_login === true;
+  const hasPaidPlan =
+    profile?.subscription_plan != null &&
+    profile.subscription_plan !== '' &&
+    profile.subscription_plan !== 'free';
+
+  const navigateNext = useCallback(() => {
+    if (isFirstLogin) {
+      navigate('/setup-profile', { replace: true });
+    } else {
+      navigate('/subscriptions', { replace: true });
+    }
+  }, [isFirstLogin, navigate]);
 
   useEffect(() => {
-    // Redirect to login if not authenticated
     if (!isAuthenticated) {
       navigate('/login');
       return;
     }
 
-    // Show success immediately and set up redirect
-    setHasShownSuccess(true);
+    if (hasPaidPlan) {
+      setStatus('success');
+      timerRef.current = setTimeout(navigateNext, 3000);
+      return;
+    }
 
-    // Auto-redirect to subscriptions page after 2 seconds
-    const timer = setTimeout(() => {
-      navigate('/subscriptions');
-    }, 2000);
+    const poll = async () => {
+      pollCountRef.current += 1;
+      await refreshProfile();
+    };
 
-    setRedirectTimer(timer);
+    const intervalId = setInterval(poll, 2000);
 
-    // Cleanup on unmount
+    // Stop polling after 30 seconds and show success anyway
+    const fallbackTimer = setTimeout(() => {
+      clearInterval(intervalId);
+      setStatus('success');
+      timerRef.current = setTimeout(navigateNext, 3000);
+    }, 30000);
+
     return () => {
-      if (timer) {
-        clearTimeout(timer);
-      }
+      clearInterval(intervalId);
+      clearTimeout(fallbackTimer);
+      if (timerRef.current) clearTimeout(timerRef.current);
     };
   }, [isAuthenticated, navigate]);
 
-  // Cleanup redirect timer on unmount
+  // When profile updates and plan is now paid, stop polling and show success
   useEffect(() => {
-    return () => {
-      if (redirectTimer) {
-        clearTimeout(redirectTimer);
-      }
-    };
-  }, [redirectTimer]);
+    if (hasPaidPlan && status === 'processing') {
+      setStatus('success');
+      timerRef.current = setTimeout(navigateNext, 3000);
+    }
+  }, [hasPaidPlan, status, navigateNext]);
 
   return (
     <DashboardLayout activeTab="/subscriptions">
       <div className="w-full min-h-full bg-white">
         <div className="px-4 py-4 md:px-6 md:py-6 lg:px-8 lg:py-8">
           <div className="max-w-2xl mx-auto">
-            {!hasShownSuccess ? (
+            {status === 'processing' ? (
               <div className="text-center py-12">
                 <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-ellieBlue border-t-transparent mb-4"></div>
-                <p className="font-nunito text-lg text-ellieGray">Processing your subscription...</p>
+                <h1 className="font-spaceGrotesk text-2xl font-bold text-ellieBlack mb-2">
+                  Activating your subscription...
+                </h1>
+                <p className="font-nunito text-lg text-ellieGray">
+                  This usually takes just a few seconds.
+                </p>
               </div>
             ) : (
               <div className="text-center py-12">
-                {/* Success Icon */}
                 <div className="mb-6">
                   <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-green-100 mb-4">
-                    <svg
-                      className="w-12 h-12 text-green-600"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M5 13l4 4L19 7"
-                      />
+                    <svg className="w-12 h-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
                   </div>
                 </div>
 
-                {/* Success Message */}
                 <h1 className="font-spaceGrotesk text-3xl md:text-4xl font-bold text-ellieBlack mb-4">
-                  Payment Successful!
+                  You're all set!
                 </h1>
                 <p className="font-nunito text-lg text-ellieGray mb-8">
-                  Thank you for subscribing. Your subscription is now active and you have access to all premium features.
+                  {profile?.subscription_plan
+                    ? `Your ${profile.subscription_plan.charAt(0).toUpperCase() + profile.subscription_plan.slice(1)} plan is now active.`
+                    : 'Your subscription is now active.'}
+                  {' '}Enjoy all your premium features.
                 </p>
 
-                {/* Subscription Details */}
-                {(profile as any)?.subscription_status === 'active' && (
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-6 mb-6">
-                    <div className="flex items-center justify-center gap-2 mb-2">
-                      <svg
-                        className="w-5 h-5 text-green-600"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                        />
-                      </svg>
-                      <span className="font-nunito text-base font-semibold text-green-800">
-                        Subscription Active
-                      </span>
-                    </div>
-                    <p className="font-nunito text-sm text-green-700">
-                      You can now enjoy all the features of your plan.
-                    </p>
-                  </div>
-                )}
-
-                {/* Redirect Message */}
                 <div className="mb-6">
                   <p className="font-nunito text-sm text-ellieGray">
-                    Redirecting to subscriptions page in a moment...
+                    {isFirstLogin
+                      ? 'Taking you to finish setting up your profile...'
+                      : 'Redirecting to your subscriptions...'}
                   </p>
                 </div>
 
-                {/* Action Buttons */}
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <button
                     type="button"
                     onClick={() => {
-                      if (redirectTimer) {
-                        clearTimeout(redirectTimer);
-                      }
-                      navigate('/dashboard');
+                      if (timerRef.current) clearTimeout(timerRef.current);
+                      navigateNext();
                     }}
                     className="px-6 py-3 rounded-lg bg-ellieBlue text-white font-nunito text-base font-semibold hover:opacity-90 transition-opacity"
                   >
-                    Go to Dashboard
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (redirectTimer) {
-                        clearTimeout(redirectTimer);
-                      }
-                      navigate('/subscriptions');
-                    }}
-                    className="px-6 py-3 rounded-lg bg-white border-2 border-ellieBlue text-ellieBlue font-nunito text-base font-semibold hover:bg-ellieBlue hover:text-white transition-colors"
-                  >
-                    View Subscriptions Now
+                    {isFirstLogin ? 'Set Up Profile' : 'Go to Dashboard'}
                   </button>
                 </div>
 
-                {/* Help Text */}
                 <div className="mt-8 pt-8 border-t border-gray-200">
                   <p className="font-nunito text-sm text-ellieGray">
                     Need help?{' '}
-                    <a
-                      href="mailto:support@inviteellie.ai"
-                      className="text-ellieBlue hover:underline"
-                    >
+                    <a href="mailto:support@inviteellie.ai" className="text-ellieBlue hover:underline">
                       Contact our support team
                     </a>
                   </p>
@@ -166,4 +139,3 @@ export function BillingSuccessPage(): JSX.Element {
     </DashboardLayout>
   );
 }
-

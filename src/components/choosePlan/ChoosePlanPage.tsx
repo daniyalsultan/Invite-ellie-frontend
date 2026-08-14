@@ -169,7 +169,7 @@ export function ChoosePlanPage(): JSX.Element {
                 : 'Start 14-Day Free Trial'}
           </button>
           <p className="mt-2 text-center font-nunito text-[13px] text-[#7A86A1]">
-            No charge for 14 days. Cancel anytime.
+            No charge for 14 days. You can cancel anytime before your trial ends to avoid being charged.
           </p>
 
           {errorMessage && (

@@ -154,6 +154,33 @@ export function SubscriptionsPage(): JSX.Element {
             Subscriptions
           </h1>
 
+          {currentPlanId && profile?.subscription_status === 'active' && (() => {
+            const activePlan = PLANS.find(p => p.id === currentPlanId);
+            if (!activePlan) return null;
+            return (
+              <div className="mb-6 rounded-xl border border-ellieBlue/20 bg-ellieBlue/5 p-5">
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 font-nunito text-xs font-semibold text-green-700">
+                        Active
+                      </span>
+                      <h2 className="font-nunito text-lg font-bold text-ellieBlack">
+                        {activePlan.name} Plan
+                      </h2>
+                    </div>
+                    <p className="mt-1 font-nunito text-sm text-[#545454]">
+                      ${activePlan.price}/month &middot; {activePlan.features[0]}
+                    </p>
+                  </div>
+                  <p className="font-nunito text-xs text-[#7A86A1]">
+                    You can switch plans anytime. Changes take effect immediately.
+                  </p>
+                </div>
+              </div>
+            );
+          })()}
+
           {error && (
             <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 font-nunito text-sm text-red-600">
               {error}
