@@ -8,7 +8,7 @@ export function BillingSuccessPage(): JSX.Element {
   const navigate = useNavigate();
   const { profile, refreshProfile } = useProfile();
   const { isAuthenticated } = useAuth();
-  const [status, setStatus] = useState<'processing' | 'success'>('processing');
+  const [status, setStatus] = useState<'processing' | 'success' | 'transitioning'>('processing');
   const pollCountRef = useRef(0);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -37,7 +37,6 @@ export function BillingSuccessPage(): JSX.Element {
 
     if (hasPaidPlan) {
       setStatus('success');
-      timerRef.current = setTimeout(() => navigateNext(), 3000);
       return;
     }
 
@@ -51,7 +50,6 @@ export function BillingSuccessPage(): JSX.Element {
     const fallbackTimer = setTimeout(() => {
       clearInterval(intervalId);
       setStatus('success');
-      timerRef.current = setTimeout(() => navigateNext(), 3000);
     }, 30000);
 
     return () => {
@@ -61,13 +59,33 @@ export function BillingSuccessPage(): JSX.Element {
     };
   }, [isAuthenticated, navigate]);
 
-  // When profile updates and plan is now paid, stop polling and show success
   useEffect(() => {
     if (hasPaidPlan && status === 'processing') {
       setStatus('success');
-      timerRef.current = setTimeout(() => navigateNext(), 3000);
     }
   }, [hasPaidPlan, status]);
+
+  useEffect(() => {
+    if (status !== 'success') return;
+
+    if (isFirstLoginRef.current) {
+      timerRef.current = setTimeout(() => setStatus('transitioning'), 2000);
+      return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+    }
+
+    timerRef.current = setTimeout(() => navigateNext(), 3000);
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, [status]);
+
+  useEffect(() => {
+    if (status !== 'transitioning') return;
+    timerRef.current = setTimeout(() => navigateNext(), 2000);
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, [status]);
+
+  const planName = profile?.subscription_plan
+    ? profile.subscription_plan.charAt(0).toUpperCase() + profile.subscription_plan.slice(1)
+    : null;
 
   return (
     <DashboardLayout activeTab="/subscriptions">
@@ -84,6 +102,16 @@ export function BillingSuccessPage(): JSX.Element {
                   This usually takes just a few seconds.
                 </p>
               </div>
+            ) : status === 'transitioning' ? (
+              <div className="text-center py-12">
+                <div className="inline-block animate-spin rounded-full h-10 w-10 border-4 border-ellieBlue border-t-transparent mb-6"></div>
+                <h1 className="font-spaceGrotesk text-2xl md:text-3xl font-bold text-ellieBlack mb-3">
+                  Starting your profile setup...
+                </h1>
+                <p className="font-nunito text-lg text-ellieGray">
+                  Just a few more steps to get Ellie ready for you.
+                </p>
+              </div>
             ) : (
               <div className="text-center py-12">
                 <div className="mb-6">
@@ -98,36 +126,34 @@ export function BillingSuccessPage(): JSX.Element {
                   You're all set!
                 </h1>
                 <p className="font-nunito text-lg text-ellieGray mb-8">
-                  {profile?.subscription_plan
-                    ? `Your ${profile.subscription_plan.charAt(0).toUpperCase() + profile.subscription_plan.slice(1)} plan is now active.`
+                  {planName
+                    ? `Your ${planName} plan is now active.`
                     : 'Your subscription is now active.'}
                   {' '}Enjoy all your premium features.
                 </p>
 
-                <div className="mb-6">
-                  <p className="font-nunito text-sm text-ellieGray">
-                    {isFirstLogin
-                      ? 'Taking you to finish setting up your profile...'
-                      : 'Redirecting to your subscriptions...'}
-                  </p>
-                </div>
+                {!isFirstLogin && (
+                  <>
+                    <div className="mb-6">
+                      <p className="font-nunito text-sm text-ellieGray">
+                        Redirecting to your subscriptions...
+                      </p>
+                    </div>
 
-                <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (timerRef.current) clearTimeout(timerRef.current);
-                      if (isFirstLoginRef.current) {
-                        navigate('/setup-profile', { replace: true });
-                      } else {
-                        navigate('/subscriptions', { replace: true });
-                      }
-                    }}
-                    className="px-6 py-3 rounded-lg bg-ellieBlue text-white font-nunito text-base font-semibold hover:opacity-90 transition-opacity"
-                  >
-                    {isFirstLogin ? 'Set Up Profile' : 'Go to Dashboard'}
-                  </button>
-                </div>
+                    <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (timerRef.current) clearTimeout(timerRef.current);
+                          navigate('/subscriptions', { replace: true });
+                        }}
+                        className="px-6 py-3 rounded-lg bg-ellieBlue text-white font-nunito text-base font-semibold hover:opacity-90 transition-opacity"
+                      >
+                        Go to Dashboard
+                      </button>
+                    </div>
+                  </>
+                )}
 
                 <div className="mt-8 pt-8 border-t border-gray-200">
                   <p className="font-nunito text-sm text-ellieGray">
