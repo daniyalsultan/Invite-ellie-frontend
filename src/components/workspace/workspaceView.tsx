@@ -30,7 +30,6 @@ import { getSlackStatus, slackExport } from '../../services/slackApi';
 import { getNotionStatus, notionExport } from '../../services/notionApi';
 import { getHubSpotStatus, hubspotExport } from '../../services/hubspotApi';
 import { splitOverviewSummaryToBullets } from '../../utils/overviewSummaryBullets';
-import { displayDeadline, displayOwner, isAbsentScalar } from '../../utils/meetingDisplay';
 
 type StatusMessage = {
   type: 'success' | 'error';
@@ -103,38 +102,6 @@ function workspaceInsightFlagLine(flag: string, blockedBy: string | null): strin
   return flag;
 }
 
-function formatActionItemText(item: unknown): string {
-  if (typeof item === 'string') return item.trim();
-  if (item && typeof item === 'object' && 'text' in item && typeof (item as { text: string }).text === 'string') {
-    return (item as { text: string }).text.trim();
-  }
-  if (item && typeof item === 'object' && 'item' in item && typeof (item as { item: string }).item === 'string') {
-    return (item as { item: string }).item.trim();
-  }
-  return '';
-}
-
-function extractActionItemMeta(item: unknown) {
-  if (!item || typeof item !== 'object') {
-    return { owner: undefined, deadline: undefined, blockers: undefined, hasMeta: false };
-  }
-  const hasMeta =
-    'owner' in item ||
-    'speaker' in item ||
-    'deadline' in item ||
-    'due' in item ||
-    'blockers' in item;
-  if (!hasMeta) {
-    return { owner: undefined, deadline: undefined, blockers: undefined, hasMeta: false };
-  }
-  return {
-    owner: (item as any).owner ?? (item as any).speaker,
-    deadline: (item as any).deadline ?? (item as any).due,
-    blockers: (item as any).blockers,
-    hasMeta: true,
-  };
-}
-
 function formatMeetingDateTimeLine(m: { start_time: string | null; created_at: string | null }): string {
   const raw = m.start_time || m.created_at;
   if (!raw) return 'Date unknown';
@@ -179,7 +146,7 @@ export function WorkspaceViewPage(): JSX.Element {
 
   // Overview (AI summary across all workspace meetings)
   const [overviewBackendSummary, setOverviewBackendSummary] = useState<string | null>(null);
-  const [overviewBackendActions, setOverviewBackendActions] = useState<FolderMeetingsOverviewActionItem[]>([]);
+  const [, setOverviewBackendActions] = useState<FolderMeetingsOverviewActionItem[]>([]);
   const [overviewLoading, setOverviewLoading] = useState(false);
   const [overviewError, setOverviewError] = useState<string | null>(null);
   const [overviewCached, setOverviewCached] = useState(false);
@@ -197,7 +164,7 @@ export function WorkspaceViewPage(): JSX.Element {
   const [exportMessage, setExportMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Detail panel view: overview or single meeting
-  const [detailPanel, setDetailPanel] = useState<'overview' | 'meeting'>('overview');
+  const [, setDetailPanel] = useState<'overview' | 'meeting'>('overview');
 
   const refreshWorkspace = useCallback(async () => {
     if (!workspaceId) return;
@@ -371,49 +338,6 @@ export function WorkspaceViewPage(): JSX.Element {
     () => splitOverviewSummaryToBullets(displayOverviewSummary || ''),
     [displayOverviewSummary],
   );
-
-  const allWorkspaceActionItems = useMemo(() => {
-    const rows: { meetingTitle: string; meetingId: string; text: string }[] = [];
-    for (const m of meetingsNewestFirst) {
-      const items = m.action_items || [];
-      for (const item of items) {
-        const text = formatActionItemText(item);
-        if (text) {
-          rows.push({
-            meetingTitle: m.meeting_title || 'Untitled Meeting',
-            meetingId: m.id,
-            text,
-          });
-        }
-      }
-    }
-    return rows;
-  }, [meetingsNewestFirst]);
-
-  const displayOverviewActionRows = useMemo(() => {
-    const normalized = overviewBackendActions
-      .map((row) => ({
-        text: (row.text || '').trim(),
-        meetingTitle: (row.meeting_title || 'General').trim() || 'General',
-        original: row,
-      }))
-      .filter((row) => row.text.length > 0);
-
-    if (normalized.length > 0) {
-      return normalized.map((row, idx) => ({
-        meetingId: `overview-${idx}`,
-        meetingTitle: row.meetingTitle,
-        text: row.text,
-        original: row.original,
-      }));
-    }
-    return allWorkspaceActionItems.map((row) => ({
-      meetingId: row.meetingId,
-      meetingTitle: row.meetingTitle,
-      text: row.text,
-      original: null,
-    }));
-  }, [overviewBackendActions, allWorkspaceActionItems]);
 
   const workspaceActionItemGroups = useMemo(() => {
     if (!workspaceInsights) return { attention: [], ready: [] };
