@@ -44,7 +44,7 @@ export function ChoosePlanPage(): JSX.Element {
   const { isLoading: isProfileLoading } = useProfile();
   const apiBaseUrl = getApiBaseUrl();
 
-  const handleContinue = async () => {
+  const handleCheckout = async (trial: boolean) => {
     if (!selectedPlan || !apiBaseUrl) return;
 
     setErrorMessage(null);
@@ -62,11 +62,12 @@ export function ChoosePlanPage(): JSX.Element {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ plan: selectedPlan }),
+        body: JSON.stringify({ plan: selectedPlan, trial }),
       });
 
       if (!checkoutResponse.ok) {
-        throw new Error('Unable to start checkout. Please try again.');
+        const data = await checkoutResponse.json().catch(() => null);
+        throw new Error(data?.error || 'Unable to start checkout. Please try again.');
       }
 
       const checkoutData = await checkoutResponse.json();
@@ -84,6 +85,8 @@ export function ChoosePlanPage(): JSX.Element {
       setIsSubmitting(false);
     }
   };
+
+  const selectedPlanData = PLANS.find((p) => p.id === selectedPlan);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-white px-4 py-[60px]">
@@ -137,15 +140,37 @@ export function ChoosePlanPage(): JSX.Element {
           ))}
         </div>
 
-        <div className="mx-auto mt-10 max-w-[400px]">
+        <div className="mx-auto mt-10 max-w-[440px]">
           <button
             type="button"
-            onClick={handleContinue}
+            onClick={() => handleCheckout(false)}
             disabled={!selectedPlan || isSubmitting}
             className="inline-flex w-full items-center justify-center rounded-[12px] bg-ellieBlue px-[40px] py-[16px] font-nunito text-[18px] font-extrabold text-white transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ellieBlue disabled:cursor-not-allowed disabled:opacity-40 lg:text-[20px]"
           >
             {isSubmitting ? 'Redirecting to checkout...' : 'Continue to Payment'}
           </button>
+
+          <div className="relative my-5 flex items-center">
+            <div className="flex-1 border-t border-[#E5E7EB]" />
+            <span className="px-4 font-nunito text-[14px] text-[#7A86A1]">or</span>
+            <div className="flex-1 border-t border-[#E5E7EB]" />
+          </div>
+
+          <button
+            type="button"
+            onClick={() => handleCheckout(true)}
+            disabled={!selectedPlan || isSubmitting}
+            className="inline-flex w-full items-center justify-center rounded-[12px] border-2 border-ellieBlue bg-white px-[40px] py-[14px] font-nunito text-[17px] font-extrabold text-ellieBlue transition hover:bg-ellieBlue/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ellieBlue disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {isSubmitting
+              ? 'Redirecting...'
+              : selectedPlanData
+                ? `Start 14-Day Free Trial — ${selectedPlanData.name}`
+                : 'Start 14-Day Free Trial'}
+          </button>
+          <p className="mt-2 text-center font-nunito text-[13px] text-[#7A86A1]">
+            No charge for 14 days. Cancel anytime.
+          </p>
 
           {errorMessage && (
             <div className="mt-4 rounded-[12px] border border-red-200 bg-red-50 px-4 py-3 font-nunito text-[15px] text-red-600">
