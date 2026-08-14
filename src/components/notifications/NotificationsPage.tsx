@@ -62,7 +62,7 @@ export function NotificationsPage(): JSX.Element {
                 No notifications yet
               </p>
               <p className="font-nunito text-sm text-ellieGray mt-2">
-                You'll see notifications here when you have unresolved meetings that need folder assignment.
+                You'll see notifications here when you have unresolved meetings that need workspace assignment.
               </p>
               <button
                 type="button"

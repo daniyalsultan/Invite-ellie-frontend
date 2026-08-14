@@ -491,7 +491,7 @@ export function DashboardPage(): JSX.Element {
                   workspaces.map((ws) => (
                     <Link
                       key={ws.id}
-                      to={`/workspace/${ws.id}`}
+                      to={`/workspaces/${ws.id}`}
                       className="flex cursor-pointer flex-col items-center gap-3 rounded-[12px] bg-[rgba(50,122,173,0.05)] px-6 py-6 text-center transition hover:bg-[rgba(50,122,173,0.1)] no-underline"
                     >
                       <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#327AAD]/10">
