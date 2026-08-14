@@ -4,6 +4,7 @@ import { Header } from './components/landing/Header';
 import { LandingPage } from './components/landing/LandingPage';
 import { SetupProfilePage } from './components/setupProfile/SetupProfilePage';
 import { ChoosePlanPage } from './components/choosePlan/ChoosePlanPage';
+import { OnboardingIntegrationsPage } from './components/onboardingIntegrations/OnboardingIntegrationsPage';
 import { ComingSoonPage } from './components/comingSoon/ComingSoonPage';
 import { SignupPage } from './components/signup/SignupPage';
 import { ConfirmSignupPage } from './components/signup/ConfirmSignupPage';
@@ -161,7 +162,8 @@ function App(): JSX.Element {
     location.pathname.startsWith('/meeting-recordings') ||
     location.pathname.startsWith('/meeting-view') ||
     location.pathname.startsWith('/search-results') ||
-    location.pathname === '/choose-plan';
+    location.pathname === '/choose-plan' ||
+    location.pathname === '/connect-integrations';
 
   return (
     <div className="min-h-screen bg-white">
@@ -183,6 +185,7 @@ function App(): JSX.Element {
         <Route element={<ProtectedRoute />}>
           <Route path="/choose-plan" element={<ChoosePlanPage />} />
           <Route path="/setup-profile" element={<SetupProfilePage />} />
+          <Route path="/connect-integrations" element={<OnboardingIntegrationsPage />} />
           <Route path="/integrations" element={<IntegrationsPage />} />
           <Route path="/subscriptions" element={<SubscriptionsPage />} />
           <Route path="/billing/success" element={<BillingSuccessPage />} />

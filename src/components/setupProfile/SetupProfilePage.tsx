@@ -338,7 +338,7 @@ export function SetupProfilePage(): JSX.Element {
       await refreshProfile();
 
       if (redirectToDashboard) {
-        navigate('/dashboard', { replace: true });
+        navigate('/connect-integrations', { replace: true });
       }
     } catch (error) {
       const message =

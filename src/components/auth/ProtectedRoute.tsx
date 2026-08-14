@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useProfile } from '../../context/ProfileContext';
 import { FullScreenLoader } from '../common/GradientLoader';
 
-const FIRST_LOGIN_ROUTES = ['/choose-plan', '/setup-profile', '/billing/success'];
+const FIRST_LOGIN_ROUTES = ['/choose-plan', '/setup-profile', '/billing/success', '/connect-integrations'];
 
 export function ProtectedRoute(): JSX.Element {
   const { isAuthenticated, isInitializing } = useAuth();
