@@ -110,14 +110,18 @@ export function SubscriptionsPage(): JSX.Element {
     }
   };
 
+  const profilePlan = (profile as any)?.subscription_plan?.toUpperCase();
+  const profileStatus = (profile as any)?.subscription_status;
+
   const currentPlanId = subDetail?.has_subscription
     ? subDetail.plan.toUpperCase()
-    : (profile as any)?.subscription_plan?.toUpperCase() === 'FREE'
-      ? null
-      : (profile as any)?.subscription_plan?.toUpperCase() ?? null;
+    : profilePlan && profilePlan !== 'FREE'
+      ? profilePlan
+      : null;
 
-  const isActive = subDetail?.status === 'active' || subDetail?.status === 'trialing';
-  const isTrial = subDetail?.status === 'trialing';
+  const effectiveStatus = subDetail?.status ?? profileStatus;
+  const isActive = effectiveStatus === 'active' || effectiveStatus === 'trialing';
+  const isTrial = effectiveStatus === 'trialing';
   const isCanceling = subDetail?.cancel_at_period_end === true;
 
   const handleSubscribe = async (planId: string) => {
