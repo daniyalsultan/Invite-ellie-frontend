@@ -83,8 +83,12 @@ export function ConfirmSignupPage(): JSX.Element {
     };
   }, [searchParams, location.hash]);
 
+  const alreadyConfirmed = searchParams.get('confirmed') === 'true';
+
   const [confirmation, setConfirmation] = useState<ConfirmationState>(() => {
-    // Initialize with error if URL has error parameter
+    if (alreadyConfirmed) {
+      return { status: 'success', message: 'Your email has been confirmed successfully.' };
+    }
     if (urlError) {
       return { status: 'error', message: urlError };
     }

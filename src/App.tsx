@@ -111,7 +111,7 @@ function AuthRedirectHandler(): null {
       }
     }
 
-    // Handle password recovery redirects
+    // Handle hash-based redirects from Supabase (recovery, signup confirmation)
     if (location.hash && location.hash.startsWith('#')) {
       const hashParams = new URLSearchParams(location.hash.substring(1));
       const type = hashParams.get('type');
@@ -130,6 +130,11 @@ function AuthRedirectHandler(): null {
         }
         params.set('notice', 'recovery');
         navigate(`/new-password?${params.toString()}`, { replace: true });
+        return;
+      }
+
+      if (type === 'signup' && accessToken) {
+        navigate('/confirm-signup?confirmed=true', { replace: true });
         return;
       }
 
