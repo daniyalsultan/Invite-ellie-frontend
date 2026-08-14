@@ -3,7 +3,7 @@ import { DashboardLayout } from '../sidebar';
 import { useProfile } from '../../context/ProfileContext';
 import { useAuth } from '../../context/AuthContext';
 import { getContextualNudges, type ContextualNudge } from '../../services/contextualNudgesApi';
-import { listWorkspaces, listFolders, type FolderRecord, type WorkspaceRecord } from '../workspace/workspaceApi';
+import { listWorkspaces, type WorkspaceRecord } from '../workspace/workspaceApi';
 import { getUserWorkspaceByEmail } from '../../utils/workspaceAutoCreate';
 import { buildRecallaiUrl } from '../../services/transcriptionApi';
 import logo from '../../assets/logo.svg';
@@ -53,17 +53,13 @@ export function AskElliePage(): JSX.Element {
   const [currentParticipants, setCurrentParticipants] = useState<string[]>([]);
   const [previousParticipantCount, setPreviousParticipantCount] = useState<number>(0);
 
-  // Folder state for contextual nudges
-  const [liveMeetingFolderId, setLiveMeetingFolderId] = useState<string | null>(null);
-  const [liveMeetingFolderName, setLiveMeetingFolderName] = useState<string | null>(null);
+  // Workspace state for contextual nudges
+  const [liveMeetingWorkspaceId, setLiveMeetingWorkspaceId] = useState<string | null>(null);
   const [liveMeetingId, setLiveMeetingId] = useState<string | null>(null);
   const [workspaces, setWorkspaces] = useState<WorkspaceRecord[]>([]);
-  const [folders, setFolders] = useState<FolderRecord[]>([]);
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(null);
-  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
-  const [isAssigningFolder, setIsAssigningFolder] = useState(false);
-  const [folderAssignmentError, setFolderAssignmentError] = useState<string | null>(null);
-  const [isLoadingFolders, setIsLoadingFolders] = useState(false);
+  const [isAssigningWorkspace, setIsAssigningWorkspace] = useState(false);
+  const [workspaceAssignmentError, setWorkspaceAssignmentError] = useState<string | null>(null);
 
   const { ensureFreshAccessToken } = useAuth();
 
@@ -123,7 +119,7 @@ export function AskElliePage(): JSX.Element {
   }, [inputValue]);
 
   // Fetch contextual nudges - API will check if meeting is live
-  // IMPORTANT: Nudges are ONLY fetched when folder is assigned to scope search to that folder only
+  // Nudges are ONLY fetched when a workspace is assigned to scope search
   const fetchContextualNudges = useCallback(async (): Promise<void> => {
     if (!profile?.id) {
       setContextualNudges([]);
@@ -132,9 +128,7 @@ export function AskElliePage(): JSX.Element {
       return;
     }
 
-    // CRITICAL: Do not fetch nudges if no folder is assigned
-    // This ensures backend only searches within the assigned folder, not all meetings
-    if (!liveMeetingFolderId) {
+    if (!liveMeetingWorkspaceId) {
       setContextualNudges([]);
       setNudgesLoading(false);
       return;
@@ -144,17 +138,13 @@ export function AskElliePage(): JSX.Element {
     setNudgesError(null);
 
     try {
-      // Fetch nudges scoped to the assigned folder only
-      // Backend will search for matching participants ONLY within this folder's meetings
       const response = await getContextualNudges(
         profile.id,
         liveBotId || undefined,
-        liveMeetingFolderId // Always pass folderId to scope the search
+        liveMeetingWorkspaceId
       );
 
       if (response.success) {
-        // Update live meeting status based on API response
-        // The API checks for live meetings independently
         const hasLive = response.has_live_meeting ?? false;
         setHasLiveMeetings(hasLive);
 
@@ -162,36 +152,26 @@ export function AskElliePage(): JSX.Element {
           const newParticipants = response.current_participants || [];
           const newParticipantCount = newParticipants.length;
 
-          // Update folder information from response
-          if (response.live_meeting_folder_id) {
-            setLiveMeetingFolderId(response.live_meeting_folder_id);
-          }
-          if (response.live_meeting_folder_name) {
-            setLiveMeetingFolderName(response.live_meeting_folder_name);
+          if (response.live_meeting_workspace_id) {
+            setLiveMeetingWorkspaceId(response.live_meeting_workspace_id);
           }
           if (response.live_meeting_id) {
             setLiveMeetingId(response.live_meeting_id);
           }
 
-          // Nudges are already scoped to folder (folderId was passed to API)
-          // Backend searched only within the assigned folder's meetings
           setContextualNudges(response.nudges || []);
-
           setCurrentParticipants(newParticipants);
           setPreviousParticipantCount(newParticipantCount);
 
-          // Update bot_id if provided in response
           if (response.live_meeting_bot_id) {
             setLiveBotId(response.live_meeting_bot_id);
           }
         } else {
-          // No live meeting - clear nudges and bot_id
           setContextualNudges([]);
           setCurrentParticipants([]);
           setPreviousParticipantCount(0);
           setLiveBotId(null);
-          setLiveMeetingFolderId(null);
-          setLiveMeetingFolderName(null);
+          setLiveMeetingWorkspaceId(null);
           setLiveMeetingId(null);
         }
       } else {
@@ -211,10 +191,9 @@ export function AskElliePage(): JSX.Element {
     } finally {
       setNudgesLoading(false);
     }
-  }, [profile?.id, liveBotId, liveMeetingFolderId]);
+  }, [profile?.id, liveBotId, liveMeetingWorkspaceId]);
 
   // Check for live meetings periodically (regardless of tab)
-  // This ensures live meetings are detected even when user is on assistant tab
   const checkLiveMeetingStatus = useCallback(async (): Promise<void> => {
     if (!profile?.id) {
       setHasLiveMeetings(false);
@@ -223,8 +202,6 @@ export function AskElliePage(): JSX.Element {
     }
 
     try {
-      // Check for live meetings without requiring bot_id
-      // This will find the most recent live meeting
       const response = await getContextualNudges(profile.id, undefined);
 
       if (response.success) {
@@ -232,25 +209,18 @@ export function AskElliePage(): JSX.Element {
         setHasLiveMeetings(hasLive);
 
         if (hasLive) {
-          // Update bot_id if provided in response
           if (response.live_meeting_bot_id) {
             setLiveBotId(response.live_meeting_bot_id);
           }
-          // Update folder information
-          if (response.live_meeting_folder_id) {
-            setLiveMeetingFolderId(response.live_meeting_folder_id);
-          }
-          if (response.live_meeting_folder_name) {
-            setLiveMeetingFolderName(response.live_meeting_folder_name);
+          if (response.live_meeting_workspace_id) {
+            setLiveMeetingWorkspaceId(response.live_meeting_workspace_id);
           }
           if (response.live_meeting_id) {
             setLiveMeetingId(response.live_meeting_id);
           }
         } else {
-          // No live meeting - clear bot_id and folder info
           setLiveBotId(null);
-          setLiveMeetingFolderId(null);
-          setLiveMeetingFolderName(null);
+          setLiveMeetingWorkspaceId(null);
           setLiveMeetingId(null);
         }
       } else {
@@ -259,24 +229,21 @@ export function AskElliePage(): JSX.Element {
       }
     } catch (error) {
       console.error('Error checking live meeting status:', error);
-      // Don't set to false on error, keep current state to avoid flickering
     }
   }, [profile?.id]);
 
-  // Load workspaces and folders for folder selection
-  const loadWorkspacesAndFolders = useCallback(async (): Promise<void> => {
+  // Load workspaces for workspace selection
+  const loadWorkspaces = useCallback(async (): Promise<void> => {
     if (!profile?.id || !profile?.email) {
       return;
     }
 
     try {
-      setIsLoadingFolders(true);
       const token = await ensureFreshAccessToken();
       if (!token) {
         throw new Error('Unable to authenticate');
       }
 
-      // Fetch all workspaces
       const workspacesResponse = await listWorkspaces(token, {
         page: 1,
         pageSize: 100,
@@ -284,101 +251,35 @@ export function AskElliePage(): JSX.Element {
       });
       setWorkspaces(workspacesResponse.results);
 
-      // Get user's primary workspace
       const userWorkspace = await getUserWorkspaceByEmail(token, profile.email);
       if (userWorkspace) {
         setSelectedWorkspaceId(userWorkspace.id);
-
-        // Fetch folders for this workspace
-        const foldersResponse = await listFolders(token, {
-          workspace: userWorkspace.id,
-          pageSize: 100,
-          ordering: '-created_at',
-        });
-        setFolders(foldersResponse.results);
       } else if (workspacesResponse.results.length > 0) {
-        // Fallback to first workspace
-        const firstWorkspace = workspacesResponse.results[0];
-        setSelectedWorkspaceId(firstWorkspace.id);
-
-        const foldersResponse = await listFolders(token, {
-          workspace: firstWorkspace.id,
-          pageSize: 100,
-          ordering: '-created_at',
-        });
-        setFolders(foldersResponse.results);
+        setSelectedWorkspaceId(workspacesResponse.results[0].id);
       }
     } catch (error) {
-      console.error('Error loading workspaces/folders:', error);
-      setFolderAssignmentError(error instanceof Error ? error.message : 'Failed to load folders');
-    } finally {
-      setIsLoadingFolders(false);
+      console.error('Error loading workspaces:', error);
+      setWorkspaceAssignmentError(error instanceof Error ? error.message : 'Failed to load workspaces');
     }
   }, [profile?.id, profile?.email, ensureFreshAccessToken]);
 
-  // Load folders when workspace changes
-  useEffect(() => {
-    const loadFolders = async () => {
-      if (!selectedWorkspaceId) {
-        setFolders([]);
-        return;
-      }
-
-      try {
-        setIsLoadingFolders(true);
-        const token = await ensureFreshAccessToken();
-        if (!token) {
-          throw new Error('Unable to authenticate');
-        }
-
-        const foldersResponse = await listFolders(token, {
-          workspace: selectedWorkspaceId,
-          pageSize: 100,
-          ordering: '-created_at',
-        });
-        setFolders(foldersResponse.results);
-      } catch (error) {
-        console.error('Error loading folders:', error);
-        setFolders([]);
-      } finally {
-        setIsLoadingFolders(false);
-      }
-    };
-
-    void loadFolders();
-  }, [selectedWorkspaceId, ensureFreshAccessToken]);
-
-  // Assign folder to live meeting
-  const handleAssignFolder = useCallback(async (): Promise<void> => {
-    if (!selectedFolderId || !liveMeetingId || !profile?.id) {
-      setFolderAssignmentError('Please select a folder');
+  // Assign workspace to live meeting
+  const handleAssignWorkspace = useCallback(async (): Promise<void> => {
+    if (!selectedWorkspaceId || !liveMeetingId || !profile?.id) {
+      setWorkspaceAssignmentError('Please select a workspace');
       return;
     }
 
     try {
-      setIsAssigningFolder(true);
-      setFolderAssignmentError(null);
+      setIsAssigningWorkspace(true);
+      setWorkspaceAssignmentError(null);
 
       const token = await ensureFreshAccessToken();
       if (!token) {
         throw new Error('Unable to authenticate');
       }
 
-      // Determine workspace_id
-      let workspaceIdToUse = selectedWorkspaceId;
-      if (!workspaceIdToUse && profile?.email) {
-        const userWorkspace = await getUserWorkspaceByEmail(token, profile.email);
-        if (userWorkspace) {
-          workspaceIdToUse = userWorkspace.id;
-        }
-      }
-
-      if (!workspaceIdToUse) {
-        throw new Error('Unable to determine workspace for this meeting. Please ensure you have a workspace.');
-      }
-
-      // Call API to assign folder to meeting
-      const recallaiUrl = buildRecallaiUrl(`/api/transcriptions/${liveMeetingId}/assign-folder`);
+      const recallaiUrl = buildRecallaiUrl(`/api/transcriptions/${liveMeetingId}/assign-workspace`);
       if (!recallaiUrl) {
         throw new Error('Recall server URL is not configured');
       }
@@ -392,32 +293,25 @@ export function AskElliePage(): JSX.Element {
           'ngrok-skip-browser-warning': 'true',
         },
         body: JSON.stringify({
-          folder_id: selectedFolderId,
-          workspace_id: workspaceIdToUse,
+          workspace_id: selectedWorkspaceId,
         }),
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Failed to assign folder' }));
-        throw new Error(errorData.error || 'Failed to assign folder');
+        const errorData = await response.json().catch(() => ({ error: 'Failed to assign workspace' }));
+        throw new Error(errorData.error || 'Failed to assign workspace');
       }
 
-      // Update folder state
-      const selectedFolder = folders.find(f => f.id === selectedFolderId);
-      if (selectedFolder) {
-        setLiveMeetingFolderId(selectedFolderId);
-        setLiveMeetingFolderName(selectedFolder.name);
-      }
+      setLiveMeetingWorkspaceId(selectedWorkspaceId);
 
-      // Fetch nudges after folder assignment
       await fetchContextualNudges();
     } catch (error) {
-      console.error('Error assigning folder:', error);
-      setFolderAssignmentError(error instanceof Error ? error.message : 'Failed to assign folder');
+      console.error('Error assigning workspace:', error);
+      setWorkspaceAssignmentError(error instanceof Error ? error.message : 'Failed to assign workspace');
     } finally {
-      setIsAssigningFolder(false);
+      setIsAssigningWorkspace(false);
     }
-  }, [selectedFolderId, liveMeetingId, profile?.id, profile?.email, selectedWorkspaceId, folders, ensureFreshAccessToken, fetchContextualNudges]);
+  }, [selectedWorkspaceId, liveMeetingId, profile?.id, ensureFreshAccessToken, fetchContextualNudges]);
 
   // Poll for live meeting status every 30 seconds (works on any tab)
   // This ensures new meetings are detected automatically
@@ -443,16 +337,14 @@ export function AskElliePage(): JSX.Element {
   useEffect(() => {
     if (activeTab === 'nudges' && profile?.id) {
       void fetchContextualNudges();
-      // Load workspaces and folders if no folder is assigned
-      if (hasLiveMeetings && !liveMeetingFolderId) {
-        void loadWorkspacesAndFolders();
+      if (hasLiveMeetings && !liveMeetingWorkspaceId) {
+        void loadWorkspaces();
       }
     } else if (activeTab !== 'nudges') {
-      // Clear nudges when switching away from nudges tab
       setContextualNudges([]);
       setCurrentParticipants([]);
     }
-  }, [activeTab, profile?.id, hasLiveMeetings, liveMeetingFolderId, fetchContextualNudges, loadWorkspacesAndFolders]);
+  }, [activeTab, profile?.id, hasLiveMeetings, liveMeetingWorkspaceId, fetchContextualNudges, loadWorkspaces]);
 
   // Smart polling for nudges when on nudges tab
   // - Poll every 30 seconds ONLY when meeting is live AND no nudges are available yet
@@ -869,8 +761,8 @@ export function AskElliePage(): JSX.Element {
                         Try Again
                       </button>
                     </div>
-                  ) : !liveMeetingFolderId ? (
-                    /* No Folder Assigned - Show Folder Selection */
+                  ) : !liveMeetingWorkspaceId ? (
+                    /* No Workspace Assigned - Show Workspace Selection */
                     <div className="text-center py-12 md:py-16">
                       <div className="mb-4">
                         <svg
@@ -883,88 +775,51 @@ export function AskElliePage(): JSX.Element {
                             strokeLinecap="round"
                             strokeLinejoin="round"
                             strokeWidth={2}
-                            d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+                            d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
                           />
                         </svg>
                       </div>
                       <h2 className="font-nunito text-xl md:text-2xl font-bold text-ellieBlack mb-2">
-                        Select a Folder to Enable Nudges
+                        Select a Workspace to Enable Nudges
                       </h2>
                       <p className="font-nunito text-sm md:text-base text-ellieGray max-w-md mx-auto mb-6">
-                        Contextual nudges are only available after a meeting is associated with a folder. This helps Ellie understand the project context and provide relevant insights.
+                        Contextual nudges are only available after a meeting is associated with a workspace. This helps Ellie understand the project context and provide relevant insights.
                       </p>
 
-                      {/* Folder Selection Form */}
+                      {/* Workspace Selection Form */}
                       <div className="max-w-lg mx-auto bg-white rounded-lg border border-gray-200 p-6 md:p-8 shadow-sm">
-                        {folderAssignmentError && (
+                        {workspaceAssignmentError && (
                           <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 font-nunito text-sm">
-                            {folderAssignmentError}
+                            {workspaceAssignmentError}
                           </div>
                         )}
 
                         {/* Workspace Selection */}
-                        {workspaces.length > 0 && (
-                          <div className="mb-4">
-                            <label className="block font-nunito text-sm font-semibold text-ellieBlack mb-2">
-                              Workspace
-                            </label>
-                            <select
-                              value={selectedWorkspaceId || ''}
-                              onChange={(e) => {
-                                setSelectedWorkspaceId(e.target.value);
-                                setSelectedFolderId(null); // Reset folder when workspace changes
-                              }}
-                              className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 font-nunito text-sm text-ellieBlack focus:border-ellieBlue focus:outline-none focus:ring-2 focus:ring-ellieBlue/30"
-                            >
-                              <option value="">Select a workspace...</option>
-                              {workspaces.map((workspace) => (
-                                <option key={workspace.id} value={workspace.id}>
-                                  {workspace.name}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                        )}
-
-                        {/* Folder Selection */}
                         <div className="mb-6">
                           <label className="block font-nunito text-sm font-semibold text-ellieBlack mb-2">
-                            Folder
+                            Workspace
                           </label>
-                          {isLoadingFolders ? (
-                            <div className="w-full rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 font-nunito text-sm text-ellieGray">
-                              Loading folders...
-                            </div>
-                          ) : (
-                            <select
-                              value={selectedFolderId || ''}
-                              onChange={(e) => setSelectedFolderId(e.target.value)}
-                              disabled={!selectedWorkspaceId || folders.length === 0}
-                              className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 font-nunito text-sm text-ellieBlack focus:border-ellieBlue focus:outline-none focus:ring-2 focus:ring-ellieBlue/30 disabled:bg-gray-50 disabled:text-ellieGray disabled:cursor-not-allowed"
-                            >
-                              <option value="">
-                                {!selectedWorkspaceId
-                                  ? 'Select a workspace first...'
-                                  : folders.length === 0
-                                    ? 'No folders available'
-                                    : 'Select a folder...'}
+                          <select
+                            value={selectedWorkspaceId || ''}
+                            onChange={(e) => setSelectedWorkspaceId(e.target.value)}
+                            className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 font-nunito text-sm text-ellieBlack focus:border-ellieBlue focus:outline-none focus:ring-2 focus:ring-ellieBlue/30"
+                          >
+                            <option value="">Select a workspace...</option>
+                            {workspaces.map((workspace) => (
+                              <option key={workspace.id} value={workspace.id}>
+                                {workspace.name}
                               </option>
-                              {folders.map((folder) => (
-                                <option key={folder.id} value={folder.id}>
-                                  {folder.name}
-                                </option>
-                              ))}
-                            </select>
-                          )}
+                            ))}
+                          </select>
                         </div>
 
                         {/* Assign Button */}
                         <button
-                          onClick={() => void handleAssignFolder()}
-                          disabled={!selectedFolderId || isAssigningFolder || !liveMeetingId}
+                          onClick={() => void handleAssignWorkspace()}
+                          disabled={!selectedWorkspaceId || isAssigningWorkspace || !liveMeetingId}
                           className="w-full px-4 py-3 rounded-lg bg-ellieBlue text-white font-nunito text-sm font-semibold hover:bg-ellieBlue/90 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                          {isAssigningFolder ? 'Assigning...' : 'Enable Nudges for This Meeting'}
+                          {isAssigningWorkspace ? 'Assigning...' : 'Enable Nudges for This Meeting'}
                         </button>
                       </div>
                     </div>
@@ -989,15 +844,10 @@ export function AskElliePage(): JSX.Element {
                       <h2 className="font-nunito text-xl md:text-2xl font-bold text-ellieBlack mb-2">
                         No Contextual Nudges Yet
                       </h2>
-                      {liveMeetingFolderName && (
-                        <p className="font-nunito text-sm md:text-base text-ellieGray mb-3">
-                          Folder: <span className="font-semibold text-ellieBlack">{liveMeetingFolderName}</span>
-                        </p>
-                      )}
                       {currentParticipants.length > 0 ? (
                         <>
                           <p className="font-nunito text-sm md:text-base text-ellieGray mb-3">
-                            No previous meetings found with matching participants in this folder.
+                            No previous meetings found with matching participants in this workspace.
                           </p>
                           <div className="inline-flex flex-wrap gap-2 justify-center">
                             <span className="font-nunito text-xs text-ellieGray">Current participants:</span>
@@ -1060,7 +910,7 @@ export function AskElliePage(): JSX.Element {
                           <h2 className="font-nunito text-lg md:text-xl font-bold text-ellieBlack">
                             Contextual Nudges ({contextualNudges.length})
                           </h2>
-                          {liveMeetingFolderName && (
+                          {liveMeetingWorkspaceId && workspaces.length > 0 && (
                             <div className="flex items-center gap-2 mt-1">
                               <svg
                                 className="h-4 w-4 text-ellieGray"
@@ -1072,11 +922,11 @@ export function AskElliePage(): JSX.Element {
                                   strokeLinecap="round"
                                   strokeLinejoin="round"
                                   strokeWidth={2}
-                                  d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+                                  d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
                                 />
                               </svg>
                               <span className="font-nunito text-xs text-ellieGray">
-                                Context: <span className="font-semibold text-ellieBlack">{liveMeetingFolderName}</span>
+                                Workspace: <span className="font-semibold text-ellieBlack">{workspaces.find(w => w.id === liveMeetingWorkspaceId)?.name ?? ''}</span>
                               </span>
                             </div>
                           )}

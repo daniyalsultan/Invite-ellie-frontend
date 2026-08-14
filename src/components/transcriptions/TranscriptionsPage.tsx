@@ -794,7 +794,7 @@ export function TranscriptionsPage(): JSX.Element {
                       <MeetingInsightsPanel
                         transcription={selectedTranscription}
                         loading={loadingTranscript}
-                        isFirstMeetingInFolder={true}
+                        isFirstMeetingInWorkspace={true}
                       />
 
                       {loadingTranscript ? (

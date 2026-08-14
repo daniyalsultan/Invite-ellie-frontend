@@ -1,28 +1,16 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { DashboardLayout } from '../sidebar';
 import d1Icon from '../../assets/d1.jpg';
-import folderIcon from '../../assets/folder.png';
-import createFolderIllustration from '../../assets/folder-create.png';
-import threeDotIcon from '../../assets/three-dot.png';
-import deleteIllustration from '../../assets/delete.png';
 import { useAuth } from '../../context/AuthContext';
 import { useProfile } from '../../context/ProfileContext';
 import { getApiBaseUrl } from '../../utils/apiBaseUrl';
 import {
-  FolderRecord,
   WorkspaceRecord,
-  createFolder,
-  listFolders,
   listWorkspaces,
-  patchFolder,
-  deleteFolder,
 } from '../workspace/workspaceApi';
-import { getUserWorkspaceByEmail } from '../../utils/workspaceAutoCreate';
 import { listActivities, ActivityRecord } from '../../services/activityApi';
 import { DemoTour } from '../demo';
-import { FolderDetailView } from '../folder/FolderDetailView';
-import { FolderMeetingsModal } from '../folder/FolderMeetingsModal';
 
 /**
  * Get the recallai backend base URL from environment variable
@@ -62,7 +50,7 @@ interface ActivityItem {
 
 const CREATE_WORKSPACE_ILLUSTRATION = '/assets/dashboard/create-workspace-illustration.svg';
 const JOIN_MEETING_ILLUSTRATION = '/assets/dashboard/join-meeting-illustration.svg';
-const WORKSPACE_HELP_ICON = '/assets/dashboard/workspace-help-icon.svg';
+
 
 export function DashboardPage(): JSX.Element {
   const location = useLocation();
@@ -85,30 +73,9 @@ export function DashboardPage(): JSX.Element {
     }
     return 'there';
   }, [profile]);
-  const [folders, setFolders] = useState<FolderRecord[]>([]);
-  const [isFoldersLoading, setIsFoldersLoading] = useState(true);
-  const [foldersError, setFoldersError] = useState<string | null>(null);
-  const [folderSearch, setFolderSearch] = useState('');
   const [workspaces, setWorkspaces] = useState<WorkspaceRecord[]>([]);
   const [workspacesError, setWorkspacesError] = useState<string | null>(null);
   const [isWorkspacesLoading, setIsWorkspacesLoading] = useState(true);
-  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(null);
-  const [newFolderName, setNewFolderName] = useState('');
-  const [isCreatingFolder, setIsCreatingFolder] = useState(false);
-  const [folderStatusMessage, setFolderStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [modalError, setModalError] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid');
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-  const [renameModalFolder, setRenameModalFolder] = useState<FolderRecord | null>(null);
-  const [renameFolderName, setRenameFolderName] = useState('');
-  const [isRenamingFolder, setIsRenamingFolder] = useState(false);
-  const [deleteModalFolder, setDeleteModalFolder] = useState<FolderRecord | null>(null);
-  const [isDeletingFolder, setIsDeletingFolder] = useState(false);
-  const [selectedFolder, setSelectedFolder] = useState<FolderRecord | null>(null);
-  const [isDetailViewOpen, setIsDetailViewOpen] = useState(false);
-  const [isFolderMeetingsModalOpen, setIsFolderMeetingsModalOpen] = useState(false);
-  const [selectedFolderForModal, setSelectedFolderForModal] = useState<FolderRecord | null>(null);
   const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([]);
   const [isActivitiesLoading, setIsActivitiesLoading] = useState(true);
   const [activitiesError, setActivitiesError] = useState<string | null>(null);
@@ -118,15 +85,7 @@ export function DashboardPage(): JSX.Element {
   const [isJoinMeetingModalOpen, setIsJoinMeetingModalOpen] = useState(false);
   const [meetingName, setMeetingName] = useState('');
   const [meetingNameError, setMeetingNameError] = useState<string | null>(null);
-  // Folder selection for join meeting
   const [joinMeetingWorkspaceId, setJoinMeetingWorkspaceId] = useState<string | null>(null);
-  const [joinMeetingWorkspaceName, setJoinMeetingWorkspaceName] = useState<string | null>(null);
-  const [joinMeetingFolders, setJoinMeetingFolders] = useState<FolderRecord[]>([]);
-  const [isLoadingJoinMeetingFolders, setIsLoadingJoinMeetingFolders] = useState(false);
-  const [selectedJoinMeetingFolderId, setSelectedJoinMeetingFolderId] = useState<string | null>(null);
-  const [isCreatingJoinMeetingFolder, setIsCreatingJoinMeetingFolder] = useState(false);
-  const [newJoinMeetingFolderName, setNewJoinMeetingFolderName] = useState('');
-  const [showCreateFolderInJoinModal, setShowCreateFolderInJoinModal] = useState(false);
 
   // Format activity from API to ActivityItem format
   const formatActivity = (activity: ActivityRecord): ActivityItem => {
@@ -211,9 +170,6 @@ export function DashboardPage(): JSX.Element {
         const response = await listWorkspaces(token, { pageSize: 50, ordering: 'name' });
         if (isMounted) {
           setWorkspaces(response.results);
-          if (!selectedWorkspaceId && response.results.length > 0) {
-            setSelectedWorkspaceId(response.results[0].id);
-          }
         }
       } catch (error) {
         if (isMounted) {
@@ -235,231 +191,7 @@ export function DashboardPage(): JSX.Element {
     };
   }, [ensureFreshAccessToken]);
 
-  const fetchFolders = useCallback(async (): Promise<void> => {
-    if (!selectedWorkspaceId) {
-      setFolders([]);
-      return;
-    }
-    setIsFoldersLoading(true);
-    setFoldersError(null);
-    try {
-      const token = await ensureFreshAccessToken();
-      if (!token) {
-        throw new Error('Unable to authenticate. Please login again.');
-      }
-      const response = await listFolders(token, {
-        pageSize: 12,
-        ordering: '-created_at',
-        workspace: selectedWorkspaceId,
-      });
-      setFolders(response.results);
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Unable to load folders. Please try again.';
-      setFoldersError(message);
-    } finally {
-      setIsFoldersLoading(false);
-    }
-  }, [ensureFreshAccessToken, selectedWorkspaceId]);
-
-  useEffect(() => {
-    void fetchFolders();
-  }, [fetchFolders]);
-
-  const selectedWorkspace = useMemo(
-    () => workspaces.find((workspace) => workspace.id === selectedWorkspaceId) ?? null,
-    [selectedWorkspaceId, workspaces],
-  );
-
-  const filteredFolders = useMemo(() => {
-    const query = folderSearch.trim().toLowerCase();
-    let sorted = [...folders].sort((a, b) => {
-      // Sort pinned folders to the top
-      if (a.is_pinned === b.is_pinned) {
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-      }
-      return a.is_pinned ? -1 : 1;
-    });
-    if (!query) {
-      return sorted;
-    }
-    return sorted.filter(
-      (folder) =>
-        folder.name.toLowerCase().includes(query) || folder.id.toLowerCase().includes(query),
-    );
-  }, [folderSearch, folders]);
-
-  const displayedFolders = filteredFolders.slice(0, 6);
-
-  const closeCreateModal = (): void => {
-    setIsCreateModalOpen(false);
-    setNewFolderName('');
-    setModalError(null);
-  };
-
-  const openCreateModal = (): void => {
-    if (!selectedWorkspaceId) {
-      setFolderStatusMessage({ type: 'error', text: 'Please select a workspace first.' });
-      return;
-    }
-    setFolderStatusMessage(null);
-    setModalError(null);
-    setIsCreateModalOpen(true);
-  };
-
-  const handleCreateFolder = async (): Promise<void> => {
-    if (!selectedWorkspaceId) {
-      setFolderStatusMessage({ type: 'error', text: 'Please select a workspace first.' });
-      return;
-    }
-    const trimmed = newFolderName.trim();
-    if (!trimmed) {
-      setModalError('Folder name is required.');
-      return;
-    }
-
-    setFolderStatusMessage(null);
-    setIsCreatingFolder(true);
-    try {
-      const token = await ensureFreshAccessToken();
-      if (!token) {
-        throw new Error('Unable to authenticate. Please login again.');
-      }
-      await createFolder(token, {
-        name: trimmed,
-        workspace: selectedWorkspaceId,
-      });
-      setNewFolderName('');
-      setFolderStatusMessage({ type: 'success', text: 'Folder created successfully.' });
-      setModalError(null);
-      closeCreateModal();
-      await fetchFolders();
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Unable to create folder. Please try again.';
-      setFolderStatusMessage({ type: 'error', text: message });
-    } finally {
-      setIsCreatingFolder(false);
-    }
-  };
-
-  // const handleCopyLink = (link: string): void => {
-  //   navigator.clipboard.writeText(link);
-  // };
-
-  const handleMenuClick = (folderId: string, event: React.MouseEvent): void => {
-    event.stopPropagation();
-    setOpenMenuId(openMenuId === folderId ? null : folderId);
-  };
-
-  const handleRenameFolder = (folder: FolderRecord): void => {
-    setOpenMenuId(null);
-    setRenameModalFolder(folder);
-    setRenameFolderName(folder.name);
-  };
-
-  const handleDeleteFolder = (folder: FolderRecord): void => {
-    setOpenMenuId(null);
-    setDeleteModalFolder(folder);
-  };
-
-  const handlePinFolder = async (folder: FolderRecord): Promise<void> => {
-    setOpenMenuId(null);
-    try {
-      const token = await ensureFreshAccessToken();
-      if (!token) {
-        throw new Error('Unable to authenticate. Please login again.');
-      }
-      await patchFolder(token, folder.id, {
-        is_pinned: !folder.is_pinned,
-      });
-      await fetchFolders();
-      setFolderStatusMessage({
-        type: 'success',
-        text: `Folder ${folder.is_pinned ? 'unpinned' : 'pinned'} successfully.`,
-      });
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Unable to pin/unpin folder. Please try again.';
-      setFolderStatusMessage({ type: 'error', text: message });
-    }
-  };
-
-  const handleRenameSubmit = async (event: React.FormEvent): Promise<void> => {
-    event.preventDefault();
-    if (!renameModalFolder) {
-      return;
-    }
-    const trimmed = renameFolderName.trim();
-    if (!trimmed) {
-      return;
-    }
-    setIsRenamingFolder(true);
-    try {
-      const token = await ensureFreshAccessToken();
-      if (!token) {
-        throw new Error('Unable to authenticate. Please login again.');
-      }
-      await patchFolder(token, renameModalFolder.id, { name: trimmed });
-      setRenameModalFolder(null);
-      setRenameFolderName('');
-      await fetchFolders();
-      setFolderStatusMessage({ type: 'success', text: 'Folder renamed successfully.' });
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Unable to rename folder. Please try again.';
-      setFolderStatusMessage({ type: 'error', text: message });
-    } finally {
-      setIsRenamingFolder(false);
-    }
-  };
-
-  const handleDeleteConfirm = async (): Promise<void> => {
-    if (!deleteModalFolder) {
-      return;
-    }
-    setIsDeletingFolder(true);
-    try {
-      const token = await ensureFreshAccessToken();
-      if (!token) {
-        throw new Error('Unable to authenticate. Please login again.');
-      }
-      await deleteFolder(token, deleteModalFolder.id);
-      setDeleteModalFolder(null);
-      await fetchFolders();
-      setFolderStatusMessage({ type: 'success', text: 'Folder deleted successfully.' });
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Unable to delete folder. Please try again.';
-      setFolderStatusMessage({ type: 'error', text: message });
-    } finally {
-      setIsDeletingFolder(false);
-    }
-  };
-
-  const closeRenameModal = (): void => {
-    setRenameModalFolder(null);
-    setRenameFolderName('');
-  };
-
-  const closeDeleteModal = (): void => {
-    setDeleteModalFolder(null);
-  };
-
-  const handleFolderClick = (folder: FolderRecord): void => {
-    setSelectedFolderForModal(folder);
-    setIsFolderMeetingsModalOpen(true);
-  };
-
-  const handleCloseDetailView = (): void => {
-    setIsDetailViewOpen(false);
-    // Small delay to allow animation to complete before clearing selected folder
-    setTimeout(() => {
-      setSelectedFolder(null);
-    }, 300);
-  };
-
-  const openJoinMeetingModal = async (): Promise<void> => {
+  const openJoinMeetingModal = (): void => {
     const trimmedId = meetingId.trim();
     if (!trimmedId) {
       setJoinMeetingError('Please enter a meeting link or ID first');
@@ -468,55 +200,13 @@ export function DashboardPage(): JSX.Element {
     setJoinMeetingError(null);
     setJoinMeetingSuccess(null);
     setMeetingNameError(null);
-    setShowCreateFolderInJoinModal(false);
-    setNewJoinMeetingFolderName('');
     setIsJoinMeetingModalOpen(true);
-    
-    // Get user's workspace based on email and fetch folders
-    if (profile?.email) {
-      try {
-        setIsLoadingJoinMeetingFolders(true);
-        const token = await ensureFreshAccessToken();
-        if (!token) {
-          throw new Error('Unable to authenticate. Please login again.');
-        }
-        
-        // Get user's workspace by email domain
-        const userWorkspace = await getUserWorkspaceByEmail(token, profile.email);
-        if (userWorkspace) {
-          setJoinMeetingWorkspaceId(userWorkspace.id);
-          setJoinMeetingWorkspaceName(userWorkspace.name);
-          
-          // Fetch folders for this workspace
-          const foldersResponse = await listFolders(token, {
-            workspace: userWorkspace.id,
-            pageSize: 100,
-            ordering: '-created_at',
-          });
-          setJoinMeetingFolders(foldersResponse.results);
-          
-          // Try to restore last selected folder from localStorage
-          const lastSelectedFolderId = localStorage.getItem('lastSelectedJoinMeetingFolderId');
-          if (lastSelectedFolderId) {
-            // Verify that the folder still exists in the current workspace
-            const folderExists = foldersResponse.results.some(
-              (folder) => folder.id === lastSelectedFolderId
-            );
-            if (folderExists) {
-              setSelectedJoinMeetingFolderId(lastSelectedFolderId);
-            } else {
-              // Folder doesn't exist anymore, clear from localStorage
-              localStorage.removeItem('lastSelectedJoinMeetingFolderId');
-            }
-          }
-        } else {
-          console.warn('Could not get user workspace for join meeting');
-        }
-      } catch (error) {
-        console.error('Error loading folders for join meeting:', error);
-      } finally {
-        setIsLoadingJoinMeetingFolders(false);
-      }
+
+    const lastWorkspaceId = localStorage.getItem('lastSelectedJoinMeetingWorkspaceId');
+    if (lastWorkspaceId && workspaces.some((w) => w.id === lastWorkspaceId)) {
+      setJoinMeetingWorkspaceId(lastWorkspaceId);
+    } else if (workspaces.length > 0) {
+      setJoinMeetingWorkspaceId(workspaces[0].id);
     }
   };
 
@@ -524,54 +214,7 @@ export function DashboardPage(): JSX.Element {
     setIsJoinMeetingModalOpen(false);
     setMeetingName('');
     setMeetingNameError(null);
-    setSelectedJoinMeetingFolderId(null);
-    setShowCreateFolderInJoinModal(false);
-    setNewJoinMeetingFolderName('');
-    setJoinMeetingFolders([]);
     setJoinMeetingWorkspaceId(null);
-    setJoinMeetingWorkspaceName(null);
-  };
-
-  const handleCreateFolderInJoinModal = async (): Promise<void> => {
-    if (!joinMeetingWorkspaceId) {
-      setJoinMeetingError('Workspace not found. Please try again.');
-      return;
-    }
-    
-    const trimmed = newJoinMeetingFolderName.trim();
-    if (!trimmed) {
-      setJoinMeetingError('Folder name is required.');
-      return;
-    }
-    
-    setIsCreatingJoinMeetingFolder(true);
-    setJoinMeetingError(null);
-    
-    try {
-      const token = await ensureFreshAccessToken();
-      if (!token) {
-        throw new Error('Unable to authenticate. Please login again.');
-      }
-      
-      const newFolder = await createFolder(token, {
-        name: trimmed,
-        workspace: joinMeetingWorkspaceId,
-      });
-      
-      // Add to folders list and select it
-      setJoinMeetingFolders((prev) => [newFolder, ...prev]);
-      setSelectedJoinMeetingFolderId(newFolder.id);
-      // Save to localStorage for future meetings
-      localStorage.setItem('lastSelectedJoinMeetingFolderId', newFolder.id);
-      setNewJoinMeetingFolderName('');
-      setShowCreateFolderInJoinModal(false);
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Unable to create folder. Please try again.';
-      setJoinMeetingError(message);
-    } finally {
-      setIsCreatingJoinMeetingFolder(false);
-    }
   };
 
   const handleJoinMeeting = async (): Promise<void> => {
@@ -588,47 +231,31 @@ export function DashboardPage(): JSX.Element {
       return;
     }
     
-    // Folder selection is optional but recommended
-    // We'll proceed even without folder, but log a warning
-    
     setIsJoiningMeeting(true);
     setJoinMeetingError(null);
     setJoinMeetingSuccess(null);
     setMeetingNameError(null);
-    
+
     try {
       const token = await ensureFreshAccessToken();
       if (!token) {
         throw new Error('Unable to authenticate. Please login again.');
       }
-      
-      // Determine if it's a URL or just an ID
+
       let meetingUrl = trimmedId;
-      
-      // If it's not a full URL, try to construct one based on common patterns
       if (!trimmedId.startsWith('http://') && !trimmedId.startsWith('https://')) {
-        // Could be a meeting ID - we'll send it as-is and let the backend handle it
-        // Or construct a URL if it looks like a specific platform ID
         meetingUrl = trimmedId;
       }
-      
-      // Prepare request body with folder_id if selected
+
       const requestBody: {
         meeting_url: string;
         meeting_name: string;
-        folder_id?: string;
         workspace_id?: string;
       } = {
         meeting_url: meetingUrl,
         meeting_name: trimmedName,
       };
-      
-      // Add folder_id if selected
-      if (selectedJoinMeetingFolderId) {
-        requestBody.folder_id = selectedJoinMeetingFolderId;
-      }
-      
-      // Add workspace_id for association
+
       if (joinMeetingWorkspaceId) {
         requestBody.workspace_id = joinMeetingWorkspaceId;
       }
@@ -661,11 +288,10 @@ export function DashboardPage(): JSX.Element {
       }
       
       if (data.success) {
-        // Save the selected folder to localStorage for future meetings
-        if (selectedJoinMeetingFolderId) {
-          localStorage.setItem('lastSelectedJoinMeetingFolderId', selectedJoinMeetingFolderId);
+        if (joinMeetingWorkspaceId) {
+          localStorage.setItem('lastSelectedJoinMeetingWorkspaceId', joinMeetingWorkspaceId);
         }
-        
+
         setJoinMeetingSuccess('Bot is joining the meeting now!');
         setMeetingId(''); // Clear the input
         setMeetingName(''); // Clear the meeting name
@@ -706,19 +332,6 @@ export function DashboardPage(): JSX.Element {
   //   // Remove the activity item from the list
   //   setRecentActivity((prev) => prev.filter((item) => item.id !== itemId));
   // };
-
-  // Close menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (): void => {
-      setOpenMenuId(null);
-    };
-    if (openMenuId) {
-      document.addEventListener('click', handleClickOutside);
-      return () => {
-        document.removeEventListener('click', handleClickOutside);
-      };
-    }
-  }, [openMenuId]);
 
   // Demo query handling: /dashboard?demo1, ?demo2 ... or ?demo=1..4
   const { demoOpen, demoStep } = useMemo(() => {
@@ -819,7 +432,7 @@ export function DashboardPage(): JSX.Element {
                     </div>
                     <button
                       type="button"
-                      onClick={() => void openJoinMeetingModal()}
+                      onClick={() => openJoinMeetingModal()}
                       disabled={isJoiningMeeting || !meetingId.trim()}
                       className="inline-flex h-[60px] items-center justify-center rounded-[5px] bg-[#327AAD] px-12 font-nunito text-[20px] font-extrabold text-white transition hover:bg-[#286996] disabled:opacity-60 disabled:cursor-not-allowed"
                     >
@@ -842,415 +455,55 @@ export function DashboardPage(): JSX.Element {
           </section>
 
           <section className="flex flex-col gap-8 lg:flex-row lg:gap-4">
-            <div className="relative flex flex-col gap-6 rounded-[18px] bg-white px-8 py-8 shadow-[0px_18px_30px_rgba(15,23,42,0.05)] lg:w-[55%] overflow-hidden">
-              {!isDetailViewOpen && (
-                <>
-                  <div className="flex flex-col gap-5">
-                    <div className="flex flex-col gap-4">
-                      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className="relative h-[45px] w-[180px]">
-                            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2">
-                              <img src={d1Icon} alt="" className="h-5 w-5 object-contain" />
-                            </span>
-                            <select
-                              id="workspace-filter"
-                              className="h-full w-full appearance-none rounded-[5px] border border-[#7964A0] bg-white pl-10 pr-8 font-nunito text-sm font-semibold text-[#25324B] focus:border-[#327AAD] focus:outline-none focus:ring-2 focus:ring-[#327AAD]/20"
-                              value={selectedWorkspaceId ?? ''}
-                              onChange={(event) => setSelectedWorkspaceId(event.target.value || null)}
-                              disabled={isWorkspacesLoading || !!workspacesError}
-                            >
-                              {isWorkspacesLoading ? (
-                                <option value="">Loading workspaces...</option>
-                              ) : workspacesError ? (
-                                <option value="">{workspacesError}</option>
-                              ) : workspaces.length === 0 ? (
-                                <option value="">No workspaces available</option>
-                              ) : (
-                                workspaces.map((workspace) => (
-                                  <option key={workspace.id} value={workspace.id}>
-                                    {workspace.name}
-                                  </option>
-                                ))
-                              )}
-                            </select>
-                            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
-                              <svg
-                                aria-hidden
-                                className="h-4 w-4 text-[#327AAD]"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                viewBox="0 0 24 24"
-                              >
-                                <path d="M6 9l6 6 6-6" />
-                              </svg>
-                            </span>
-                          </div>
-                          <button
-                            type="button"
-                            className="flex flex-shrink-0 items-center justify-center"
-                            aria-label="Workspace help"
-                          >
-                            <img src={WORKSPACE_HELP_ICON} alt="Help" className="h-3 w-3" />
-                          </button>
-                        </div>
-                        <div className="flex flex-1 items-center justify-end">
-                          <button
-                            type="button"
-                            onClick={openCreateModal}
-                            className="inline-flex h-[50px] items-center justify-center rounded-[5px] bg-[#327AAD] px-8 font-nunito text-base font-extrabold text-white transition hover:bg-[#286996] disabled:cursor-not-allowed disabled:opacity-60"
-                            disabled={isWorkspacesLoading || !!workspacesError || workspaces.length === 0}
-                          >
-                            Create a folder
-                          </button>
-                        </div>
-                      </div>
-                      {folderStatusMessage && (
-                        <div
-                          className={`rounded-[8px] px-3 py-2 font-nunito text-sm ${
-                            folderStatusMessage.type === 'success'
-                              ? 'border border-green-200 bg-green-50 text-green-700'
-                              : 'border border-red-200 bg-red-50 text-red-700'
-                          }`}
-                        >
-                          {folderStatusMessage.text}
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex items-center justify-between gap-4">
-                      <label htmlFor="folder-search" className="font-nunito text-[20px] font-semibold text-[#25324B] whitespace-nowrap">
-                        Folder name
-                      </label>
-                      <div className="flex items-center gap-3 ml-auto">
-                        <div className="relative h-[60px] w-full max-w-[300px]">
-                          <span className="pointer-events-none absolute left-5 top-1/2 -translate-y-1/2 text-[#327AAD]">
-                            <svg
-                              aria-hidden
-                              className="h-6 w-6"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth={2}
-                              viewBox="0 0 24 24"
-                            >
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M11 18a7 7 0 100-14 7 7 0 000 14z" />
-                            </svg>
-                          </span>
-                          <input
-                            id="folder-search"
-                            type="text"
-                            placeholder="Search by folder name"
-                            value={folderSearch}
-                            onChange={(event) => setFolderSearch(event.target.value)}
-                            className="h-full w-full rounded-[5px] border border-[#7964A0] bg-white pl-14 pr-5 font-nunito text-[20px] font-semibold text-[#25324B] placeholder:text-[#25324B]/40 focus:border-[#327AAD] focus:outline-none focus:ring-2 focus:ring-[#327AAD]/20"
-                          />
-                        </div>
-                        {/* View Toggle Button */}
-                        <button
-                          type="button"
-                          onClick={() => setViewMode((prev) => (prev === 'list' ? 'grid' : 'list'))}
-                          className="flex h-[39px] w-[79px] flex-shrink-0 items-center overflow-hidden rounded-[3.58px] border-none p-0 focus:outline-none focus:ring-2 focus:ring-[#327AAD]/20"
-                          aria-label={`Switch to ${viewMode === 'list' ? 'grid' : 'list'} view`}
-                        >
-                          {/* List/Hamburger Button */}
-                          <div
-                            className={`flex h-full w-1/2 items-center justify-center transition-colors ${
-                              viewMode === 'list'
-                                ? 'bg-[#327AAD]'
-                                : 'bg-[rgba(217,217,217,0.3)]'
-                            }`}
-                          >
-                            <svg
-                              className={`h-[17.64px] w-[18.13px] ${
-                                viewMode === 'list' ? 'text-[#D9D9D9]' : 'text-[#327AAD]'
-                              }`}
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth={2}
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              viewBox="0 0 24 24"
-                            >
-                              <path d="M3 12h18M3 6h18M3 18h18" />
-                            </svg>
-                          </div>
-                          {/* Grid/Box Button */}
-                          <div
-                            className={`flex h-full w-1/2 items-center justify-center transition-colors ${
-                              viewMode === 'grid'
-                                ? 'bg-[#327AAD]'
-                                : 'bg-[rgba(217,217,217,0.3)]'
-                            }`}
-                          >
-                            <svg
-                              className={`h-[16.13px] w-[20.94px] ${
-                                viewMode === 'grid' ? 'text-[#D9D9D9]' : 'text-[#327AAD]'
-                              }`}
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth={2}
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              viewBox="0 0 24 24"
-                            >
-                              <rect x="3" y="3" width="7" height="7" rx="1" />
-                              <rect x="14" y="3" width="7" height="7" rx="1" />
-                              <rect x="3" y="14" width="7" height="7" rx="1" />
-                              <rect x="14" y="14" width="7" height="7" rx="1" />
-                            </svg>
-                          </div>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {selectedWorkspace && (
-                    <p className="text-sm font-nunito text-[#6B7A96]">
-                      Showing folders for <span className="font-semibold text-[#25324B]">{selectedWorkspace.name}</span>
-                    </p>
-                  )}
-                </>
-              )}
-              <div
-                className={`transition-transform duration-300 ease-in-out ${
-                  isDetailViewOpen ? 'translate-x-full opacity-0' : 'translate-x-0 opacity-100'
-                }`}
-              >
-              {viewMode === 'grid' ? (
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {isFoldersLoading ? (
-                    Array.from({ length: 6 }).map((_, index) => (
-                      <div
-                        key={`folder-skeleton-${index}`}
-                        className="flex animate-pulse flex-col gap-4 rounded-[12px] bg-[rgba(50,122,173,0.05)] px-6 py-6 text-center"
-                      >
-                        <div className="mx-auto h-16 w-16 rounded-full bg-white/60" />
-                        <div className="space-y-2">
-                          <div className="mx-auto h-4 w-24 rounded bg-white/70" />
-                          <div className="mx-auto h-3 w-20 rounded bg-white/60" />
-                        </div>
-                      </div>
-                    ))
-                  ) : foldersError ? (
-                    <div className="col-span-full rounded-[12px] border border-red-100 bg-red-50 px-4 py-6 text-center font-nunito text-sm text-red-600">
-                      {foldersError}
-                    </div>
-                  ) : displayedFolders.length === 0 ? (
-                    <div className="col-span-full rounded-[12px] border border-dashed border-[#327AAD]/30 px-4 py-6 text-center font-nunito text-sm text-[#25324B]">
-                      No folders found. Try a different search.
-                    </div>
-                  ) : (
-                    displayedFolders.map((folder) => (
-                      <div
-                        key={folder.id}
-                        onClick={() => handleFolderClick(folder)}
-                        className="relative flex cursor-pointer flex-col items-center gap-4 rounded-[12px] bg-[rgba(50,122,173,0.05)] px-6 py-6 text-center transition hover:bg-[rgba(50,122,173,0.1)]"
-                      >
-                        {/* Pin indicator in top right */}
-                        {folder.is_pinned && (
-                          <div className="absolute top-3 right-3">
-                            <svg
-                              className="h-4 w-4 text-amber-600"
-                              fill="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path d="M17 3H7C5.9 3 5 3.9 5 5V21L12 18L19 21V5C19 3.9 18.1 3 17 3Z" />
-                            </svg>
-                          </div>
-                        )}
-                        <img src={folderIcon} alt="" className="h-16 w-16 object-contain" />
-                        <div className="space-y-1">
-                          <span className="block font-nunito text-[20px] font-bold tracking-[-0.02em] text-[#25324B] leading-[1.36]">
-                            {folder.name}
-                          </span>
-                        </div>
-                        {/* Three dots button for grid view */}
-                        <div className="absolute bottom-3 right-3">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleMenuClick(folder.id, e);
-                            }}
-                            className="flex items-center justify-center border-none bg-transparent p-0 transition-opacity hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-[#327AAD]/20"
-                            aria-label={`More options for ${folder.name}`}
-                          >
-                            <img src={threeDotIcon} alt="" className="h-6 w-6 object-contain" />
-                          </button>
-                          {/* Context Menu for grid view - shows Rename, Delete, Pin */}
-                          {openMenuId === folder.id && (
-                            <div className="absolute right-0 bottom-full mb-2 min-w-[160px] rounded-lg bg-white shadow-lg border border-gray-200 py-2 z-50">
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleRenameFolder(folder);
-                                }}
-                                className="w-full px-4 py-2 text-left font-nunito text-sm text-[#25324B] hover:bg-gray-50 transition"
-                              >
-                                Rename folder
-                              </button>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteFolder(folder);
-                                }}
-                                className="w-full px-4 py-2 text-left font-nunito text-sm text-[#25324B] hover:bg-gray-50 transition"
-                              >
-                                Delete folder
-                              </button>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  void handlePinFolder(folder);
-                                }}
-                                className="w-full px-4 py-2 text-left font-nunito text-sm text-[#25324B] hover:bg-gray-50 transition"
-                              >
-                                {folder.is_pinned ? 'Unpin' : 'Pin'}
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-                  ) : (
-                    <div className="flex flex-col gap-2">
-                      {isFoldersLoading ? (
-                        Array.from({ length: 6 }).map((_, index) => (
-                          <div
-                            key={`folder-list-skeleton-${index}`}
-                            className="flex animate-pulse items-center gap-4 rounded-[10px] bg-[rgba(50,122,173,0.05)] px-5 py-3"
-                          >
-                            <div className="h-8 w-8 rounded bg-white/60" />
-                            <div className="flex-1 space-y-2">
-                              <div className="h-4 w-32 rounded bg-white/70" />
-                              <div className="h-3 w-24 rounded bg-white/60" />
-                            </div>
-                          </div>
-                        ))
-                      ) : foldersError ? (
-                        <div className="rounded-[10px] border border-red-100 bg-red-50 px-5 py-4 font-nunito text-sm text-red-600">
-                          {foldersError}
-                        </div>
-                      ) : displayedFolders.length === 0 ? (
-                        <div className="rounded-[10px] border border-dashed border-[#327AAD]/30 px-5 py-4 text-center font-nunito text-sm text-[#25324B]">
-                          No folders found. Try a different search.
-                        </div>
-                      ) : (
-                        displayedFolders.map((folder) => (
-                          <div
-                            key={folder.id}
-                            onClick={() => handleFolderClick(folder)}
-                            className="relative flex cursor-pointer items-center justify-between gap-4 rounded-[10px] bg-[rgba(50,122,173,0.05)] px-5 py-[10px] transition hover:bg-[rgba(50,122,173,0.08)]"
-                          >
-                        <div className="flex items-center gap-4">
-                          <img
-                            src={folderIcon}
-                            alt=""
-                            className="h-[32.67px] w-[35.23px] object-contain opacity-40"
-                          />
-                          <div className="flex flex-col gap-0">
-                            <div className="flex items-center gap-2">
-                              <span className="font-nunito text-[20px] font-bold tracking-[-0.025em] text-[#000000] leading-[1.3639999389648438em]">
-                                {folder.name}
-                              </span>
-                              {/* Pin indicator */}
-                              {folder.is_pinned && (
-                                <svg
-                                  className="h-4 w-4 text-amber-600 flex-shrink-0"
-                                  fill="currentColor"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <path d="M17 3H7C5.9 3 5 3.9 5 5V21L12 18L19 21V5C19 3.9 18.1 3 17 3Z" />
-                                </svg>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                          <div className="relative flex items-center gap-[10px]">
-                            {/* Three dots button */}
-                            <div className="relative">
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleMenuClick(folder.id, e);
-                                }}
-                                className="flex items-center justify-center border-none bg-transparent p-0 transition-opacity hover:opacity-80 focus:outline-none"
-                                aria-label={`More options for ${folder.name}`}
-                              >
-                              <img src={threeDotIcon} alt="" className="h-6 w-6 object-contain" />
-                            </button>
-                            {/* Context Menu for list view - shows Rename, Pin (no Delete since X button exists) */}
-                            {openMenuId === folder.id && (
-                              <div className="absolute right-0 top-full mt-2 min-w-[160px] rounded-lg bg-white shadow-lg border border-gray-200 py-2 z-50">
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleRenameFolder(folder);
-                                  }}
-                                  className="w-full px-4 py-2 text-left font-nunito text-sm text-[#25324B] hover:bg-gray-50 transition"
-                                >
-                                  Rename folder
-                                </button>
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      void handlePinFolder(folder);
-                                    }}
-                                    className="w-full px-4 py-2 text-left font-nunito text-sm text-[#25324B] hover:bg-gray-50 transition"
-                                  >
-                                    {folder.is_pinned ? 'Unpin' : 'Pin'}
-                                  </button>
-                              </div>
-                            )}
-                          </div>
-                            {/* X/Delete button */}
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteFolder(folder);
-                              }}
-                              className="flex h-8 w-8 items-center justify-center rounded-lg bg-transparent text-[#FF0000] transition hover:bg-[rgba(255,0,0,0.1)]"
-                              aria-label={`Delete ${folder.name}`}
-                            >
-                            <svg
-                              className="h-4 w-4"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth={2}
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              viewBox="0 0 24 24"
-                            >
-                              <path d="M18 6L6 18M6 6l12 12" />
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
+            <div className="flex flex-col gap-6 rounded-[18px] bg-white px-8 py-8 shadow-[0px_18px_30px_rgba(15,23,42,0.05)] lg:w-[55%]">
+              <div className="flex items-center justify-between">
+                <h2 className="font-nunito text-[25px] font-bold tracking-[-0.02em] text-[#25324B]">
+                  Your Workspaces
+                </h2>
+                <Link
+                  to="/create-workspace"
+                  className="inline-flex items-center justify-center rounded-[5px] bg-[#327AAD] px-6 py-2 font-nunito text-sm font-extrabold text-white transition hover:bg-[#286996]"
+                >
+                  + New Workspace
+                </Link>
               </div>
-              
-              {/* Folder Detail View */}
-              {selectedFolder && (
-                <FolderDetailView
-                  folder={selectedFolder}
-                  onClose={handleCloseDetailView}
-                  isOpen={isDetailViewOpen}
-                />
-              )}
+
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {isWorkspacesLoading ? (
+                  Array.from({ length: 6 }).map((_, index) => (
+                    <div
+                      key={`ws-skeleton-${index}`}
+                      className="flex animate-pulse flex-col gap-4 rounded-[12px] bg-[rgba(50,122,173,0.05)] px-6 py-6 text-center"
+                    >
+                      <div className="mx-auto h-12 w-12 rounded-full bg-white/60" />
+                      <div className="mx-auto h-4 w-24 rounded bg-white/70" />
+                    </div>
+                  ))
+                ) : workspacesError ? (
+                  <div className="col-span-full rounded-[12px] border border-red-100 bg-red-50 px-4 py-6 text-center font-nunito text-sm text-red-600">
+                    {workspacesError}
+                  </div>
+                ) : workspaces.length === 0 ? (
+                  <div className="col-span-full rounded-[12px] border border-dashed border-[#327AAD]/30 px-4 py-6 text-center font-nunito text-sm text-[#25324B]">
+                    No workspaces yet. Create one to get started.
+                  </div>
+                ) : (
+                  workspaces.map((ws) => (
+                    <Link
+                      key={ws.id}
+                      to={`/workspace/${ws.id}`}
+                      className="flex cursor-pointer flex-col items-center gap-3 rounded-[12px] bg-[rgba(50,122,173,0.05)] px-6 py-6 text-center transition hover:bg-[rgba(50,122,173,0.1)] no-underline"
+                    >
+                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#327AAD]/10">
+                        <img src={d1Icon} alt="" className="h-6 w-6 object-contain" />
+                      </div>
+                      <span className="block font-nunito text-[18px] font-bold tracking-[-0.02em] text-[#25324B] leading-[1.36]">
+                        {ws.name}
+                      </span>
+                    </Link>
+                  ))
+                )}
+              </div>
             </div>
 
             <aside className="flex w-full flex-col gap-6 rounded-[18px] bg-white px-8 py-8 shadow-[0px_18px_30px_rgba(15,23,42,0.05)] lg:w-[45%]">
@@ -1307,164 +560,6 @@ export function DashboardPage(): JSX.Element {
           </section>
         </div>
       </div>
-      {isCreateModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6">
-          <div className="w-full max-w-sm rounded-[30px] bg-white p-6 text-center shadow-[0_25px_60px_rgba(0,0,0,0.15)]">
-            <div className="mb-4 flex items-start justify-end">
-              <button
-                type="button"
-                onClick={closeCreateModal}
-                className="text-red-500 transition hover:scale-105 disabled:opacity-60"
-                aria-label="Close dialog"
-                disabled={isCreatingFolder}
-              >
-                <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <img
-              src={createFolderIllustration}
-              alt="Folder illustration"
-              className="mx-auto mb-4 h-28 w-auto object-contain"
-            />
-            <h3 className="font-nunito text-2xl font-extrabold text-[#111928]">Create a folder</h3>
-            <p className="mt-2 font-nunito text-sm text-[#5F6B7A]">
-              Give your folder a name so you can easily organize your files and meetings.
-            </p>
-            <div className="my-5 border-t border-[#E6E9F2]" />
-            {selectedWorkspace && (
-              <p className="mb-3 font-nunito text-xs font-semibold uppercase tracking-wide text-[#6B7A96]">
-                Workspace: <span className="text-[#1F2A44]">{selectedWorkspace.name}</span>
-              </p>
-            )}
-            <form
-              onSubmit={(event) => {
-                event.preventDefault();
-                void handleCreateFolder();
-              }}
-              className="space-y-4 text-left"
-            >
-              <label className="flex flex-col gap-2 font-nunito text-sm font-semibold text-[#25324B]">
-                Folder name
-                <input
-                  type="text"
-                  value={newFolderName}
-                  onChange={(event) => setNewFolderName(event.target.value)}
-                  className="rounded-[10px] border border-[#A3AED0] px-4 py-3 font-normal text-[#25324B] placeholder:text-[#A3AED0] focus:border-[#7C5CFF] focus:outline-none focus:ring-2 focus:ring-[#7C5CFF]/30"
-                  autoFocus
-                  disabled={isCreatingFolder}
-                  placeholder="Folder Name"
-                />
-              </label>
-              {modalError && (
-                <p className="rounded-lg border border-red-100 bg-red-50 px-3 py-2 font-nunito text-sm text-red-600">
-                  {modalError}
-                </p>
-              )}
-              <button
-                type="submit"
-                className="mt-2 inline-flex w-full items-center justify-center rounded-[10px] bg-[#327AAD] px-5 py-3 font-nunito text-base font-extrabold text-white transition hover:bg-[#286996] disabled:opacity-60"
-                disabled={isCreatingFolder}
-              >
-                {isCreatingFolder ? 'Creating...' : 'Create folder'}
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-      {/* Rename Folder Modal */}
-      {renameModalFolder && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6">
-          <div className="w-full max-w-sm rounded-[30px] bg-white p-6 text-center shadow-[0_25px_60px_rgba(0,0,0,0.15)]">
-            <div className="mb-4 flex items-start justify-end">
-              <button
-                type="button"
-                onClick={closeRenameModal}
-                className="text-red-500 transition hover:scale-105 disabled:opacity-60"
-                aria-label="Close dialog"
-                disabled={isRenamingFolder}
-              >
-                <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <h3 className="font-nunito text-2xl font-extrabold text-[#111928]">Rename folder</h3>
-            <div className="my-5 border-t border-[#E6E9F2]" />
-            <form
-              onSubmit={handleRenameSubmit}
-              className="space-y-4 text-left"
-            >
-              <label className="flex flex-col gap-2 font-nunito text-sm font-semibold text-[#25324B]">
-                Folder name
-                <input
-                  type="text"
-                  value={renameFolderName}
-                  onChange={(event) => setRenameFolderName(event.target.value)}
-                  className="rounded-[10px] border border-[#7964A0] px-4 py-3 font-normal text-[#25324B] placeholder:text-[#A3AED0] focus:border-[#7C5CFF] focus:outline-none focus:ring-2 focus:ring-[#7C5CFF]/30"
-                  autoFocus
-                  disabled={isRenamingFolder}
-                  placeholder="Folder Name"
-                />
-              </label>
-              <button
-                type="submit"
-                className="mt-2 inline-flex w-full items-center justify-center rounded-[10px] bg-[#327AAD] px-5 py-3 font-nunito text-base font-extrabold text-white transition hover:bg-[#286996] disabled:opacity-60"
-                disabled={isRenamingFolder || !renameFolderName.trim()}
-              >
-                {isRenamingFolder ? 'Saving...' : 'Save'}
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-      {/* Delete Folder Modal */}
-      {deleteModalFolder && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-2xl">
-            <div className="mb-4 flex items-start justify-end">
-              <button
-                type="button"
-                onClick={closeDeleteModal}
-                className="rounded-full p-2 transition bg-white text-red-500 hover:bg-red-50"
-                aria-label="Close dialog"
-                disabled={isDeletingFolder}
-              >
-                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <div className="flex justify-center mb-4">
-              <img src={deleteIllustration} alt="Delete folder illustration" className="h-28 w-auto object-contain" />
-            </div>
-            <h4 className="font-nunito text-2xl font-extrabold text-[#111928]">Confirm Delete?</h4>
-            <p className="font-nunito text-sm text-[#5F6B7A] mt-2">
-              Are you sure you want to delete "{deleteModalFolder.name}"? This action can't be undone.
-            </p>
-            <div className="my-4 border-t border-[#DDE1EE]" />
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-center sm:gap-4">
-              <button
-                type="button"
-                onClick={closeDeleteModal}
-                className="rounded-[10px] border border-[#B7C0D6] px-5 py-2 font-nunito text-sm font-semibold text-[#1F2A44] transition hover:bg-[#F7F8FC]"
-                disabled={isDeletingFolder}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleDeleteConfirm}
-                className="rounded-[10px] bg-[#327AAD] px-5 py-2 font-nunito text-sm font-extrabold text-white transition hover:bg-[#286996] disabled:opacity-60"
-                disabled={isDeletingFolder}
-              >
-                {isDeletingFolder ? 'Deleting...' : 'Yes, delete!'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
       {/* Join Meeting Modal */}
       {isJoinMeetingModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6">
@@ -1484,7 +579,7 @@ export function DashboardPage(): JSX.Element {
             </div>
             <h3 className="font-nunito text-2xl font-extrabold text-[#111928]">Join Meeting</h3>
             <p className="mt-2 font-nunito text-sm text-[#5F6B7A]">
-              Enter a meeting name and select a folder to organize this meeting.
+              Enter a meeting name and select a workspace to organize this meeting.
             </p>
             <div className="my-5 border-t border-[#E6E9F2]" />
             <form
@@ -1516,88 +611,35 @@ export function DashboardPage(): JSX.Element {
                 </p>
               )}
               
-              {/* Folder Selection */}
+              {/* Workspace Selection */}
               <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between">
-                  <label className="font-nunito text-sm font-semibold text-[#25324B]">
-                    Working on: <span className="text-xs font-normal text-[#6B7A96]">(Optional but recommended)</span>
-                  </label>
-                  {joinMeetingWorkspaceName && (
-                    <span className="text-xs font-nunito font-medium text-[#6B7A96]">
-                      Workspace: <span className="font-semibold text-[#25324B]">{joinMeetingWorkspaceName}</span>
-                    </span>
-                  )}
-                </div>
-                {isLoadingJoinMeetingFolders ? (
+                <label className="font-nunito text-sm font-semibold text-[#25324B]">
+                  Workspace: <span className="text-xs font-normal text-[#6B7A96]">(Optional)</span>
+                </label>
+                {isWorkspacesLoading ? (
                   <div className="rounded-[10px] border border-[#A3AED0] px-4 py-3 font-nunito text-sm text-[#6B7A96]">
-                    Loading folders...
+                    Loading workspaces...
                   </div>
-                ) : showCreateFolderInJoinModal ? (
-                  <div className="space-y-2">
-                    {joinMeetingWorkspaceName && (
-                      <p className="text-xs font-nunito text-[#6B7A96]">
-                        Creating folder in workspace: <span className="font-semibold text-[#25324B]">{joinMeetingWorkspaceName}</span>
-                      </p>
-                    )}
-                    <input
-                      type="text"
-                      value={newJoinMeetingFolderName}
-                      onChange={(event) => setNewJoinMeetingFolderName(event.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          void handleCreateFolderInJoinModal();
-                        }
-                      }}
-                      className="w-full rounded-[10px] border border-[#A3AED0] px-4 py-3 font-normal text-[#25324B] placeholder:text-[#A3AED0] focus:border-[#7C5CFF] focus:outline-none focus:ring-2 focus:ring-[#7C5CFF]/30"
-                      placeholder="Enter folder name"
-                      disabled={isCreatingJoinMeetingFolder}
-                      autoFocus
-                    />
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={handleCreateFolderInJoinModal}
-                        disabled={isCreatingJoinMeetingFolder || !newJoinMeetingFolderName.trim()}
-                        className="flex-1 rounded-[10px] bg-[#327AAD] px-4 py-2 font-nunito text-sm font-semibold text-white transition hover:bg-[#286996] disabled:opacity-60"
-                      >
-                        {isCreatingJoinMeetingFolder ? 'Creating...' : 'Create Folder'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowCreateFolderInJoinModal(false);
-                          setNewJoinMeetingFolderName('');
-                        }}
-                        disabled={isCreatingJoinMeetingFolder}
-                        className="rounded-[10px] border border-[#B7C0D6] px-4 py-2 font-nunito text-sm font-semibold text-[#1F2A44] transition hover:bg-[#F7F8FC] disabled:opacity-60"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                ) : joinMeetingFolders.length > 0 ? (
+                ) : workspaces.length > 0 ? (
                   <div className="relative">
                     <select
-                      value={selectedJoinMeetingFolderId || ''}
+                      value={joinMeetingWorkspaceId || ''}
                       onChange={(event) => {
-                        const newFolderId = event.target.value || null;
-                        setSelectedJoinMeetingFolderId(newFolderId);
-                        // Save to localStorage for future meetings
-                        if (newFolderId) {
-                          localStorage.setItem('lastSelectedJoinMeetingFolderId', newFolderId);
+                        const newWorkspaceId = event.target.value || null;
+                        setJoinMeetingWorkspaceId(newWorkspaceId);
+                        if (newWorkspaceId) {
+                          localStorage.setItem('lastSelectedJoinMeetingWorkspaceId', newWorkspaceId);
                         } else {
-                          // If user clears selection, remove from localStorage
-                          localStorage.removeItem('lastSelectedJoinMeetingFolderId');
+                          localStorage.removeItem('lastSelectedJoinMeetingWorkspaceId');
                         }
                       }}
                       className="w-full appearance-none rounded-[10px] border border-[#A3AED0] bg-white px-4 py-3 pr-10 font-nunito text-sm font-normal text-[#25324B] focus:border-[#7C5CFF] focus:outline-none focus:ring-2 focus:ring-[#7C5CFF]/30"
                       disabled={isJoiningMeeting}
                     >
-                      <option value="">Select a folder (Optional)</option>
-                      {joinMeetingFolders.map((folder) => (
-                        <option key={folder.id} value={folder.id}>
-                          {folder.name}
+                      <option value="">Select a workspace (Optional)</option>
+                      {workspaces.map((ws) => (
+                        <option key={ws.id} value={ws.id}>
+                          {ws.name}
                         </option>
                       ))}
                     </select>
@@ -1612,34 +654,11 @@ export function DashboardPage(): JSX.Element {
                         <path strokeLinecap="round" strokeLinejoin="round" d="M6 9l6 6 6-6" />
                       </svg>
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => setShowCreateFolderInJoinModal(true)}
-                      className="mt-2 text-sm font-nunito text-[#327AAD] hover:underline"
-                      disabled={isJoiningMeeting}
-                    >
-                      + Create new folder
-                    </button>
                   </div>
                 ) : (
-                  <div className="space-y-2">
-                    {joinMeetingWorkspaceName && (
-                      <p className="text-xs font-nunito text-[#6B7A96] mb-1">
-                        Workspace: <span className="font-semibold text-[#25324B]">{joinMeetingWorkspaceName}</span>
-                      </p>
-                    )}
-                    <p className="text-sm font-nunito text-[#6B7A96]">
-                      No folders yet. Create one to organize your meetings.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => setShowCreateFolderInJoinModal(true)}
-                      className="w-full rounded-[10px] border border-[#327AAD] bg-white px-4 py-2 font-nunito text-sm font-semibold text-[#327AAD] transition hover:bg-[#327AAD]/5"
-                      disabled={isJoiningMeeting}
-                    >
-                      + Create Folder
-                    </button>
-                  </div>
+                  <p className="text-sm font-nunito text-[#6B7A96]">
+                    No workspaces found.
+                  </p>
                 )}
               </div>
               
@@ -1668,7 +687,7 @@ export function DashboardPage(): JSX.Element {
                 <button
                   type="submit"
                   className="inline-flex items-center justify-center rounded-[10px] bg-[#327AAD] px-5 py-3 font-nunito text-base font-extrabold text-white transition hover:bg-[#286996] disabled:opacity-60"
-                  disabled={isJoiningMeeting || !meetingName.trim() || isCreatingJoinMeetingFolder}
+                  disabled={isJoiningMeeting || !meetingName.trim()}
                 >
                   {isJoiningMeeting ? 'Joining...' : 'Join Meeting'}
                 </button>
@@ -1704,18 +723,6 @@ export function DashboardPage(): JSX.Element {
         }}
       />
       
-      {/* Folder Meetings Modal */}
-      {selectedFolderForModal && (
-        <FolderMeetingsModal
-          folderId={selectedFolderForModal.id}
-          folderName={selectedFolderForModal.name}
-          isOpen={isFolderMeetingsModalOpen}
-          onClose={() => {
-            setIsFolderMeetingsModalOpen(false);
-            setTimeout(() => setSelectedFolderForModal(null), 300);
-          }}
-        />
-      )}
       </DashboardLayout>
     </React.Fragment>
   );

@@ -4,8 +4,8 @@ import { useProfile } from '../../context/ProfileContext';
 import { useAuth } from '../../context/AuthContext';
 import { getTranscriptions, type Transcription } from '../../services/transcriptionApi';
 import { displayDeadline, displayOwner, isAbsentScalar } from '../../utils/meetingDisplay';
-import { listFolders, createFolder, type FolderRecord, listWorkspaces } from '../workspace/workspaceApi';
-import { getUserWorkspaceByEmail, extractEmailDomain, getWorkspaceNameFromDomain } from '../../utils/workspaceAutoCreate';
+import { listWorkspaces } from '../workspace/workspaceApi';
+import { extractEmailDomain, getWorkspaceNameFromDomain } from '../../utils/workspaceAutoCreate';
 import searchIcon from '../../assets/Vector.png';
 
 function getRecallaiBaseUrl(): string | null {
@@ -62,19 +62,14 @@ export function UnresolvedMeetingsPage(): JSX.Element {
   const [searchQuery, setSearchQuery] = useState('');
   const [transcriptionSearchQuery, setTranscriptionSearchQuery] = useState('');
   
-  // Folder assignment state
+  // Workspace assignment state
   const [workspaces, setWorkspaces] = useState<WorkspaceInfo[]>([]);
-  const [folders, setFolders] = useState<FolderRecord[]>([]);
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(null);
-  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
-  const [isAssigningFolder, setIsAssigningFolder] = useState(false);
+  const [isAssigning, setIsAssigning] = useState(false);
   const [assignmentError, setAssignmentError] = useState<string | null>(null);
   const [assignmentSuccess, setAssignmentSuccess] = useState<string | null>(null);
-  const [isCreatingFolder, setIsCreatingFolder] = useState(false);
-  const [newFolderName, setNewFolderName] = useState('');
-  const [showCreateFolderForm, setShowCreateFolderForm] = useState(false);
 
-  // Fetch unresolved meetings (folder_id is null)
+  // Fetch unresolved meetings (workspace_id is null)
   useEffect(() => {
     if (!profile?.id) {
       setLoading(false);
@@ -86,11 +81,10 @@ export function UnresolvedMeetingsPage(): JSX.Element {
         setLoading(true);
         setError(null);
         const allTranscriptions = await getTranscriptions(profile.id || '');
-        
-        // Filter for unresolved meetings (folder_id is null or undefined)
+
         const unresolved = allTranscriptions.filter((t: any) => {
-          const folderId = t.folder_id || t.folderId || (t as any).folder?.id;
-          return !folderId; // Unresolved if no folder_id
+          const wsId = t.workspace_id || t.workspaceId;
+          return !wsId;
         });
         
         setUnresolvedMeetings(unresolved);
@@ -110,16 +104,15 @@ export function UnresolvedMeetingsPage(): JSX.Element {
     void fetchUnresolvedMeetings();
   }, [profile?.id]);
 
-  // Fetch all workspaces and folders when component mounts
+  // Fetch all workspaces when component mounts
   useEffect(() => {
-    const fetchWorkspacesAndFolders = async () => {
-      if (!profile?.id || !profile?.email) return;
-      
+    const fetchWorkspaces = async () => {
+      if (!profile?.id) return;
+
       try {
         const token = await ensureFreshAccessToken();
         if (!token) return;
 
-        // Fetch all user workspaces (not just one)
         const workspacesResponse = await listWorkspaces(token, {
           page: 1,
           pageSize: 100,
@@ -127,66 +120,16 @@ export function UnresolvedMeetingsPage(): JSX.Element {
         });
         setWorkspaces(workspacesResponse.results.map(w => ({ id: w.id, name: w.name })));
 
-        // Get user's primary workspace (based on email) for default selection
-        const userWorkspace = await getUserWorkspaceByEmail(token, profile.email);
-        if (userWorkspace) {
-          setSelectedWorkspaceId(userWorkspace.id);
-          
-          // Fetch folders for this workspace
-          const foldersResponse = await listFolders(token, {
-            workspace: userWorkspace.id,
-            pageSize: 100,
-            ordering: '-created_at',
-          });
-          setFolders(foldersResponse.results);
-        } else if (workspacesResponse.results.length > 0) {
-          // Fallback to first workspace if user workspace not found
-          const firstWorkspace = workspacesResponse.results[0];
-          setSelectedWorkspaceId(firstWorkspace.id);
-          
-          const foldersResponse = await listFolders(token, {
-            workspace: firstWorkspace.id,
-            pageSize: 100,
-            ordering: '-created_at',
-          });
-          setFolders(foldersResponse.results);
+        if (workspacesResponse.results.length > 0) {
+          setSelectedWorkspaceId(workspacesResponse.results[0].id);
         }
       } catch (err) {
-        console.error('Error fetching workspaces/folders:', err);
+        console.error('Error fetching workspaces:', err);
       }
     };
 
-    void fetchWorkspacesAndFolders();
-  }, [profile?.id, profile?.email, ensureFreshAccessToken]);
-
-  // Auto-set workspace when meeting is selected (for old meetings without workspace_id)
-  useEffect(() => {
-    if (!selectedMeeting || workspaces.length === 0) return;
-    
-    const workspaceId = getWorkspaceIdForMeeting(selectedMeeting);
-    if (workspaceId && workspaceId !== selectedWorkspaceId) {
-      setSelectedWorkspaceId(workspaceId);
-      
-      // Also fetch folders for this workspace
-      const fetchFoldersForWorkspace = async () => {
-        try {
-          const token = await ensureFreshAccessToken();
-          if (!token) return;
-          
-          const foldersResponse = await listFolders(token, {
-            workspace: workspaceId,
-            pageSize: 100,
-            ordering: '-created_at',
-          });
-          setFolders(foldersResponse.results);
-        } catch (err) {
-          console.error('Error fetching folders for workspace:', err);
-        }
-      };
-      
-      void fetchFoldersForWorkspace();
-    }
-  }, [selectedMeeting, workspaces, selectedWorkspaceId, ensureFreshAccessToken]);
+    void fetchWorkspaces();
+  }, [profile?.id, ensureFreshAccessToken]);
 
   // Load transcript content when meeting is selected
   useEffect(() => {
@@ -307,55 +250,15 @@ export function UnresolvedMeetingsPage(): JSX.Element {
     return 'Unknown Workspace';
   };
 
-  // Get workspace ID for a meeting (with fallback for old meetings)
-  const getWorkspaceIdForMeeting = (meeting: Transcription): string | null => {
-    // First, check if meeting has workspace_id
-    const workspaceId = (meeting as any).workspace_id || (meeting as any).workspaceId;
-    if (workspaceId) {
-      return workspaceId;
-    }
-    
-    // If no workspace_id, try to determine workspace from calendar_email
-    const calendarEmail = (meeting as any).calendar_email || (meeting as any).calendarEmail;
-    if (calendarEmail) {
-      const domain = extractEmailDomain(calendarEmail);
-      if (domain) {
-        const expectedWorkspaceName = getWorkspaceNameFromDomain(domain);
-        const matchingWorkspace = workspaces.find(
-          w => w.name.toLowerCase() === expectedWorkspaceName.toLowerCase()
-        );
-        if (matchingWorkspace) {
-          return matchingWorkspace.id;
-        }
-      }
-    }
-    
-    // Fallback to user's email domain
-    if (profile?.email) {
-      const domain = extractEmailDomain(profile.email);
-      if (domain) {
-        const expectedWorkspaceName = getWorkspaceNameFromDomain(domain);
-        const matchingWorkspace = workspaces.find(
-          w => w.name.toLowerCase() === expectedWorkspaceName.toLowerCase()
-        );
-        if (matchingWorkspace) {
-          return matchingWorkspace.id;
-        }
-      }
-    }
-    
-    return null;
-  };
-
-  // Handle folder assignment
-  const handleAssignFolder = async () => {
-    if (!selectedMeeting || !selectedFolderId) {
-      setAssignmentError('Please select a folder');
+  // Handle workspace assignment
+  const handleAssignWorkspace = async () => {
+    if (!selectedMeeting || !selectedWorkspaceId) {
+      setAssignmentError('Please select a workspace');
       return;
     }
 
     try {
-      setIsAssigningFolder(true);
+      setIsAssigning(true);
       setAssignmentError(null);
       setAssignmentSuccess(null);
 
@@ -364,26 +267,7 @@ export function UnresolvedMeetingsPage(): JSX.Element {
         throw new Error('Unable to authenticate');
       }
 
-      // Determine workspace_id: use selected workspace, or try to determine from meeting
-      let workspaceIdToUse = selectedWorkspaceId;
-      if (!workspaceIdToUse) {
-        workspaceIdToUse = getWorkspaceIdForMeeting(selectedMeeting);
-      }
-      
-      // If still no workspace, try to get/create from user email
-      if (!workspaceIdToUse && profile?.email) {
-        const userWorkspace = await getUserWorkspaceByEmail(token, profile.email);
-        if (userWorkspace) {
-          workspaceIdToUse = userWorkspace.id;
-        }
-      }
-
-      if (!workspaceIdToUse) {
-        throw new Error('Unable to determine workspace for this meeting. Please ensure you have a workspace.');
-      }
-
-      // Call API to assign folder to meeting
-      const recallaiUrl = buildRecallaiUrl(`/api/transcriptions/${selectedMeeting.id}/assign-folder`);
+      const recallaiUrl = buildRecallaiUrl(`/api/transcriptions/${selectedMeeting.id}/assign-workspace`);
       if (!recallaiUrl) {
         throw new Error('Recall server URL is not configured');
       }
@@ -397,66 +281,28 @@ export function UnresolvedMeetingsPage(): JSX.Element {
           'ngrok-skip-browser-warning': 'true',
         },
         body: JSON.stringify({
-          folder_id: selectedFolderId,
-          workspace_id: workspaceIdToUse,
+          workspace_id: selectedWorkspaceId,
         }),
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Failed to assign folder' }));
-        throw new Error(errorData.error || 'Failed to assign folder');
+        const errorData = await response.json().catch(() => ({ error: 'Failed to assign workspace' }));
+        throw new Error(errorData.error || 'Failed to assign workspace');
       }
 
-      setAssignmentSuccess('Folder assigned successfully!');
-      
-      // Remove meeting from unassigned list
+      setAssignmentSuccess('Workspace assigned successfully!');
+
       setUnresolvedMeetings(prev => prev.filter(m => m.id !== selectedMeeting.id));
-      
-      // Clear selection after a delay
+
       setTimeout(() => {
         setSelectedMeeting(null);
-        setSelectedFolderId(null);
         setAssignmentSuccess(null);
       }, 2000);
     } catch (err) {
-      console.error('Error assigning folder:', err);
-      setAssignmentError(err instanceof Error ? err.message : 'Failed to assign folder');
+      console.error('Error assigning workspace:', err);
+      setAssignmentError(err instanceof Error ? err.message : 'Failed to assign workspace');
     } finally {
-      setIsAssigningFolder(false);
-    }
-  };
-
-  // Handle create new folder
-  const handleCreateFolder = async () => {
-    if (!newFolderName.trim() || !selectedWorkspaceId) {
-      setAssignmentError('Please enter a folder name');
-      return;
-    }
-
-    try {
-      setIsCreatingFolder(true);
-      setAssignmentError(null);
-
-      const token = await ensureFreshAccessToken();
-      if (!token) {
-        throw new Error('Unable to authenticate');
-      }
-
-      const newFolder = await createFolder(token, {
-        name: newFolderName.trim(),
-        workspace: selectedWorkspaceId,
-      });
-
-      // Add to folders list
-      setFolders(prev => [newFolder, ...prev]);
-      setSelectedFolderId(newFolder.id);
-      setNewFolderName('');
-      setShowCreateFolderForm(false);
-    } catch (err) {
-      console.error('Error creating folder:', err);
-      setAssignmentError(err instanceof Error ? err.message : 'Failed to create folder');
-    } finally {
-      setIsCreatingFolder(false);
+      setIsAssigning(false);
     }
   };
 
@@ -483,7 +329,7 @@ export function UnresolvedMeetingsPage(): JSX.Element {
               Unassigned Meetings
             </h1>
             <p className="font-nunito text-sm text-ellieGray">
-              Meetings that need to be assigned to a folder. Assign them to organize your workspace.
+              Meetings that haven't been assigned to a workspace yet. Assign them to keep things organized.
             </p>
           </div>
 
@@ -668,7 +514,7 @@ export function UnresolvedMeetingsPage(): JSX.Element {
               </div>
             </div>
 
-            {/* Right Panel: Meeting Details & Folder Assignment */}
+            {/* Right Panel: Meeting Details & Workspace Assignment */}
             <div className="flex-1 w-full lg:max-w-[35%] xl:max-w-[40%]">
               {selectedMeeting ? (
                 <div className="space-y-6">
@@ -765,18 +611,18 @@ export function UnresolvedMeetingsPage(): JSX.Element {
                     )}
                   </div>
 
-                  {/* Folder Assignment */}
+                  {/* Workspace Assignment */}
                   <div className="bg-white rounded-[12px] md:rounded-[18px] shadow-[0px_18px_30px_rgba(15,23,42,0.05)] p-4 md:p-6 lg:p-8">
                     <h2 className="font-nunito text-lg md:text-xl font-bold text-[#25324B] mb-4">
-                      Assign to Folder
+                      Assign to Workspace
                     </h2>
-                    
+
                     {assignmentSuccess && (
                       <div className="mb-4 p-3 rounded-lg bg-green-50 border border-green-200 text-green-700">
                         {assignmentSuccess}
                       </div>
                     )}
-                    
+
                     {assignmentError && (
                       <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700">
                         {assignmentError}
@@ -786,77 +632,30 @@ export function UnresolvedMeetingsPage(): JSX.Element {
                     <div className="space-y-4">
                       <div>
                         <label className="flex flex-col gap-2 font-nunito text-sm font-semibold text-[#25324B]">
-                          Select Folder
+                          Select Workspace
                           <select
-                            value={selectedFolderId || ''}
-                            onChange={(e) => setSelectedFolderId(e.target.value || null)}
+                            value={selectedWorkspaceId || ''}
+                            onChange={(e) => setSelectedWorkspaceId(e.target.value || null)}
                             className="rounded-[10px] border border-[#A3AED0] px-4 py-3 font-normal text-[#25324B] focus:border-[#7C5CFF] focus:outline-none focus:ring-2 focus:ring-[#7C5CFF]/30"
-                            disabled={isAssigningFolder || isCreatingFolder}
+                            disabled={isAssigning}
                           >
-                            <option value="">Select a folder</option>
-                            {folders.map((folder) => (
-                              <option key={folder.id} value={folder.id}>
-                                {folder.name}
+                            <option value="">Select a workspace</option>
+                            {workspaces.map((ws) => (
+                              <option key={ws.id} value={ws.id}>
+                                {ws.name}
                               </option>
                             ))}
                           </select>
                         </label>
                       </div>
 
-                      {!showCreateFolderForm ? (
-                        <button
-                          type="button"
-                          onClick={() => setShowCreateFolderForm(true)}
-                          className="w-full rounded-[10px] border border-[#327AAD] bg-white px-4 py-2 font-nunito text-sm font-semibold text-[#327AAD] transition hover:bg-[#327AAD]/5"
-                          disabled={isAssigningFolder || isCreatingFolder}
-                        >
-                          + Create New Folder
-                        </button>
-                      ) : (
-                        <div className="space-y-2 p-4 border border-gray-200 rounded-lg bg-gray-50">
-                          <label className="flex flex-col gap-2 font-nunito text-sm font-semibold text-[#25324B]">
-                            New Folder Name
-                            <input
-                              type="text"
-                              value={newFolderName}
-                              onChange={(e) => setNewFolderName(e.target.value)}
-                              className="rounded-[10px] border border-[#A3AED0] px-4 py-3 font-normal text-[#25324B] placeholder:text-[#A3AED0] focus:border-[#7C5CFF] focus:outline-none focus:ring-2 focus:ring-[#7C5CFF]/30"
-                              placeholder="Enter folder name"
-                              disabled={isCreatingFolder}
-                              autoFocus
-                            />
-                          </label>
-                          <div className="flex gap-2">
-                            <button
-                              type="button"
-                              onClick={handleCreateFolder}
-                              disabled={isCreatingFolder || !newFolderName.trim()}
-                              className="flex-1 rounded-[10px] bg-[#327AAD] px-4 py-2 font-nunito text-sm font-semibold text-white transition hover:bg-[#286996] disabled:opacity-60"
-                            >
-                              {isCreatingFolder ? 'Creating...' : 'Create'}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setShowCreateFolderForm(false);
-                                setNewFolderName('');
-                              }}
-                              className="rounded-[10px] border border-[#B7C0D6] px-4 py-2 font-nunito text-sm font-semibold text-[#1F2A44] transition hover:bg-[#F7F8FC]"
-                              disabled={isCreatingFolder}
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        </div>
-                      )}
-
                       <button
                         type="button"
-                        onClick={handleAssignFolder}
-                        disabled={isAssigningFolder || !selectedFolderId || isCreatingFolder}
+                        onClick={handleAssignWorkspace}
+                        disabled={isAssigning || !selectedWorkspaceId}
                         className="w-full rounded-[10px] bg-[#327AAD] px-5 py-3 font-nunito text-base font-extrabold text-white transition hover:bg-[#286996] disabled:opacity-60 disabled:cursor-not-allowed"
                       >
-                        {isAssigningFolder ? 'Assigning...' : 'Assign to Folder'}
+                        {isAssigning ? 'Assigning...' : 'Assign to Workspace'}
                       </button>
                     </div>
                   </div>
@@ -923,7 +722,7 @@ export function UnresolvedMeetingsPage(): JSX.Element {
               ) : (
                 <div className="bg-white rounded-[12px] md:rounded-[18px] shadow-[0px_18px_30px_rgba(15,23,42,0.05)] p-4 md:p-6 lg:p-8">
                   <p className="text-center py-8 font-nunito text-sm text-[#6B7A96]">
-                    Select a meeting to view details and assign to a folder
+                    Select a meeting to view details and assign to a workspace
                   </p>
                 </div>
               )}

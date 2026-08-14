@@ -44,8 +44,7 @@ export interface ContextualNudgesResponse {
   has_live_meeting: boolean;
   live_meeting_bot_id?: string | null;
   live_meeting_id?: string | null;
-  live_meeting_folder_id?: string | null;
-  live_meeting_folder_name?: string | null;
+  live_meeting_workspace_id?: string | null;
   current_participants: string[];
   nudges: ContextualNudge[];
   total_nudges: number;
@@ -53,38 +52,23 @@ export interface ContextualNudgesResponse {
   error?: string;
 }
 
-/**
- * Get contextual nudges from previous meetings with matching participants
- * 
- * IMPORTANT: This function scopes the search to ONLY meetings within the specified folder.
- * This minimizes database queries by searching only relevant meetings, not all user meetings.
- * 
- * @param userId - User ID
- * @param botId - Bot ID of current live meeting (optional)
- * @param folderId - Folder ID to scope nudges to (REQUIRED - search is limited to this folder's meetings only)
- * @returns Contextual nudges response
- */
 export async function getContextualNudges(
   userId: string,
   botId?: string,
-  folderId?: string
+  workspaceId?: string
 ): Promise<ContextualNudgesResponse> {
   const recallaiUrl = buildRecallaiUrl('/api/contextual-nudges');
   if (!recallaiUrl) {
     throw new Error('Recallai backend URL is not configured.');
   }
 
-  // Build query params
   const params = new URLSearchParams();
   params.append('userId', userId);
   if (botId) {
     params.append('botId', botId);
   }
-  if (folderId) {
-    params.append('folderId', folderId);
-    console.log(`[ContextualNudges] Fetching nudges SCOPED to folder: ${folderId} (search limited to this folder's meetings only)`);
-  } else {
-    console.warn('[ContextualNudges] WARNING: No folderId provided - nudges will not be fetched (folder required for scoped search)');
+  if (workspaceId) {
+    params.append('workspaceId', workspaceId);
   }
 
   const url = `${recallaiUrl}?${params.toString()}`;

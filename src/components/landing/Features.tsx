@@ -13,11 +13,11 @@ export interface FeatureItem {
 
 const FEATURES: (FeatureItem & { icon: string; alt: string })[] = [
   {
-    title: 'Workspaces & Folders',
+    title: 'Workspaces',
     description:
       'Organize your meetings by project or client. Ellie automatically links related conversations, helping you recall past discussions in seconds.',
     icon: workspacesIcon,
-    alt: 'Folders icon',
+    alt: 'Workspaces icon',
   },
   {
     title: 'Easy Integration',

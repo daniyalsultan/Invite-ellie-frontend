@@ -53,9 +53,9 @@ export function DemoTour({
       },
       {
         id: 4,
-        title: 'Organize in folders',
+        title: 'Organize in workspaces',
         description:
-          'Create folders and keep your workspace tidy. Everything stays searchable and shareable.',
+          'Create workspaces to organize your meetings. Everything stays searchable and shareable.',
         image: demo4,
         badge: '4',
       },

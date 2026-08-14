@@ -1,5 +1,5 @@
 /**
- * Turn folder meeting overview summary text into bullet lines for display.
+ * Turn workspace meeting overview summary text into bullet lines for display.
  * Handles blank-line paragraphs, single newlines, leading "-", "•", or "1." markers,
  * and backend fallback blocks separated by horizontal rules.
  */

@@ -144,7 +144,7 @@ export function OnboardingIntegrationsPage(): JSX.Element {
     setConnecting(cal.id);
     setError(null);
     try {
-      const urls = await getCalendarConnectUrls(profile.id, null, null, '/connect-integrations');
+      const urls = await getCalendarConnectUrls(profile.id, null, '/connect-integrations');
       const url = cal.platform === 'google_calendar' ? urls.googleCalendar : urls.microsoftOutlook;
       if (url) window.location.href = url;
       else throw new Error('Failed to get authorization URL');

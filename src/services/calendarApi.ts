@@ -279,12 +279,10 @@ export async function getConnectedCalendars(
  * Returns both URLs at once
  * 
  * @param userId - User ID
- * @param folderId - Optional folder ID to include in OAuth state
  * @param workspaceId - Optional workspace ID to include in OAuth state
  */
 export async function getCalendarConnectUrls(
   userId: string,
-  folderId?: string | null,
   workspaceId?: string | null,
   returnTo?: string
 ): Promise<{ googleCalendar: string; microsoftOutlook: string }> {
@@ -297,9 +295,6 @@ export async function getCalendarConnectUrls(
 
   try {
     const params = new URLSearchParams({ userId });
-    if (folderId) {
-      params.append('folderId', folderId);
-    }
     if (workspaceId) {
       params.append('workspaceId', workspaceId);
     }

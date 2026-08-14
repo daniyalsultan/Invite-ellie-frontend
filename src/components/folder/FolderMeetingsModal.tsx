@@ -852,7 +852,7 @@ export function FolderMeetingsModal({ folderId, folderName, isOpen, onClose }: F
                         transcription={fullTranscription ?? selectedMeeting}
                         loading={loadingTranscript}
                         compact
-                        isFirstMeetingInFolder={
+                        isFirstMeetingInWorkspace={
                           meetingsNewestFirst.length > 0 &&
                           meetingsNewestFirst[meetingsNewestFirst.length - 1].id === selectedMeeting?.id
                         }

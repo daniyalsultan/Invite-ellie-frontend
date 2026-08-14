@@ -237,13 +237,13 @@ export type FolderMeetingsOverviewResponse = {
  * AI-synthesized single summary + merged action items for all meetings in a folder (Recall / Groq).
  */
 export async function getFolderMeetingsOverview(
-  folderId: string,
+  workspaceId: string,
   userId: string,
   options?: { refresh?: boolean },
 ): Promise<FolderMeetingsOverviewResponse> {
   const refresh = options?.refresh ? '&refresh=1' : '';
   const recallaiUrl = buildRecallaiUrl(
-    `/api/folders/${encodeURIComponent(folderId)}/meetings-overview?userId=${encodeURIComponent(userId)}${refresh}`,
+    `/api/workspaces/${encodeURIComponent(workspaceId)}/meetings-overview?userId=${encodeURIComponent(userId)}${refresh}`,
   );
   if (!recallaiUrl) {
     throw new Error('Recallai backend URL is not configured.');
@@ -273,7 +273,7 @@ export async function getFolderMeetingsOverview(
     const errObj = body && typeof body === 'object' ? (body as Record<string, unknown>) : null;
     const msg =
       (errObj && typeof errObj.error === 'string' && errObj.error) ||
-      `Failed to load folder overview (${response.status})`;
+      `Failed to load workspace overview (${response.status})`;
     throw new Error(msg);
   }
 
@@ -318,11 +318,11 @@ export type WorkspaceFolderInsightsResponse = {
  * Server-computed folder status, aggregated gaps, repeated themes, and action rows.
  */
 export async function getFolderWorkspaceInsights(
-  folderId: string,
+  workspaceId: string,
   userId: string,
 ): Promise<WorkspaceFolderInsightsResponse> {
   const recallaiUrl = buildRecallaiUrl(
-    `/api/folders/${encodeURIComponent(folderId)}/workspace-insights?userId=${encodeURIComponent(userId)}`,
+    `/api/workspaces/${encodeURIComponent(workspaceId)}/workspace-insights?userId=${encodeURIComponent(userId)}`,
   );
   if (!recallaiUrl) {
     throw new Error('Recallai backend URL is not configured.');
