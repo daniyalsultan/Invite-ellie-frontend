@@ -1,17 +1,19 @@
 // Notion API service for OAuth integration
+//
+// Talks to recall-server (VITE_RECALLAI_BASE_URL), which owns the Notion
+// OAuth flow and export logic alongside the calendar integrations.
 
-/**
- * 🔒 PRODUCTION LOCK
- * Always uses Railway backend directly
- * No ENV variables
- * No proxy logic
- */
-
-const NOTION_API_BASE_URL = 'https://web-production-07092.up.railway.app';
+function getNotionApiBaseUrl(): string {
+  const baseUrl = import.meta.env.VITE_RECALLAI_BASE_URL;
+  if (!baseUrl || typeof baseUrl !== 'string' || !baseUrl.trim()) {
+    throw new Error('VITE_RECALLAI_BASE_URL is not configured');
+  }
+  return baseUrl.trim().replace(/\/$/, '');
+}
 
 function buildNotionApiUrl(path: string): string {
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
-  return `${NOTION_API_BASE_URL}${cleanPath}`;
+  return `${getNotionApiBaseUrl()}${cleanPath}`;
 }
 
 export interface NotionConnectionStatus {
@@ -91,6 +93,53 @@ export async function getNotionStatus(
   } catch (error) {
     console.error('Error checking Notion status:', error);
     return { connected: false };
+  }
+}
+
+/**
+ * Export a meeting summary to Notion as a page under the connected parent page
+ */
+export async function notionExport(
+  userId: string,
+  transcriptionId: string,
+  meetingTitle: string,
+  summary: string,
+  actionItems: any[]
+): Promise<{ success: boolean; message?: string; error?: string }> {
+  const apiUrl = buildNotionApiUrl('/api/notion/export');
+
+  try {
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({
+        user_id: userId,
+        transcription_id: transcriptionId,
+        meeting_title: meetingTitle,
+        summary,
+        action_items: actionItems,
+      }),
+    });
+
+    const data = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: data?.error || data?.message || `HTTP error ${response.status}`,
+      };
+    }
+
+    return { success: Boolean(data?.success), message: data?.message, error: data?.error };
+  } catch (error) {
+    console.error('Error exporting to Notion:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to export to Notion',
+    };
   }
 }
 

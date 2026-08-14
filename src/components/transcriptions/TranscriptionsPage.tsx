@@ -4,9 +4,9 @@ import { DashboardLayout } from '../sidebar';
 import { useProfile } from '../../context/ProfileContext';
 import { getTranscriptions, getTranscription, type Transcription } from '../../services/transcriptionApi';
 import { MeetingInsightsPanel } from '../meeting/MeetingInsightsPanel';
-import { getSlackStatus } from '../../services/slackApi';
-import { getNotionStatus } from '../../services/notionApi';
-import { getHubSpotStatus } from '../../services/hubspotApi';
+import { getSlackStatus, slackExport } from '../../services/slackApi';
+import { getNotionStatus, notionExport } from '../../services/notionApi';
+import { getHubSpotStatus, hubspotExport } from '../../services/hubspotApi';
 // import { getApiBaseUrl } from '../../utils/apiBaseUrl';
 import searchIcon from '../../assets/Vector.png';
 
@@ -295,52 +295,39 @@ export function TranscriptionsPage(): JSX.Element {
       // Prepare action items
       const actionItems = fullTranscription.action_items || [];
 
-      // Prepare export data
-      const exportData = {
-        user_id: profile.id,
-        transcription_id: transcriptionId,
-        meeting_title: fullTranscription.meeting_title || 'Untitled Meeting',
-        transcript: transcriptText,
-        summary: fullTranscription.summary || '',
-        action_items: actionItems,
-        channel: '#general', // Default Slack channel
-      };
+      const meetingTitle = fullTranscription.meeting_title || 'Untitled Meeting';
+      const summaryText = fullTranscription.summary || '';
 
-      // ✅ FIXED: Always use direct Railway backend URL (bypasses getApiBaseUrl() proxy issues)
-      const exportUrl = `https://web-production-07092.up.railway.app/api/${exportType}/export`;
-
-      console.log('Exporting to:', exportUrl);
-      console.log('[FIXED] Using direct Railway backend URL - no proxy confusion');
-
-      // Call export endpoint
-      const response = await fetch(exportUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify(exportData),
-      });
-
-      // Check content type before parsing
-      const contentType = response.headers.get('content-type');
-      let result: any;
-
-      if (contentType && contentType.includes('application/json')) {
-        result = await response.json();
-        console.log('Export response:', result);
+      // Each platform owns its own request contract in its service module —
+      // previously this posted one Slack-shaped body to a hardcoded, dead
+      // third-party URL for all three platforms, so no export ever worked.
+      let result: { success: boolean; message?: string; error?: string };
+      if (exportType === 'slack') {
+        result = await slackExport(
+          profile.id,
+          transcriptionId,
+          meetingTitle,
+          transcriptText,
+          summaryText,
+          actionItems,
+        );
+      } else if (exportType === 'notion') {
+        result = await notionExport(
+          profile.id,
+          transcriptionId,
+          meetingTitle,
+          summaryText,
+          actionItems,
+        );
       } else {
-        const text = await response.text();
-        console.error('Non-JSON response received:', text.substring(0, 200));
-
-        if (response.status === 404) {
-          throw new Error('Backend /api/slack/export endpoint not deployed. Check Railway deployment.');
-        }
-        throw new Error(`Server error ${response.status}. Backend may not be running.`);
-      }
-
-      if (!response.ok) {
-        throw new Error(result.error || `Export failed: ${response.status}`);
+        result = await hubspotExport(
+          profile.id,
+          transcriptionId,
+          meetingTitle,
+          summaryText,
+          actionItems,
+          fullTranscription.event_id,
+        );
       }
 
       if (result.success) {

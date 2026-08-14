@@ -57,30 +57,18 @@ export function SubscriptionsPage(): JSX.Element {
   const [error, setError] = useState<string | null>(null);
   const [currentPlanId, setCurrentPlanId] = useState<string | null>(null);
 
-  // Get current plan from sessionStorage (stored when user subscribes)
-  // or determine from subscription error
   useEffect(() => {
-    const profileData = profile as any;
-    
-    // Only check if user has an active subscription
-    if (!profileData?.stripe_subscription_id || profileData?.subscription_status !== 'active') {
+    if (!profile?.subscription_status || profile.subscription_status !== 'active') {
       setCurrentPlanId(null);
-      // Clear stored plan if no subscription
-      sessionStorage.removeItem('current_subscription_plan');
       return;
     }
 
-    // First, try to get from sessionStorage (stored when subscribing)
-    const storedPlan = sessionStorage.getItem('current_subscription_plan');
-    if (storedPlan && PLANS.some(p => p.id === storedPlan)) {
-      setCurrentPlanId(storedPlan);
-      return;
+    const plan = (profile as any)?.subscription_plan?.toUpperCase() ?? null;
+    if (plan && PLANS.some(p => p.id === plan)) {
+      setCurrentPlanId(plan);
+    } else {
+      setCurrentPlanId(null);
     }
-
-    // If not in sessionStorage, we can't determine it without backend help
-    // For now, set to null - user can still switch plans
-    // Backend will prevent subscribing to the same plan
-    setCurrentPlanId(null);
   }, [profile]);
 
   const handleSubscribe = async (planId: string) => {

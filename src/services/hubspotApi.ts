@@ -1,16 +1,15 @@
 // HubSpot API service for OAuth integration
+//
+// Talks to recall-server (VITE_RECALLAI_BASE_URL), which owns the HubSpot
+// OAuth flow and export logic alongside the calendar integrations.
 
-/**
- * 🔒 PRODUCTION LOCK
- * Always uses Railway backend directly
- * No ENV variables
- * No proxy logic
- * 
- * 🚀 START SERVER: https://web-production-07092.up.railway.app
- * 🔗 HUBSPOT CONNECT: https://web-production-07092.up.railway.app/api/hubspot/connect
- * 🔗 HUBSPOT STATUS:  https://web-production-07092.up.railway.app/api/hubspot/status
- * 🔗 HUBSPOT DISCONNECT: https://web-production-07092.up.railway.app/api/hubspot/disconnect
- */
+function getHubSpotApiBaseUrl(): string {
+  const baseUrl = import.meta.env.VITE_RECALLAI_BASE_URL;
+  if (!baseUrl || typeof baseUrl !== 'string' || !baseUrl.trim()) {
+    throw new Error('VITE_RECALLAI_BASE_URL is not configured');
+  }
+  return baseUrl.trim().replace(/\/$/, '');
+}
 
 export interface HubSpotConnectionStatus {
   connected: boolean;
@@ -22,8 +21,7 @@ export interface HubSpotConnectionStatus {
  * Get HubSpot OAuth authorization URL
  */
 export async function getHubSpotConnectUrl(userId: string): Promise<string> {
-  const apiUrl = `https://web-production-07092.up.railway.app/api/hubspot/connect?user_id=${userId}`;
-  console.log('[HubSpot] Connecting to:', apiUrl);
+  const apiUrl = `${getHubSpotApiBaseUrl()}/api/hubspot/connect?user_id=${userId}`;
 
   try {
     const response = await fetch(apiUrl, {
@@ -60,7 +58,7 @@ export async function getHubSpotConnectUrl(userId: string): Promise<string> {
 export async function getHubSpotStatus(
   userId: string
 ): Promise<HubSpotConnectionStatus> {
-  const apiUrl = `https://web-production-07092.up.railway.app/api/hubspot/status?user_id=${userId}`;
+  const apiUrl = `${getHubSpotApiBaseUrl()}/api/hubspot/status?user_id=${userId}`;
 
   try {
     const response = await fetch(apiUrl, {
@@ -90,10 +88,62 @@ export async function getHubSpotStatus(
 }
 
 /**
+ * Export a meeting note to HubSpot, attached to contacts matching the
+ * meeting's calendar attendees. `eventId` is required for that matching —
+ * meetings without a calendar event (e.g. started from a pasted link) have
+ * no attendees and will return a clear error.
+ */
+export async function hubspotExport(
+  userId: string,
+  transcriptionId: string,
+  meetingTitle: string,
+  summary: string,
+  actionItems: any[],
+  eventId?: string | null
+): Promise<{ success: boolean; message?: string; error?: string }> {
+  const apiUrl = `${getHubSpotApiBaseUrl()}/api/hubspot/export`;
+
+  try {
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({
+        user_id: userId,
+        transcription_id: transcriptionId,
+        meeting_title: meetingTitle,
+        summary,
+        action_items: actionItems,
+        event_id: eventId ?? null,
+      }),
+    });
+
+    const data = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: data?.error || data?.message || `HTTP error ${response.status}`,
+      };
+    }
+
+    return { success: Boolean(data?.success), message: data?.message, error: data?.error };
+  } catch (error) {
+    console.error('Error exporting to HubSpot:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to export to HubSpot',
+    };
+  }
+}
+
+/**
  * Disconnect HubSpot
  */
 export async function disconnectHubSpot(userId: string): Promise<void> {
-  const apiUrl = `https://web-production-07092.up.railway.app/api/hubspot/disconnect`;
+  const apiUrl = `${getHubSpotApiBaseUrl()}/api/hubspot/disconnect`;
 
   try {
     const response = await fetch(apiUrl, {

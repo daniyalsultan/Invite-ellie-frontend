@@ -39,6 +39,7 @@ const GOAL_OPTIONS: Option[] = [
   { value: 'insights', label: '📊 Get insights or analytics from past meetings' },
 ];
 
+
 function ChoiceButton({
   option,
   selected,
@@ -516,41 +517,6 @@ export function SetupProfilePage(): JSX.Element {
                 className="inline-flex w-full items-center justify-center rounded-[12px] bg-ellieBlue px-[40px] py-[16px] font-nunito text-[18px] font-extrabold text-white transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ellieBlue disabled:cursor-not-allowed disabled:opacity-60 lg:text-[20px]"
               >
                 {isSubmitting ? 'Saving...' : 'Continue'}
-              </button>
-              <button
-                type="button"
-                onClick={async () => {
-                  // Update first_login flag even when skipping
-                  if (apiBaseUrl) {
-                    try {
-                      const token = await ensureFreshAccessToken();
-                      if (token) {
-                        const formData = new FormData();
-                        formData.append('first_login', 'false');
-                        const skipResponse = await fetch(`${apiBaseUrl}/accounts/me/`, {
-                          method: 'PATCH',
-                          headers: {
-                            Authorization: `Bearer ${token}`,
-                            // Don't set Content-Type header when using FormData
-                          },
-                          body: formData,
-                        });
-                        if (!skipResponse.ok) {
-                          console.warn('Failed to update first_login flag when skipping');
-                        }
-                        await refreshProfile();
-                      }
-                    } catch (error) {
-                      console.error('Error updating first_login when skipping:', error);
-                      // Continue navigation even if API call fails
-                    }
-                  }
-                  navigate('/dashboard', { replace: true });
-                }}
-                disabled={isSubmitting}
-                className="font-nunito text-[18px] font-extrabold text-ellieNavy underline decoration-transparent transition hover:decoration-current disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Skip for now?
               </button>
 
               {statusMessage && (

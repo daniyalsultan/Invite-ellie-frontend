@@ -3,6 +3,7 @@ import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { Header } from './components/landing/Header';
 import { LandingPage } from './components/landing/LandingPage';
 import { SetupProfilePage } from './components/setupProfile/SetupProfilePage';
+import { ChoosePlanPage } from './components/choosePlan/ChoosePlanPage';
 import { ComingSoonPage } from './components/comingSoon/ComingSoonPage';
 import { SignupPage } from './components/signup/SignupPage';
 import { ConfirmSignupPage } from './components/signup/ConfirmSignupPage';
@@ -159,7 +160,8 @@ function App(): JSX.Element {
     location.pathname.startsWith('/ask-ellie') ||
     location.pathname.startsWith('/meeting-recordings') ||
     location.pathname.startsWith('/meeting-view') ||
-    location.pathname.startsWith('/search-results');
+    location.pathname.startsWith('/search-results') ||
+    location.pathname === '/choose-plan';
 
   return (
     <div className="min-h-screen bg-white">
@@ -179,6 +181,7 @@ function App(): JSX.Element {
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/terms" element={<TermsOfServicePage />} />
         <Route element={<ProtectedRoute />}>
+          <Route path="/choose-plan" element={<ChoosePlanPage />} />
           <Route path="/setup-profile" element={<SetupProfilePage />} />
           <Route path="/integrations" element={<IntegrationsPage />} />
           <Route path="/subscriptions" element={<SubscriptionsPage />} />
