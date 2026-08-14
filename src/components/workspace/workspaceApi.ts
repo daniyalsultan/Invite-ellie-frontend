@@ -20,7 +20,7 @@ export type MeetingStatus = 'PENDING' | 'TRANSCRIBING' | 'SUMMARIZING' | 'COMPLE
 
 export interface MeetingRecord {
   id: string;
-  folder: string;
+  workspace: string;
   title: string;
   platform: string;
   duration: string | null;
@@ -36,16 +36,6 @@ export interface MeetingRecord {
   updated_at: string;
 }
 
-export interface FolderRecord {
-  id: string;
-  workspace: string;
-  name: string;
-  is_pinned: boolean;
-  created_at: string;
-  updated_at: string;
-  meetings?: MeetingRecord[];
-}
-
 export interface WorkspaceRecord {
   id: string;
   owner?: string;
@@ -53,7 +43,6 @@ export interface WorkspaceRecord {
   category: WorkspaceCategory | null;
   created_at: string;
   updated_at: string;
-  folders?: FolderRecord[];
 }
 
 export interface PaginatedResponse<T> {
@@ -72,25 +61,9 @@ export interface ListWorkspaceParams {
   createdAt?: string;
 }
 
-export interface ListFolderParams {
-  page?: number;
-  pageSize?: number; // Note: Not in API spec, kept for backward compatibility
-  search?: string;
-  ordering?: string;
-  workspace?: string; // Changed from workspaceId to match API spec
-  created_at?: string; // Added to match API spec
-  name?: string; // Added to match API spec
-}
-
 export interface WorkspaceMutationPayload {
   name: string;
   category?: WorkspaceCategory | null;
-}
-
-export interface FolderMutationPayload {
-  name: string;
-  workspace: string;
-  is_pinned?: boolean;
 }
 
 function ensureApiBaseUrl(): string {
@@ -226,98 +199,6 @@ export async function listWorkspaces(
     headers: authHeaders(token),
   });
   return parseResponse<PaginatedResponse<WorkspaceRecord>>(response);
-}
-
-export async function listFolders(
-  token: string,
-  params?: ListFolderParams,
-): Promise<PaginatedResponse<FolderRecord>> {
-  const baseUrl = ensureApiBaseUrl();
-  const url = buildUrl(baseUrl, '/folders/', {
-    page: params?.page,
-    page_size: params?.pageSize,
-    search: params?.search,
-    ordering: params?.ordering,
-    workspace: params?.workspace,
-    created_at: params?.created_at,
-    name: params?.name,
-  });
-
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: authHeaders(token),
-  });
-  return parseResponse<PaginatedResponse<FolderRecord>>(response);
-}
-
-export async function createFolder(
-  token: string,
-  payload: FolderMutationPayload,
-): Promise<FolderRecord> {
-  const baseUrl = ensureApiBaseUrl();
-  const url = buildApiUrl(baseUrl, '/folders/');
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: authHeaders(token, {
-      'Content-Type': 'application/json',
-    }),
-    body: JSON.stringify(payload),
-  });
-  return parseResponse<FolderRecord>(response);
-}
-
-export async function patchFolder(
-  token: string,
-  folderId: string,
-  payload: Partial<FolderMutationPayload>,
-): Promise<FolderRecord> {
-  const baseUrl = ensureApiBaseUrl();
-  const url = buildApiUrl(baseUrl, `/folders/${folderId}/`);
-  const response = await fetch(url, {
-    method: 'PATCH',
-    headers: authHeaders(token, {
-      'Content-Type': 'application/json',
-    }),
-    body: JSON.stringify(payload),
-  });
-  return parseResponse<FolderRecord>(response);
-}
-
-export async function deleteFolder(token: string, folderId: string): Promise<void> {
-  const baseUrl = ensureApiBaseUrl();
-  const url = buildApiUrl(baseUrl, `/folders/${folderId}/`);
-  const response = await fetch(url, {
-    method: 'DELETE',
-    headers: authHeaders(token),
-  });
-  await parseResponse<null>(response);
-}
-
-export async function getFolder(token: string, folderId: string): Promise<FolderRecord> {
-  const baseUrl = ensureApiBaseUrl();
-  const url = buildApiUrl(baseUrl, `/folders/${folderId}/`);
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: authHeaders(token),
-  });
-  return parseResponse<FolderRecord>(response);
-}
-
-export async function updateFolder(
-  token: string,
-  folderId: string,
-  payload: FolderMutationPayload,
-): Promise<FolderRecord> {
-  const baseUrl = ensureApiBaseUrl();
-  const url = buildApiUrl(baseUrl, `/folders/${folderId}/`);
-  const response = await fetch(url, {
-    method: 'PUT',
-    headers: authHeaders(token, {
-      'Content-Type': 'application/json',
-    }),
-    body: JSON.stringify(payload),
-  });
-  return parseResponse<FolderRecord>(response);
 }
 
 export async function createWorkspace(

@@ -73,6 +73,13 @@ export function DashboardPage(): JSX.Element {
     }
     return 'there';
   }, [profile]);
+  // Same "has a usable plan" rule as ProtectedRoute: trials set
+  // subscription_plan too, so this only flags genuinely unsubscribed users.
+  const needsSubscription =
+    profile != null &&
+    (profile.subscription_plan == null ||
+      profile.subscription_plan === '' ||
+      profile.subscription_plan === 'free');
   const [workspaces, setWorkspaces] = useState<WorkspaceRecord[]>([]);
   const [workspacesError, setWorkspacesError] = useState<string | null>(null);
   const [isWorkspacesLoading, setIsWorkspacesLoading] = useState(true);
@@ -376,6 +383,40 @@ export function DashboardPage(): JSX.Element {
           <h1 className="font-nunito text-xl md:text-2xl lg:text-3xl xl:text-4xl font-extrabold text-[#1F2A44] mb-4 md:mb-6 lg:mb-8">
             Welcome, {displayName}!
           </h1>
+
+          {needsSubscription && (
+            <section className="mb-6 flex flex-col gap-3 rounded-[10px] border border-amber-300 bg-amber-50 px-6 py-4 sm:flex-row sm:items-center sm:justify-between lg:mb-8">
+              <div className="flex items-start gap-3">
+                <svg
+                  className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"
+                  />
+                </svg>
+                <div>
+                  <p className="font-nunito text-sm font-bold text-amber-800">
+                    Ellie can't join your meetings without an active plan
+                  </p>
+                  <p className="font-nunito text-sm text-amber-700">
+                    Upcoming meetings won't be recorded or transcribed until you subscribe. Pick a plan before your next meeting starts.
+                  </p>
+                </div>
+              </div>
+              <Link
+                to="/subscriptions"
+                className="inline-flex flex-shrink-0 items-center justify-center rounded-[5px] bg-[#327AAD] px-5 py-2 font-nunito text-sm font-extrabold text-white transition hover:bg-[#286996]"
+              >
+                View Plans
+              </Link>
+            </section>
+          )}
 
           <section className="flex flex-col lg:flex-row gap-6 mb-6 lg:mb-8">
             <article className="flex w-full lg:w-[40%] items-center gap-6 rounded-[10px] bg-white px-8 py-6 shadow-[0px_18px_30px_rgba(15,23,42,0.05)]">
