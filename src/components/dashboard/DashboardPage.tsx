@@ -9,7 +9,6 @@ import {
   WorkspaceRecord,
   listWorkspaces,
 } from '../workspace/workspaceApi';
-import { listActivities, ActivityRecord } from '../../services/activityApi';
 import { DemoTour } from '../demo';
 
 /**
@@ -37,15 +36,6 @@ function buildRecallaiUrl(path: string): string | null {
   }
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
   return `${baseUrl}${cleanPath}`;
-}
-
-interface ActivityItem {
-  id: string;
-  type: string;
-  link: string;
-  date: string;
-  time: string;
-  description?: string;
 }
 
 const CREATE_WORKSPACE_ILLUSTRATION = '/assets/dashboard/create-workspace-illustration.svg';
@@ -83,9 +73,6 @@ export function DashboardPage(): JSX.Element {
   const [workspaces, setWorkspaces] = useState<WorkspaceRecord[]>([]);
   const [workspacesError, setWorkspacesError] = useState<string | null>(null);
   const [isWorkspacesLoading, setIsWorkspacesLoading] = useState(true);
-  const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([]);
-  const [isActivitiesLoading, setIsActivitiesLoading] = useState(true);
-  const [activitiesError, setActivitiesError] = useState<string | null>(null);
   const [isJoiningMeeting, setIsJoiningMeeting] = useState(false);
   const [joinMeetingError, setJoinMeetingError] = useState<string | null>(null);
   const [joinMeetingSuccess, setJoinMeetingSuccess] = useState<string | null>(null);
@@ -93,75 +80,6 @@ export function DashboardPage(): JSX.Element {
   const [meetingName, setMeetingName] = useState('');
   const [meetingNameError, setMeetingNameError] = useState<string | null>(null);
   const [joinMeetingWorkspaceId, setJoinMeetingWorkspaceId] = useState<string | null>(null);
-
-  // Format activity from API to ActivityItem format
-  const formatActivity = (activity: ActivityRecord): ActivityItem => {
-    const date = new Date(activity.timestamp);
-    const formattedDate = date.toLocaleDateString('en-US', {
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric',
-    });
-    const formattedTime = date.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true,
-    });
-
-    return {
-      id: String(activity.id),
-      type: activity.activity_type_display || activity.activity_type,
-      link: '#',
-      date: formattedDate,
-      time: formattedTime,
-      description: activity.description || undefined,
-    };
-  };
-
-  // Fetch activities
-  useEffect(() => {
-    let isMounted = true;
-
-    const fetchActivities = async (): Promise<void> => {
-      setIsActivitiesLoading(true);
-      setActivitiesError(null);
-      try {
-        const token = await ensureFreshAccessToken();
-        if (!token) {
-          throw new Error('Unable to authenticate. Please login again.');
-        }
-        const response = await listActivities(token, {
-          ordering: '-timestamp', // Order by most recent first
-          page: 1,
-        });
-        if (isMounted) {
-          // Take only the first 3 activities and format them
-          const formattedActivities = response.results
-            .slice(0, 3)
-            .map((activity) => formatActivity(activity));
-          setRecentActivity(formattedActivities);
-        }
-      } catch (error) {
-        if (isMounted) {
-          const message =
-            error instanceof Error ? error.message : 'Unable to load activities. Please try again.';
-          setActivitiesError(message);
-          // Set empty array on error
-          setRecentActivity([]);
-        }
-      } finally {
-        if (isMounted) {
-          setIsActivitiesLoading(false);
-        }
-      }
-    };
-
-    void fetchActivities();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [ensureFreshAccessToken]);
 
   useEffect(() => {
     let isMounted = true;
@@ -496,7 +414,7 @@ export function DashboardPage(): JSX.Element {
           </section>
 
           <section className="flex flex-col gap-8 lg:flex-row lg:gap-4">
-            <div className="flex flex-col gap-6 rounded-[18px] bg-white px-8 py-8 shadow-[0px_18px_30px_rgba(15,23,42,0.05)] lg:w-[55%]">
+            <div className="flex w-full flex-col gap-6 rounded-[18px] bg-white px-8 py-8 shadow-[0px_18px_30px_rgba(15,23,42,0.05)]">
               <div className="flex items-center justify-between">
                 <h2 className="font-nunito text-[25px] font-bold tracking-[-0.02em] text-[#25324B]">
                   Your Workspaces
@@ -547,57 +465,6 @@ export function DashboardPage(): JSX.Element {
               </div>
             </div>
 
-            <aside className="flex w-full flex-col gap-6 rounded-[18px] bg-white px-8 py-8 shadow-[0px_18px_30px_rgba(15,23,42,0.05)] lg:w-[45%]">
-              <h2 className="font-nunito text-[25px] font-bold tracking-[-0.02em] text-[#25324B]">Recent Activity</h2>
-              <div className="overflow-hidden rounded-[14px]">
-                {isActivitiesLoading ? (
-                  <div className="px-3 py-6 text-center font-nunito text-sm text-[#545454]">
-                    Loading activities...
-                  </div>
-                ) : activitiesError ? (
-                  <div className="px-3 py-6 text-center font-nunito text-sm text-red-600">
-                    {activitiesError}
-                  </div>
-                ) : recentActivity.length === 0 ? (
-                  <div className="px-3 py-6 text-center font-nunito text-sm text-[#545454]">
-                    No recent activity
-                  </div>
-                ) : (
-                  <table className="min-w-full table-fixed text-sm">
-                    <thead className="bg-[#F4F8FB]">
-                      <tr className="text-left font-nunito text-sm font-semibold tracking-[-0.02em] text-[#25324B]">
-                        <th className="px-3 py-2 w-[60%]">Activity Type</th>
-                        <th className="px-3 py-2 w-[40%]">Date/Time</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white font-nunito text-[#25324B]">
-                      {recentActivity.map((item) => (
-                        <tr key={item.id} className="border-b border-[rgba(102,0,255,0.2)] last:border-0">
-                          <td className="px-3 py-3 align-top">
-                            <div className="flex flex-col gap-1">
-                              <span className="font-nunito text-sm font-bold tracking-[-0.02em] text-[#25324B]">
-                                {item.type}
-                              </span>
-                              {item.description && (
-                                <span className="font-nunito text-xs font-medium text-[#545454]">
-                                  {item.description}
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                          <td className="px-3 py-3 align-top">
-                            <div className="flex flex-col gap-1 font-nunito text-xs font-medium text-[#545454]">
-                              <span className="tracking-[-0.02em] text-[#25324B]">{item.date}</span>
-                              <span>{item.time}</span>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </div>
-            </aside>
           </section>
         </div>
       </div>
