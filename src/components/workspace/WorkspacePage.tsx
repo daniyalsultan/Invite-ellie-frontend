@@ -330,11 +330,19 @@ export function WorkspacePage(): JSX.Element {
           </nav>
 
           <div className="mb-4 flex flex-col gap-4 lg:mb-6">
-            <div className="flex flex-col">
-              <h1 className="font-nunito text-xl font-extrabold text-[#1F2A44] md:text-2xl lg:text-3xl xl:text-4xl">
-                Workspace
-              </h1>
-              <p className="font-nunito text-sm text-[#6B7A96]">{paginationSummary}</p>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col">
+                <h1 className="font-nunito text-xl font-extrabold text-[#1F2A44] md:text-2xl lg:text-3xl xl:text-4xl">
+                  Workspace
+                </h1>
+                <p className="font-nunito text-sm text-[#6B7A96]">{paginationSummary}</p>
+              </div>
+              <Link
+                to="/create-workspace"
+                className="inline-flex flex-shrink-0 items-center justify-center rounded-[5px] bg-[#327AAD] px-6 py-2 font-nunito text-sm font-extrabold text-white transition hover:bg-[#286996]"
+              >
+                + New Workspace
+              </Link>
             </div>
             {/* Search and create button section - hidden */}
             {/*

@@ -1,7 +1,10 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
+import { useProfile } from '../../context/ProfileContext';
+import { buildRecallaiUrl } from '../../services/transcriptionApi';
 import logo from '../../assets/logo.svg';
 
 export function ChatBot(): JSX.Element {
+  const { profile } = useProfile();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Array<{ id: number; text: string; sender: 'user' | 'ellie' }>>([
     {
@@ -15,18 +18,9 @@ export function ChatBot(): JSX.Element {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Get chat API URL - append /api/chat if base URL is provided
-  const CHAT_API_URL = useMemo(() => {
-    const baseUrl = import.meta.env.VITE_CHAT_API_URL;
-    if (!baseUrl) {
-      console.warn('VITE_CHAT_API_URL is not configured');
-      return null;
-    }
-    // Remove trailing slash if present
-    const cleanBaseUrl = baseUrl.trim().replace(/\/$/, '');
-    // Append /api/chat endpoint
-    return `${cleanBaseUrl}/api/chat`;
-  }, []);
+  // Chat lives on recall-server, same as the Ask Ellie page. This used to read
+  // its own VITE_CHAT_API_URL, which drifted to a stale service that 404s.
+  const CHAT_API_URL = useMemo(() => buildRecallaiUrl('/api/chat'), []);
 
   const formatMessageText = (text: string): JSX.Element => {
     const lines = text.split('\n');
@@ -108,6 +102,9 @@ export function ChatBot(): JSX.Element {
         body: JSON.stringify({
           message: currentInput,
           history: conversationHistory,
+          // Without this the assistant has no access to the user's meetings
+          // and answers with no context.
+          userId: profile?.id,
         }),
       });
 

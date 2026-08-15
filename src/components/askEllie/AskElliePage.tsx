@@ -118,19 +118,15 @@ export function AskElliePage(): JSX.Element {
     }
   }, [inputValue]);
 
-  // Fetch contextual nudges - API will check if meeting is live
-  // Nudges are ONLY fetched when a workspace is assigned to scope search
+  // Fetch contextual nudges - API will check if meeting is live.
+  // The workspace only narrows the search; the API falls back to searching all
+  // of the user's meetings without one. Meetings now start unassigned, so
+  // requiring a workspace here meant nudges never loaded during a live meeting.
   const fetchContextualNudges = useCallback(async (): Promise<void> => {
     if (!profile?.id) {
       setContextualNudges([]);
       setCurrentParticipants([]);
       setHasLiveMeetings(false);
-      return;
-    }
-
-    if (!liveMeetingWorkspaceId) {
-      setContextualNudges([]);
-      setNudgesLoading(false);
       return;
     }
 
@@ -141,7 +137,7 @@ export function AskElliePage(): JSX.Element {
       const response = await getContextualNudges(
         profile.id,
         liveBotId || undefined,
-        liveMeetingWorkspaceId
+        liveMeetingWorkspaceId || undefined
       );
 
       if (response.success) {
@@ -761,8 +757,10 @@ export function AskElliePage(): JSX.Element {
                         Try Again
                       </button>
                     </div>
-                  ) : !liveMeetingWorkspaceId ? (
-                    /* No Workspace Assigned - Show Workspace Selection */
+                  ) : !liveMeetingWorkspaceId && contextualNudges.length === 0 ? (
+                    /* Nudges search every meeting by default; assigning a
+                       workspace narrows them to that project. Offered here only
+                       when nothing was found, never as a gate. */
                     <div className="text-center py-12 md:py-16">
                       <div className="mb-4">
                         <svg
@@ -780,10 +778,10 @@ export function AskElliePage(): JSX.Element {
                         </svg>
                       </div>
                       <h2 className="font-nunito text-xl md:text-2xl font-bold text-ellieBlack mb-2">
-                        Select a Workspace to Enable Nudges
+                        No nudges from your other meetings yet
                       </h2>
                       <p className="font-nunito text-sm md:text-base text-ellieGray max-w-md mx-auto mb-6">
-                        Contextual nudges are only available after a meeting is associated with a workspace. This helps Ellie understand the project context and provide relevant insights.
+                        Ellie is watching this meeting and searching all of your past meetings for relevant context. Assigning this meeting to a workspace narrows that search to one project.
                       </p>
 
                       {/* Workspace Selection Form */}
