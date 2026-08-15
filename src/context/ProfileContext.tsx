@@ -24,6 +24,8 @@ type UserProfile = {
 type ProfileContextValue = {
   profile: UserProfile | null;
   isLoading: boolean;
+  /** False until the first profile load settles, however it settles. */
+  isInitialized: boolean;
   error: string | null;
   refreshProfile: () => Promise<void>;
 };
@@ -36,6 +38,7 @@ export function ProfileProvider({ children }: { children: ReactNode }): JSX.Elem
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const latestRequestIdRef = useRef(0);
 
@@ -43,6 +46,7 @@ export function ProfileProvider({ children }: { children: ReactNode }): JSX.Elem
     if (!isAuthenticated || !apiBaseUrl) {
       latestRequestIdRef.current += 1;
       setProfile(null);
+      setIsInitialized(true);
       return;
     }
 
@@ -74,9 +78,14 @@ export function ProfileProvider({ children }: { children: ReactNode }): JSX.Elem
     } catch (err) {
       if (requestId === latestRequestIdRef.current) {
         setError(err instanceof Error ? err.message : 'Unable to load your profile.');
-        setProfile(null);
+        // Deliberately keep any profile we already have. A background refresh
+        // that fails (flaky network, a dropped connection) should not blank
+        // out a working session.
       }
     } finally {
+      // Not guarded by requestId: once any attempt settles the app has enough
+      // to render, and a superseded request must not leave this false forever.
+      setIsInitialized(true);
       if (requestId === latestRequestIdRef.current) {
         setIsLoading(false);
       }
@@ -91,12 +100,14 @@ export function ProfileProvider({ children }: { children: ReactNode }): JSX.Elem
     } else {
       setProfile(null);
       setError(null);
+      setIsInitialized(true);
     }
   }, [isAuthenticated, refreshProfile]);
 
   const value: ProfileContextValue = {
     profile,
     isLoading,
+    isInitialized,
     error,
     refreshProfile,
   };
