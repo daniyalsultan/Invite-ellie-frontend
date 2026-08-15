@@ -5,7 +5,6 @@ import { useAuth } from '../../context/AuthContext';
 import { getTranscriptions, type Transcription } from '../../services/transcriptionApi';
 import { displayDeadline, displayOwner, isAbsentScalar } from '../../utils/meetingDisplay';
 import { listWorkspaces } from '../workspace/workspaceApi';
-import { extractEmailDomain, getWorkspaceNameFromDomain } from '../../utils/workspaceAutoCreate';
 import searchIcon from '../../assets/Vector.png';
 
 function getRecallaiBaseUrl(): string | null {
@@ -203,9 +202,11 @@ export function UnresolvedMeetingsPage(): JSX.Element {
     );
   }, [transcriptContent, transcriptionSearchQuery]);
 
-  // Get workspace name for a meeting (with fallback for old meetings without workspace_id)
+  // Name of the workspace a meeting actually belongs to. Deliberately does NOT
+  // guess from the email domain: every meeting on this page is unassigned by
+  // definition, so guessing printed a workspace name (e.g. "Personal") right
+  // next to the "Unassigned" badge and read as a contradiction.
   const getWorkspaceName = (meeting: Transcription): string => {
-    // First, check if meeting has workspace_id
     const workspaceId = (meeting as any).workspace_id || (meeting as any).workspaceId;
     if (workspaceId && workspaces.length > 0) {
       const workspace = workspaces.find(w => w.id === workspaceId);
@@ -213,41 +214,8 @@ export function UnresolvedMeetingsPage(): JSX.Element {
         return workspace.name;
       }
     }
-    
-    // If no workspace_id, try to determine workspace from calendar_email
-    const calendarEmail = (meeting as any).calendar_email || (meeting as any).calendarEmail;
-    if (calendarEmail) {
-      const domain = extractEmailDomain(calendarEmail);
-      if (domain) {
-        const expectedWorkspaceName = getWorkspaceNameFromDomain(domain);
-        // Try to find matching workspace
-        const matchingWorkspace = workspaces.find(
-          w => w.name.toLowerCase() === expectedWorkspaceName.toLowerCase()
-        );
-        if (matchingWorkspace) {
-          return matchingWorkspace.name;
-        }
-        // If workspace doesn't exist yet, return the expected name
-        return expectedWorkspaceName;
-      }
-    }
-    
-    // Fallback to user's email domain
-    if (profile?.email) {
-      const domain = extractEmailDomain(profile.email);
-      if (domain) {
-        const expectedWorkspaceName = getWorkspaceNameFromDomain(domain);
-        const matchingWorkspace = workspaces.find(
-          w => w.name.toLowerCase() === expectedWorkspaceName.toLowerCase()
-        );
-        if (matchingWorkspace) {
-          return matchingWorkspace.name;
-        }
-        return expectedWorkspaceName;
-      }
-    }
-    
-    return 'Unknown Workspace';
+
+    return '—';
   };
 
   // Handle workspace assignment

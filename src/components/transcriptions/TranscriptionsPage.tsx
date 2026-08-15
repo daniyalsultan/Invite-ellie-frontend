@@ -2,7 +2,9 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '../sidebar';
 import { useProfile } from '../../context/ProfileContext';
-import { getTranscriptions, getTranscription, type Transcription } from '../../services/transcriptionApi';
+import { useAuth } from '../../context/AuthContext';
+import { getTranscriptions, getTranscription, buildRecallaiUrl, type Transcription } from '../../services/transcriptionApi';
+import { listWorkspaces, type WorkspaceRecord } from '../workspace/workspaceApi';
 import { MeetingInsightsPanel } from '../meeting/MeetingInsightsPanel';
 import { getSlackStatus, slackExport } from '../../services/slackApi';
 import { getNotionStatus, notionExport } from '../../services/notionApi';
@@ -46,6 +48,9 @@ export function TranscriptionsPage(): JSX.Element {
   const [exporting, setExporting] = useState<{ [key: string]: boolean }>({});
   const [exportMessage, setExportMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const [deleting, setDeleting] = useState<{ [key: string]: boolean }>({});
+  const { ensureFreshAccessToken } = useAuth();
+  const [workspaces, setWorkspaces] = useState<WorkspaceRecord[]>([]);
+  const [assigningId, setAssigningId] = useState<string | null>(null);
   // Fetch transcriptions on mount
   useEffect(() => {
     if (!profile?.id) {
@@ -222,6 +227,73 @@ export function TranscriptionsPage(): JSX.Element {
       setError(errorMessage);
     } finally {
       setDeleting(prev => ({ ...prev, [deleteKey]: false }));
+    }
+  };
+
+  // Workspaces for the assign control
+  useEffect(() => {
+    if (!profile?.id) return;
+    let cancelled = false;
+    const loadWorkspaces = async () => {
+      try {
+        const token = await ensureFreshAccessToken();
+        if (!token) return;
+        const response = await listWorkspaces(token, { pageSize: 100, ordering: 'name' });
+        if (!cancelled) setWorkspaces(response.results);
+      } catch (err) {
+        console.error('Error loading workspaces:', err);
+      }
+    };
+    void loadWorkspaces();
+    return () => {
+      cancelled = true;
+    };
+  }, [profile?.id, ensureFreshAccessToken]);
+
+  const handleAssignWorkspace = async (transcriptionId: string, workspaceId: string): Promise<void> => {
+    if (!workspaceId) return;
+    try {
+      setAssigningId(transcriptionId);
+      setExportMessage(null);
+
+      const token = await ensureFreshAccessToken();
+      if (!token) throw new Error('Unable to authenticate');
+
+      const recallaiUrl = buildRecallaiUrl(`/api/transcriptions/${transcriptionId}/assign-workspace`);
+      if (!recallaiUrl) throw new Error('Recall server URL is not configured');
+
+      const response = await fetch(recallaiUrl, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          'ngrok-skip-browser-warning': 'true',
+        },
+        body: JSON.stringify({ workspace_id: workspaceId }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({ error: 'Failed to assign workspace' }));
+        throw new Error(data.error || 'Failed to assign workspace');
+      }
+
+      // Reflect the new workspace locally rather than refetching the list.
+      setTranscriptions((prev) =>
+        prev.map((t) => (t.id === transcriptionId ? { ...t, workspace_id: workspaceId } : t)),
+      );
+      setSelectedTranscription((prev) =>
+        prev && prev.id === transcriptionId ? { ...prev, workspace_id: workspaceId } : prev,
+      );
+      const name = workspaces.find((w) => w.id === workspaceId)?.name ?? 'workspace';
+      setExportMessage({ type: 'success', text: `Meeting moved to ${name}.` });
+    } catch (err) {
+      setExportMessage({
+        type: 'error',
+        text: err instanceof Error ? err.message : 'Failed to assign workspace',
+      });
+    } finally {
+      setAssigningId(null);
     }
   };
 
@@ -457,6 +529,33 @@ export function TranscriptionsPage(): JSX.Element {
                           )}
                         </div>
 
+                        {/* Assign Workspace - Mobile */}
+                        <div className="mb-3" onClick={(e) => e.stopPropagation()}>
+                          <label className="font-nunito text-[10px] md:text-xs text-ellieGray uppercase tracking-wider block mb-1">
+                            Workspace
+                          </label>
+                          <select
+                            value={transcription.workspace_id || ''}
+                            onChange={(e) => void handleAssignWorkspace(transcription.id, e.target.value)}
+                            disabled={assigningId === transcription.id || workspaces.length === 0}
+                            aria-label="Assign workspace"
+                            className={`w-full rounded-lg border px-3 py-2 font-nunito text-sm focus:outline-none focus:ring-2 focus:ring-ellieBlue/30 disabled:opacity-60 ${
+                              transcription.workspace_id
+                                ? 'border-gray-300 text-ellieBlack'
+                                : 'border-amber-300 bg-amber-50 text-amber-800'
+                            }`}
+                          >
+                            <option value="">
+                              {assigningId === transcription.id ? 'Assigning…' : 'Unassigned'}
+                            </option>
+                            {workspaces.map((ws) => (
+                              <option key={ws.id} value={ws.id}>
+                                {ws.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
                         {/* Delete Button - Mobile */}
                         <div className="mb-3">
                           <button
@@ -535,6 +634,9 @@ export function TranscriptionsPage(): JSX.Element {
                           Status
                         </th>
                         <th className="text-left py-3 px-4 font-nunito text-base font-semibold text-[#25324B] whitespace-nowrap">
+                          Workspace
+                        </th>
+                        <th className="text-left py-3 px-4 font-nunito text-base font-semibold text-[#25324B] whitespace-nowrap">
                           Export
                         </th>
                         <th className="text-left py-3 px-4 font-nunito text-base font-semibold text-[#25324B] whitespace-nowrap">
@@ -545,13 +647,13 @@ export function TranscriptionsPage(): JSX.Element {
                     <tbody>
                       {loading ? (
                         <tr>
-                          <td colSpan={6} className="py-8 text-center text-gray-500">
+                          <td colSpan={7} className="py-8 text-center text-gray-500">
                             Loading meetings...
                           </td>
                         </tr>
                       ) : filteredTranscriptions.length === 0 ? (
                         <tr>
-                          <td colSpan={6} className="py-8 text-center text-gray-500">
+                          <td colSpan={7} className="py-8 text-center text-gray-500">
                             No meetings found
                           </td>
                         </tr>
@@ -631,6 +733,28 @@ export function TranscriptionsPage(): JSX.Element {
                                 }`}>
                                 {transcription.status || 'unknown'}
                               </span>
+                            </td>
+                            <td className="py-4 px-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                              <select
+                                value={transcription.workspace_id || ''}
+                                onChange={(e) => void handleAssignWorkspace(transcription.id, e.target.value)}
+                                disabled={assigningId === transcription.id || workspaces.length === 0}
+                                aria-label="Assign workspace"
+                                className={`rounded-lg border px-3 py-1.5 font-nunito text-sm focus:outline-none focus:ring-2 focus:ring-ellieBlue/30 disabled:opacity-60 ${
+                                  transcription.workspace_id
+                                    ? 'border-gray-300 text-ellieBlack'
+                                    : 'border-amber-300 bg-amber-50 text-amber-800'
+                                }`}
+                              >
+                                <option value="">
+                                  {assigningId === transcription.id ? 'Assigning…' : 'Unassigned'}
+                                </option>
+                                {workspaces.map((ws) => (
+                                  <option key={ws.id} value={ws.id}>
+                                    {ws.name}
+                                  </option>
+                                ))}
+                              </select>
                             </td>
                             <td className="py-4 px-4 whitespace-nowrap">
                               <div className="flex items-center gap-2">
