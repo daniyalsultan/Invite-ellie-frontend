@@ -534,33 +534,6 @@ export function TranscriptionsPage(): JSX.Element {
                           )}
                         </div>
 
-                        {/* Assign Workspace - Mobile */}
-                        <div className="mb-3" onClick={(e) => e.stopPropagation()}>
-                          <label className="font-nunito text-[10px] md:text-xs text-ellieGray uppercase tracking-wider block mb-1">
-                            Workspace
-                          </label>
-                          <select
-                            value={transcription.workspace_id || ''}
-                            onChange={(e) => void handleAssignWorkspace(transcription.id, e.target.value)}
-                            disabled={assigningId === transcription.id || workspaces.length === 0}
-                            aria-label="Assign workspace"
-                            className={`w-full rounded-lg border px-3 py-2 font-nunito text-sm focus:outline-none focus:ring-2 focus:ring-ellieBlue/30 disabled:opacity-60 ${
-                              transcription.workspace_id
-                                ? 'border-gray-300 text-ellieBlack'
-                                : 'border-amber-300 bg-amber-50 text-amber-800'
-                            }`}
-                          >
-                            <option value="">
-                              {assigningId === transcription.id ? 'Assigning…' : 'Unassigned'}
-                            </option>
-                            {workspaces.map((ws) => (
-                              <option key={ws.id} value={ws.id}>
-                                {ws.name}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-
                         {/* Delete Button - Mobile */}
                         <div className="mb-3">
                           <button
@@ -639,9 +612,6 @@ export function TranscriptionsPage(): JSX.Element {
                           Status
                         </th>
                         <th className="text-left py-3 px-4 font-nunito text-base font-semibold text-[#25324B] whitespace-nowrap">
-                          Workspace
-                        </th>
-                        <th className="text-left py-3 px-4 font-nunito text-base font-semibold text-[#25324B] whitespace-nowrap">
                           Export
                         </th>
                         <th className="text-left py-3 px-4 font-nunito text-base font-semibold text-[#25324B] whitespace-nowrap">
@@ -652,13 +622,13 @@ export function TranscriptionsPage(): JSX.Element {
                     <tbody>
                       {loading ? (
                         <tr>
-                          <td colSpan={7} className="py-8 text-center text-gray-500">
+                          <td colSpan={6} className="py-8 text-center text-gray-500">
                             Loading meetings...
                           </td>
                         </tr>
                       ) : filteredTranscriptions.length === 0 ? (
                         <tr>
-                          <td colSpan={7} className="py-8 text-center text-gray-500">
+                          <td colSpan={6} className="py-8 text-center text-gray-500">
                             No meetings found
                           </td>
                         </tr>
@@ -738,28 +708,6 @@ export function TranscriptionsPage(): JSX.Element {
                                 }`}>
                                 {transcription.status || 'unknown'}
                               </span>
-                            </td>
-                            <td className="py-4 px-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                              <select
-                                value={transcription.workspace_id || ''}
-                                onChange={(e) => void handleAssignWorkspace(transcription.id, e.target.value)}
-                                disabled={assigningId === transcription.id || workspaces.length === 0}
-                                aria-label="Assign workspace"
-                                className={`rounded-lg border px-3 py-1.5 font-nunito text-sm focus:outline-none focus:ring-2 focus:ring-ellieBlue/30 disabled:opacity-60 ${
-                                  transcription.workspace_id
-                                    ? 'border-gray-300 text-ellieBlack'
-                                    : 'border-amber-300 bg-amber-50 text-amber-800'
-                                }`}
-                              >
-                                <option value="">
-                                  {assigningId === transcription.id ? 'Assigning…' : 'Unassigned'}
-                                </option>
-                                {workspaces.map((ws) => (
-                                  <option key={ws.id} value={ws.id}>
-                                    {ws.name}
-                                  </option>
-                                ))}
-                              </select>
                             </td>
                             <td className="py-4 px-4 whitespace-nowrap">
                               <div className="flex items-center gap-2">
@@ -894,6 +842,39 @@ export function TranscriptionsPage(): JSX.Element {
                     {selectedTranscription ? selectedTranscription.meeting_title : 'Select a transcription'}
                   </h2>
                 </div>
+
+                {/* Workspace assignment */}
+                {selectedTranscription && (
+                  <div className="mb-4 md:mb-6 flex-shrink-0">
+                    <label
+                      htmlFor="assign-workspace"
+                      className="font-nunito text-[10px] md:text-xs text-ellieGray uppercase tracking-wider block mb-1"
+                    >
+                      Workspace
+                    </label>
+                    <select
+                      id="assign-workspace"
+                      value={selectedTranscription.workspace_id || ''}
+                      onChange={(e) => void handleAssignWorkspace(selectedTranscription.id, e.target.value)}
+                      disabled={assigningId === selectedTranscription.id || workspaces.length === 0}
+                      aria-label="Assign workspace"
+                      className={`w-full rounded-lg border px-3 py-2 font-nunito text-sm focus:outline-none focus:ring-2 focus:ring-ellieBlue/30 disabled:opacity-60 ${
+                        selectedTranscription.workspace_id
+                          ? 'border-gray-300 text-ellieBlack'
+                          : 'border-amber-300 bg-amber-50 text-amber-800'
+                      }`}
+                    >
+                      <option value="">
+                        {assigningId === selectedTranscription.id ? 'Assigning…' : 'Unassigned'}
+                      </option>
+                      {workspaces.map((ws) => (
+                        <option key={ws.id} value={ws.id}>
+                          {ws.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
                 {/* Search Bar */}
                 {selectedTranscription && (
