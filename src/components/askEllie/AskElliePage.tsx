@@ -781,7 +781,7 @@ export function AskElliePage(): JSX.Element {
                         No nudges from your other meetings yet
                       </h2>
                       <p className="font-nunito text-sm md:text-base text-ellieGray max-w-md mx-auto mb-6">
-                        Ellie is watching this meeting and searching all of your past meetings for relevant context. Assigning this meeting to a workspace narrows that search to one project.
+                        Ellie is watching this meeting and searching your past meetings for relevant context. Nudges come from meetings that had at least two people, where everyone in that meeting is also here. Assigning this meeting to a workspace narrows the search to one project.
                       </p>
 
                       {/* Workspace Selection Form */}
@@ -845,7 +845,7 @@ export function AskElliePage(): JSX.Element {
                       {currentParticipants.length > 0 ? (
                         <>
                           <p className="font-nunito text-sm md:text-base text-ellieGray mb-3">
-                            No previous meetings found with matching participants in this workspace.
+                            Nudges come from past meetings that had at least two people, where everyone in that meeting is also here. Nothing matches yet.
                           </p>
                           <div className="inline-flex flex-wrap gap-2 justify-center">
                             <span className="font-nunito text-xs text-ellieGray">Current participants:</span>
