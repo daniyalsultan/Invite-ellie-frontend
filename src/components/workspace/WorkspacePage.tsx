@@ -339,7 +339,7 @@ export function WorkspacePage(): JSX.Element {
               </div>
               <Link
                 to="/create-workspace"
-                className="inline-flex flex-shrink-0 items-center justify-center rounded-[5px] bg-[#327AAD] px-6 py-2 font-nunito text-sm font-extrabold text-white transition hover:bg-[#286996]"
+                className="inline-flex flex-shrink-0 self-start items-center justify-center rounded-[5px] bg-[#327AAD] px-6 py-2 font-nunito text-sm font-extrabold text-white transition hover:bg-[#286996] sm:self-auto"
               >
                 + New Workspace
               </Link>
