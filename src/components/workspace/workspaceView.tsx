@@ -218,7 +218,9 @@ export function WorkspaceViewPage(): JSX.Element {
       paticipants: null,
       status: mapTranscriptionStatus(t.status),
       audio_url: t.meeting_url,
-      transcript: t.transcript_text,
+      // The list endpoint omits transcript bodies; the meeting modal loads
+      // them on demand via getTranscription().
+      transcript: null,
       summary: t.summary,
       highlights: null,
       action_items: t.action_items?.map((item) => (typeof item === 'string' ? item : item.text)) || null,
