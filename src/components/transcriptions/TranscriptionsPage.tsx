@@ -250,8 +250,9 @@ export function TranscriptionsPage(): JSX.Element {
     };
   }, [profile?.id, ensureFreshAccessToken]);
 
+  // An empty workspaceId clears the assignment, moving the meeting back to
+  // Unassigned Meetings.
   const handleAssignWorkspace = async (transcriptionId: string, workspaceId: string): Promise<void> => {
-    if (!workspaceId) return;
     try {
       setAssigningId(transcriptionId);
       setExportMessage(null);
@@ -270,23 +271,27 @@ export function TranscriptionsPage(): JSX.Element {
           Accept: 'application/json',
           'ngrok-skip-browser-warning': 'true',
         },
-        body: JSON.stringify({ workspace_id: workspaceId }),
+        body: JSON.stringify({ workspace_id: workspaceId || null }),
       });
 
       if (!response.ok) {
-        const data = await response.json().catch(() => ({ error: 'Failed to assign workspace' }));
-        throw new Error(data.error || 'Failed to assign workspace');
+        const data = await response.json().catch(() => ({ error: 'Failed to update workspace' }));
+        throw new Error(data.error || 'Failed to update workspace');
       }
 
       // Reflect the new workspace locally rather than refetching the list.
+      const nextWorkspaceId = workspaceId || null;
       setTranscriptions((prev) =>
-        prev.map((t) => (t.id === transcriptionId ? { ...t, workspace_id: workspaceId } : t)),
+        prev.map((t) => (t.id === transcriptionId ? { ...t, workspace_id: nextWorkspaceId } : t)),
       );
       setSelectedTranscription((prev) =>
-        prev && prev.id === transcriptionId ? { ...prev, workspace_id: workspaceId } : prev,
+        prev && prev.id === transcriptionId ? { ...prev, workspace_id: nextWorkspaceId } : prev,
       );
-      const name = workspaces.find((w) => w.id === workspaceId)?.name ?? 'workspace';
-      setExportMessage({ type: 'success', text: `Meeting moved to ${name}.` });
+      const name = workspaces.find((w) => w.id === workspaceId)?.name;
+      setExportMessage({
+        type: 'success',
+        text: name ? `Meeting moved to ${name}.` : 'Meeting moved to Unassigned.',
+      });
     } catch (err) {
       setExportMessage({
         type: 'error',
