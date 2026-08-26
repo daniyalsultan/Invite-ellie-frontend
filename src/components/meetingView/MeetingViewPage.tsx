@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { DashboardLayout } from '../sidebar';
 import zoomLogo from '../../assets/logos_zoom.png';
@@ -75,21 +75,55 @@ export function MeetingViewPage(): JSX.Element {
     );
   }, [transcripts, transcriptionSearchQuery]);
 
-  // Handle summarization
+  // Handle summarization. The request only *starts* the work — the summary is
+  // written afterwards — so the button used to go back to its resting state
+  // within a second while nothing appeared for another twenty, which read as a
+  // failure. Stay in the generating state and poll until the notes actually
+  // arrive (or we give up and say so).
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [summarizeError, setSummarizeError] = useState<string | null>(null);
+
+  const stopPolling = () => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  };
+
+  useEffect(() => stopPolling, []);
+
+  // The summary landing is what ends the wait, wherever it came from.
+  useEffect(() => {
+    if (summaryNote && isSummarizing) {
+      stopPolling();
+      setIsSummarizing(false);
+    }
+  }, [summaryNote, isSummarizing]);
+
   const handleSummarize = async () => {
     if (!meetingId) return;
     setIsSummarizing(true);
+    setSummarizeError(null);
     try {
       await apiService.summarizeMeeting(meetingId);
-      // Refresh notes after summarization
-      setTimeout(() => {
+
+      const startedAt = Date.now();
+      const GIVE_UP_AFTER = 3 * 60 * 1000;
+      stopPolling();
+      pollRef.current = setInterval(() => {
+        if (Date.now() - startedAt > GIVE_UP_AFTER) {
+          stopPolling();
+          setIsSummarizing(false);
+          setSummarizeError('This is taking longer than usual. The summary will appear here once it finishes.');
+          return;
+        }
         refreshNotes();
-      }, 1000);
+      }, 3000);
     } catch (error) {
       console.error('Failed to summarize meeting:', error);
-      alert('Failed to generate summary. Please try again.');
-    } finally {
+      stopPolling();
       setIsSummarizing(false);
+      setSummarizeError('Could not start the summary. Please try again.');
     }
   };
 
@@ -468,12 +502,52 @@ export function MeetingViewPage(): JSX.Element {
                     )}
                   </div>
 
-                  {notesLoading ? (
+                  {isSummarizing ? (
+                    <div className="space-y-4" role="status" aria-live="polite">
+                      <div className="flex items-center gap-2.5 text-purple-700">
+                        <span className="relative flex h-2.5 w-2.5" aria-hidden="true">
+                          <span className="absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75 motion-safe:animate-ping"></span>
+                          <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-purple-600"></span>
+                        </span>
+                        <span className="font-nunito text-sm md:text-base font-semibold">
+                          Reading the transcript and writing your summary
+                        </span>
+                      </div>
+                      <p className="font-nunito text-xs md:text-sm text-gray-500 -mt-2">
+                        This usually takes about twenty seconds.
+                      </p>
+
+                      <div className="bg-purple-50 rounded-lg p-4 md:p-5 space-y-2.5">
+                        <div className="h-4 w-40 rounded bg-purple-200/70 motion-safe:animate-pulse"></div>
+                        <div className="h-3 w-full rounded bg-purple-200/50 motion-safe:animate-pulse"></div>
+                        <div className="h-3 w-11/12 rounded bg-purple-200/50 motion-safe:animate-pulse"></div>
+                        <div className="h-3 w-4/5 rounded bg-purple-200/50 motion-safe:animate-pulse"></div>
+                      </div>
+
+                      <div className="space-y-2.5">
+                        <div className="h-4 w-32 rounded bg-gray-200 motion-safe:animate-pulse"></div>
+                        {[0, 1, 2].map(i => (
+                          <div key={i} className="flex items-start gap-3">
+                            <div className="h-4 w-4 rounded bg-gray-200 motion-safe:animate-pulse shrink-0 mt-0.5"></div>
+                            <div
+                              className="h-3 rounded bg-gray-200 motion-safe:animate-pulse"
+                              style={{ width: `${88 - i * 14}%` }}
+                            ></div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : notesLoading ? (
                     <div className="text-center py-8 text-gray-500">Loading AI notes...</div>
                   ) : notesError ? (
                     <div className="text-center py-8 text-red-500">Error loading notes: {notesError}</div>
                   ) : (
                     <>
+                      {summarizeError && (
+                        <div className="mb-4 rounded-lg bg-amber-50 border border-amber-200 px-4 py-3">
+                          <p className="font-nunito text-xs md:text-sm text-amber-900">{summarizeError}</p>
+                        </div>
+                      )}
                       {/* Meeting Conclusion / Summary */}
                       {meetingSummary && (
                         <div className="bg-purple-50 rounded-lg p-4 md:p-5">

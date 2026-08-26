@@ -16,6 +16,7 @@ type UserProfile = {
   sso_provider?: string | null;
   first_login?: boolean;
   show_tour?: boolean;
+  auto_join_meetings?: boolean;
   subscription_status?: string | null;
   subscription_plan?: string | null;
   stripe_subscription_id?: string | null;

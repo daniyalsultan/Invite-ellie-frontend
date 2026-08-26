@@ -607,19 +607,20 @@ export function PreferencesPage(): JSX.Element {
                     <label className="block font-nunito text-sm font-medium text-ellieBlack mb-2">
                       Your role
                     </label>
-                    <select
+                    {/* Free text, matching what onboarding asks for. This was a
+                        five-option select whose keys ("ceo", "manager", …) could
+                        not represent what onboarding actually stores — a typed
+                        job title. Anything else rendered as unselected, so real
+                        values like "Engineer" looked missing and would have been
+                        wiped on the next save. */}
+                    <input
+                      type="text"
                       value={role}
                       onChange={(e) => setRole(e.target.value)}
                       disabled={disableInputs}
+                      placeholder="Your role"
                       className="w-full px-4 py-2.5 rounded-lg border border-gray-300 bg-white text-ellieBlack focus:outline-none focus:ring-2 focus:ring-ellieBlue focus:border-transparent font-nunito text-sm disabled:opacity-60"
-                    >
-                      <option value="">Select your role</option>
-                      <option value="ceo">CEO</option>
-                      <option value="manager">Manager</option>
-                      <option value="developer">Developer</option>
-                      <option value="designer">Designer</option>
-                      <option value="other">Other</option>
-                    </select>
+                    />
                   </div>
                   <div>
                     <label className="block font-nunito text-sm font-medium text-ellieBlack mb-2">

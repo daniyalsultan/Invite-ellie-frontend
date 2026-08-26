@@ -38,6 +38,34 @@ function isCriticalGap(text: string): boolean {
   );
 }
 
+/** Placeholder shown while Ellie is still writing this section. */
+function InsightSkeleton({ lines = 3, label }: { lines?: number; label: string }) {
+  const widths = ['92%', '84%', '70%', '78%', '64%'];
+  return (
+    <div role="status" aria-live="polite">
+      <span className="sr-only">{label}</span>
+      <div className="flex items-center gap-2 mb-2.5" aria-hidden="true">
+        <span className="relative flex h-2 w-2">
+          <span className="absolute inline-flex h-full w-full rounded-full bg-ellieBlue opacity-60 motion-safe:animate-ping"></span>
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-ellieBlue"></span>
+        </span>
+        <span className="font-nunito text-xs md:text-sm text-[#6B7A96] italic">{label}</span>
+      </div>
+      <div className="space-y-2" aria-hidden="true">
+        {Array.from({ length: lines }).map((_, idx) => (
+          <div key={idx} className="flex gap-2 items-center">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#C7D2E4] shrink-0"></span>
+            <span
+              className="h-2.5 rounded bg-[#C7D2E4]/60 motion-safe:animate-pulse block"
+              style={{ width: widths[idx % widths.length], animationDelay: `${idx * 120}ms` }}
+            ></span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /** Drop summary bullets that repeat the same idea as a signal (normalized or substring match). */
 function nearDuplicateLine(a: string, b: string): boolean {
   const na = normalizedText(a);
@@ -156,6 +184,20 @@ export function MeetingInsightsPanel({
 
   const processing = transcription.status === 'processing';
 
+  // A meeting flips to "completed" the moment it ends, but its summary is
+  // written afterwards. Judging by status alone, that gap showed "No action
+  // items for this meeting" — telling the user nothing was found while the
+  // work was still running. Treat "finished but nothing extracted yet" as
+  // in-progress, and show it moving so it never reads as stalled.
+  const hasAnyIntelligence = Boolean(
+    (transcription.summary || '').trim() ||
+      displaySignals.length > 0 ||
+      actionRows.length > 0 ||
+      gaps.length > 0 ||
+      openQs.length > 0
+  );
+  const awaiting = !loading && !hasAnyIntelligence;
+
   return (
     <div className={`space-y-3 md:space-y-4 ${compact ? '' : 'lg:space-y-6'}`}>
       {/* Same placement + shell as former Meeting Impact Score */}
@@ -184,11 +226,13 @@ export function MeetingInsightsPanel({
             ))}
           </ul>
         ) : (
-          <p className="font-nunito text-xs md:text-sm text-[#6B7A96]">
-            {processing
-              ? 'Generating key outcomes and signals… This may take a minute after the meeting ends.'
-              : 'No key signals extracted for this meeting yet.'}
-          </p>
+          awaiting || processing ? (
+            <InsightSkeleton lines={3} label="Picking out the key outcomes and signals…" />
+          ) : (
+            <p className="font-nunito text-xs md:text-sm text-[#6B7A96]">
+              No key signals extracted for this meeting yet.
+            </p>
+          )
         )}
       </div>
 
@@ -216,9 +260,11 @@ export function MeetingInsightsPanel({
           </ul>
         ) : (
           <div className="text-gray-500 italic font-nunito text-xs md:text-sm">
-            {processing
-              ? 'Summary is being generated…'
-              : 'No summary available for this meeting.'}
+            {awaiting || processing ? (
+              <InsightSkeleton lines={4} label="Reading the transcript and writing the summary…" />
+            ) : (
+              'No summary available for this meeting.'
+            )}
           </div>
         )}
       </div>
@@ -273,7 +319,11 @@ export function MeetingInsightsPanel({
           </ul>
         ) : (
           <p className="font-nunito text-xs md:text-sm text-[#6B7A96]">
-            {processing ? 'Identifying gaps…' : 'No gaps flagged for this meeting.'}
+            {awaiting || processing ? (
+              <InsightSkeleton lines={2} label="Looking for gaps and risks…" />
+            ) : (
+              'No gaps flagged for this meeting.'
+            )}
           </p>
         )}
       </div>
@@ -298,7 +348,11 @@ export function MeetingInsightsPanel({
           </ul>
         ) : (
           <p className="font-nunito text-xs md:text-sm text-[#6B7A96]">
-            {processing ? 'Capturing open questions…' : 'No open questions flagged.'}
+            {awaiting || processing ? (
+              <InsightSkeleton lines={2} label="Collecting open questions…" />
+            ) : (
+              'No open questions flagged.'
+            )}
           </p>
         )}
       </div>
@@ -352,7 +406,11 @@ export function MeetingInsightsPanel({
           </div>
         ) : (
           <p className="font-nunito text-xs md:text-sm text-[#6B7A96]">
-            {processing ? 'Extracting action items…' : 'No action items for this meeting.'}
+            {awaiting || processing ? (
+              <InsightSkeleton lines={3} label="Extracting action items and owners…" />
+            ) : (
+              'No action items for this meeting.'
+            )}
           </p>
         )}
       </div>

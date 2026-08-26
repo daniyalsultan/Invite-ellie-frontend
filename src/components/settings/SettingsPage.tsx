@@ -1,18 +1,71 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { DashboardLayout } from '../sidebar';
 import { useProfile } from '../../context/ProfileContext';
 import { getApiBaseUrl } from '../../utils/apiBaseUrl';
 
-const autoJoinMeetings = true;
 const showMeetingReminders = false;
 const notifyTranscriptsReady = true;
 const defaultLanguage = 'english-usa';
 
+// Transcription and notification preferences are built but not wired to
+// anything yet, so their sections stay out of the beta UI rather than showing
+// a control that does nothing. The markup below is kept behind these flags so
+// the work isn't lost.
+const SHOW_TRANSCRIPTION_SETTINGS = false;
+const SHOW_NOTIFICATION_SETTINGS = false;
+const SHOW_MEETING_REMINDERS = false;
+
 export function SettingsPage(): JSX.Element {
-  const { profile } = useProfile();
+  const { profile, refreshProfile } = useProfile();
   const [resetStatus, setResetStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
   const [resetError, setResetError] = useState<string | null>(null);
+
+  // Auto-join reflects a real stored preference. Ellie has always joined
+  // scheduled meetings automatically; this is the control that lets someone
+  // turn that off.
+  const [autoJoinMeetings, setAutoJoinMeetings] = useState<boolean>(true);
+  const [autoJoinSaving, setAutoJoinSaving] = useState(false);
+  const [autoJoinError, setAutoJoinError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (profile && typeof profile.auto_join_meetings === 'boolean') {
+      setAutoJoinMeetings(profile.auto_join_meetings);
+    }
+  }, [profile]);
+
+  const handleAutoJoinToggle = async () => {
+    const next = !autoJoinMeetings;
+    setAutoJoinMeetings(next);          // optimistic: the switch should feel instant
+    setAutoJoinSaving(true);
+    setAutoJoinError(null);
+    try {
+      const apiBaseUrl = getApiBaseUrl();
+      const token = localStorage.getItem('access_token');
+      const response = await fetch(`${apiBaseUrl}/accounts/me/`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ auto_join_meetings: next }),
+      });
+      if (!response.ok) {
+        throw new Error(`Request failed with ${response.status}`);
+      }
+      await refreshProfile();
+    } catch (error) {
+      setAutoJoinMeetings(!next);       // put the switch back where it was
+      setAutoJoinError(
+        next
+          ? "Couldn't turn auto-join on. Please try again."
+          : "Couldn't turn auto-join off. Please try again."
+      );
+      console.error('Failed to update auto-join preference:', error);
+    } finally {
+      setAutoJoinSaving(false);
+    }
+  };
 
   const handlePasswordReset = async () => {
     if (!profile?.email) {
@@ -76,12 +129,9 @@ export function SettingsPage(): JSX.Element {
                 <h2 className="font-nunito text-lg md:text-xl font-bold text-ellieBlack">
                   General Settings
                 </h2>
-                <span className="px-2 py-0.5 rounded-full bg-gray-100 text-ellieGray font-nunito text-[10px] md:text-xs font-semibold uppercase tracking-wide">
-                  Coming soon
-                </span>
               </div>
 
-              <div className="space-y-4 md:space-y-6 opacity-60">
+              <div className="space-y-4 md:space-y-6">
                 {/* Auto-join Ellie for meetings */}
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
@@ -94,13 +144,14 @@ export function SettingsPage(): JSX.Element {
                   </div>
                   <button
                     type="button"
-                    disabled
-                    className={`relative inline-flex h-6 w-11 md:h-7 md:w-12 flex-shrink-0 cursor-not-allowed rounded-full transition-colors duration-200 ease-in-out ${
-                      autoJoinMeetings ? 'bg-ellieBlue' : 'bg-gray-300'
-                    }`}
+                    onClick={handleAutoJoinToggle}
+                    disabled={autoJoinSaving}
+                    className={`relative inline-flex h-6 w-11 md:h-7 md:w-12 flex-shrink-0 rounded-full transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-ellieBlue focus:ring-offset-2 ${
+                      autoJoinSaving ? 'cursor-wait opacity-70' : 'cursor-pointer'
+                    } ${autoJoinMeetings ? 'bg-ellieBlue' : 'bg-gray-300'}`}
                     role="switch"
                     aria-checked={autoJoinMeetings}
-                    aria-disabled="true"
+                    aria-label="Auto-join Ellie for meetings"
                   >
                     <span
                       className={`pointer-events-none inline-block h-5 w-5 md:h-6 md:w-6 transform rounded-full bg-white shadow transform ring-0 transition duration-200 ease-in-out ${
@@ -110,6 +161,8 @@ export function SettingsPage(): JSX.Element {
                   </button>
                 </div>
 
+                {SHOW_MEETING_REMINDERS && (
+                <>
                 {/* Show meeting reminders */}
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
@@ -137,9 +190,19 @@ export function SettingsPage(): JSX.Element {
                     />
                   </button>
                 </div>
+                </>
+                )}
+
+                {autoJoinError && (
+                  <p className="font-nunito text-xs md:text-sm text-red-600" role="alert">
+                    {autoJoinError}
+                  </p>
+                )}
               </div>
             </div>
 
+            {SHOW_TRANSCRIPTION_SETTINGS && (
+            <>
             {/* Transcription Settings - Swapped with Notification in desktop */}
             <div className="bg-white border border-gray-200 rounded-lg p-4 md:p-6 shadow-sm lg:order-2">
               <div className="flex items-center gap-2 mb-4 md:mb-6">
@@ -182,6 +245,11 @@ export function SettingsPage(): JSX.Element {
               </div>
             </div>
 
+            </>
+            )}
+
+            {SHOW_NOTIFICATION_SETTINGS && (
+            <>
             {/* Notification Settings - Swapped with Transcription in desktop */}
             <div className="bg-white border border-gray-200 rounded-lg p-4 md:p-6 shadow-sm lg:order-3">
               <div className="flex items-center gap-2 mb-4 md:mb-6">
@@ -250,6 +318,9 @@ export function SettingsPage(): JSX.Element {
                 </div> */}
               </div>
             </div>
+
+            </>
+            )}
 
             {/* Privacy & Data */}
             <div className="bg-white border border-gray-200 rounded-lg p-4 md:p-6 shadow-sm lg:order-4">

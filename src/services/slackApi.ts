@@ -97,8 +97,9 @@ export async function slackExport(
   transcript: string,
   summary: string,
   actionItems: any[],
-  channel: string = '#general'
-): Promise<{ success: boolean; message?: string; error?: string }> {
+  channel: string = '#general',
+  force = false
+): Promise<{ success: boolean; message?: string; error?: string; duplicate?: boolean }> {
   const apiUrl = `${getSlackApiBaseUrl()}/api/slack/export`;
 
   try {
@@ -116,6 +117,7 @@ export async function slackExport(
         summary,
         action_items: actionItems,
         channel,
+        force,
       }),
     });
 
@@ -123,7 +125,13 @@ export async function slackExport(
       const errorData = await response.json().catch(() => ({
         error: 'Unknown error',
       }));
-      throw new Error(errorData.error || `HTTP error ${response.status}`);
+      // A repeat export is a question for the user, not a failure, so it comes
+      // back as a result rather than an exception.
+      return {
+        success: false,
+        duplicate: response.status === 409 || Boolean(errorData.duplicate),
+        error: errorData.error || `HTTP error ${response.status}`,
+      };
     }
 
     const data = await response.json();
@@ -167,5 +175,26 @@ export async function disconnectSlack(userId: string): Promise<void> {
     throw error instanceof Error
       ? error
       : new Error('Failed to disconnect from Slack');
+  }
+}
+
+export type SlackChannel = { id: string; name: string; is_member: boolean };
+
+/** Public channels this workspace exposes. Ellie can post to any of them
+ *  without joining first, so everything returned here is reachable. */
+export async function getSlackChannels(
+  userId: string,
+): Promise<{ connected: boolean; team_name?: string; channels: SlackChannel[]; error?: string }> {
+  const apiUrl = `${getSlackApiBaseUrl()}/api/slack/channels?user_id=${encodeURIComponent(userId)}`;
+  try {
+    const response = await fetch(apiUrl, { method: 'GET', headers: { Accept: 'application/json' } });
+    const data = await response.json().catch(() => null);
+    if (!response.ok || !data) {
+      return { connected: false, channels: [], error: 'Could not load Slack channels' };
+    }
+    return { connected: Boolean(data.connected), team_name: data.team_name, channels: data.channels || [], error: data.error };
+  } catch (error) {
+    console.error('Failed to load Slack channels:', error);
+    return { connected: false, channels: [], error: 'Could not load Slack channels' };
   }
 }

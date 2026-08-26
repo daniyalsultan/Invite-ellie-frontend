@@ -101,8 +101,9 @@ export async function hubspotExport(
   meetingTitle: string,
   summary: string,
   actionItems: any[],
-  eventId?: string | null
-): Promise<{ success: boolean; message?: string; error?: string }> {
+  eventId?: string | null,
+  force = false
+): Promise<{ success: boolean; message?: string; error?: string; duplicate?: boolean }> {
   const apiUrl = `${getHubSpotApiBaseUrl()}/api/hubspot/export`;
 
   try {
@@ -119,6 +120,7 @@ export async function hubspotExport(
         summary,
         action_items: actionItems,
         event_id: eventId ?? null,
+        force,
       }),
     });
 
@@ -127,6 +129,7 @@ export async function hubspotExport(
     if (!response.ok) {
       return {
         success: false,
+        duplicate: response.status === 409 || Boolean(data?.duplicate),
         error: data?.error || data?.message || `HTTP error ${response.status}`,
       };
     }

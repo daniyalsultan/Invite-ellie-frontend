@@ -43,6 +43,9 @@ export interface ContextualNudge {
 }
 
 export interface Transcription {
+  /** Attendee emails available for HubSpot contact matching. Zero means the
+   *  meeting was started from a pasted link and can never match a contact. */
+  attendee_count?: number;
   id: string;
   event_id: string;
   calendar_id: string | null;

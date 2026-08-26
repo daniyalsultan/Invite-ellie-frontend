@@ -6,7 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { getTranscriptions, getTranscription, buildRecallaiUrl, type Transcription } from '../../services/transcriptionApi';
 import { listWorkspaces, type WorkspaceRecord } from '../workspace/workspaceApi';
 import { MeetingInsightsPanel } from '../meeting/MeetingInsightsPanel';
-import { getSlackStatus, slackExport } from '../../services/slackApi';
+import { getSlackStatus, slackExport, getSlackChannels, type SlackChannel } from '../../services/slackApi';
 import { getNotionStatus, notionExport } from '../../services/notionApi';
 import { getHubSpotStatus, hubspotExport } from '../../services/hubspotApi';
 // import { getApiBaseUrl } from '../../utils/apiBaseUrl';
@@ -302,7 +302,70 @@ export function TranscriptionsPage(): JSX.Element {
     }
   };
 
-  const handleExport = async (transcriptionId: string, exportType: 'slack' | 'notion' | 'hubspot'): Promise<void> => {
+  // An export used to fire the moment the button was pressed, with no
+  // indication of where it was going — Slack in particular defaulted to
+  // #general and, failing that, whichever public channel came first. The user
+  // now sees the destination and confirms it.
+  const [pendingExport, setPendingExport] = useState<{
+    transcriptionId: string;
+    exportType: 'slack' | 'notion' | 'hubspot';
+    meetingTitle: string;
+    destination: string;
+    channel: string;
+    duplicateWarning?: string;
+  } | null>(null);
+  const [slackChannels, setSlackChannels] = useState<SlackChannel[] | null>(null);
+  const [slackChannelsError, setSlackChannelsError] = useState<string | null>(null);
+
+  const startExport = async (
+    transcriptionId: string,
+    exportType: 'slack' | 'notion' | 'hubspot',
+    meetingTitle: string,
+  ): Promise<void> => {
+    if (!profile?.id) {
+      setError('Please log in to export transcriptions');
+      return;
+    }
+    try {
+      let destination = '';
+      if (exportType === 'slack') {
+        const status = await getSlackStatus(profile.id);
+        if (!status.connected) { redirectToIntegrations('Slack'); return; }
+        destination = status.team_name ? `the ${status.team_name} workspace` : 'Slack';
+        // Show the channels that actually exist rather than assuming #general.
+        setSlackChannels(null);
+        setSlackChannelsError(null);
+        void getSlackChannels(profile.id).then(res => {
+          setSlackChannels(res.channels);
+          setSlackChannelsError(res.error || null);
+        });
+      } else if (exportType === 'notion') {
+        const status = await getNotionStatus(profile.id);
+        if (!status.connected) { redirectToIntegrations('Notion'); return; }
+        destination = status.integration_name
+          ? `the "${status.integration_name}" page`
+          : (status.workspace_name || 'Notion');
+      } else {
+        const status = await getHubSpotStatus(profile.id);
+        if (!status.connected) { redirectToIntegrations('HubSpot'); return; }
+        destination = status.portal_name || 'your HubSpot portal';
+      }
+      setPendingExport({ transcriptionId, exportType, meetingTitle, destination, channel: '' });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not check the connection. Please try again.');
+    }
+  };
+
+  const redirectToIntegrations = (platform: string) => {
+    setError(`You need to connect your ${platform} account first. Redirecting to the connection page...`);
+    setTimeout(() => navigate('/integrations'), 1500);
+  };
+
+  const handleExport = async (
+    transcriptionId: string,
+    exportType: 'slack' | 'notion' | 'hubspot',
+    options: { channel?: string; force?: boolean } = {},
+  ): Promise<void> => {
     if (!profile?.id) {
       setError('Please log in to export transcriptions');
       return;
@@ -378,7 +441,7 @@ export function TranscriptionsPage(): JSX.Element {
       // Each platform owns its own request contract in its service module —
       // previously this posted one Slack-shaped body to a hardcoded, dead
       // third-party URL for all three platforms, so no export ever worked.
-      let result: { success: boolean; message?: string; error?: string };
+      let result: { success: boolean; message?: string; error?: string; duplicate?: boolean };
       if (exportType === 'slack') {
         result = await slackExport(
           profile.id,
@@ -387,6 +450,8 @@ export function TranscriptionsPage(): JSX.Element {
           transcriptText,
           summaryText,
           actionItems,
+          options.channel || '#general',
+          options.force,
         );
       } else if (exportType === 'notion') {
         result = await notionExport(
@@ -395,6 +460,7 @@ export function TranscriptionsPage(): JSX.Element {
           meetingTitle,
           summaryText,
           actionItems,
+          options.force,
         );
       } else {
         result = await hubspotExport(
@@ -404,6 +470,7 @@ export function TranscriptionsPage(): JSX.Element {
           summaryText,
           actionItems,
           fullTranscription.event_id,
+          options.force,
         );
       }
 
@@ -414,6 +481,16 @@ export function TranscriptionsPage(): JSX.Element {
           text: `Successfully exported to ${platformName}!`
         });
         setTimeout(() => setExportMessage(null), 6000);
+      } else if (result.duplicate) {
+        // Already delivered once. Ask rather than silently sending again.
+        setPendingExport({
+          transcriptionId,
+          exportType,
+          meetingTitle,
+          destination: '',
+          channel: options.channel || '#general',
+          duplicateWarning: result.error || 'This meeting has already been exported there.',
+        });
       } else {
         throw new Error(result.error || `Export failed`);
       }
@@ -715,7 +792,7 @@ export function TranscriptionsPage(): JSX.Element {
                                   type="button"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    void handleExport(transcription.id, 'slack');
+                                    void startExport(transcription.id, 'slack', transcription.meeting_title || 'this meeting');
                                   }}
                                   disabled={exporting[`${transcription.id}-slack`]}
                                   className="px-3 py-1.5 rounded-lg bg-[#4A154B] text-white font-nunito text-xs font-semibold hover:opacity-90 transition-opacity flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -742,7 +819,7 @@ export function TranscriptionsPage(): JSX.Element {
                                   type="button"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    void handleExport(transcription.id, 'notion');
+                                    void startExport(transcription.id, 'notion', transcription.meeting_title || 'this meeting');
                                   }}
                                   disabled={exporting[`${transcription.id}-notion`]}
                                   className="px-3 py-1.5 rounded-lg bg-black text-white font-nunito text-xs font-semibold hover:opacity-90 transition-opacity flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -769,12 +846,19 @@ export function TranscriptionsPage(): JSX.Element {
                                   type="button"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    void handleExport(transcription.id, 'hubspot');
+                                    void startExport(transcription.id, 'hubspot', transcription.meeting_title || 'this meeting');
                                   }}
-                                  disabled={exporting[`${transcription.id}-hubspot`]}
+                                  disabled={
+                                    exporting[`${transcription.id}-hubspot`] ||
+                                    !transcription.attendee_count
+                                  }
                                   className="px-3 py-1.5 rounded-lg text-white font-nunito text-xs font-semibold hover:opacity-90 transition-opacity flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
                                   style={{ backgroundColor: '#FF7A59' }}
-                                  title="Export to HubSpot"
+                                  title={
+                                    transcription.attendee_count
+                                      ? 'Export to HubSpot'
+                                      : 'HubSpot needs meeting attendees to match to contacts. This meeting has none, so there is nothing to match.'
+                                  }
                                 >
                                   {exporting[`${transcription.id}-hubspot`] ? (
                                     <>
@@ -955,6 +1039,128 @@ export function TranscriptionsPage(): JSX.Element {
           </div>
         </div>
       </div>
+
+      {pendingExport && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="export-confirm-title"
+        >
+          <div className="w-full max-w-md rounded-xl bg-white p-5 md:p-6 shadow-xl">
+            <h2 id="export-confirm-title" className="font-nunito text-lg font-bold text-ellieBlack">
+              {pendingExport.duplicateWarning ? 'Export again?' : 'Confirm export'}
+            </h2>
+
+            {pendingExport.duplicateWarning ? (
+              <p className="mt-2 font-nunito text-sm text-ellieBlack">
+                {pendingExport.duplicateWarning}
+              </p>
+            ) : (
+              <p className="mt-2 font-nunito text-sm text-ellieBlack">
+                Send <span className="font-semibold">{pendingExport.meetingTitle}</span> to{' '}
+                <span className="font-semibold">
+                  {pendingExport.exportType === 'slack'
+                    ? `${pendingExport.channel} in ${pendingExport.destination}`
+                    : pendingExport.destination}
+                </span>
+                ?
+              </p>
+            )}
+
+            {pendingExport.exportType === 'slack' && !pendingExport.duplicateWarning && (
+              <div className="mt-4">
+                <label
+                  htmlFor="export-slack-channel"
+                  className="block font-nunito text-xs font-semibold uppercase tracking-wide text-ellieGray"
+                >
+                  Channel
+                </label>
+
+                {slackChannels === null ? (
+                  <p className="mt-2 font-nunito text-sm text-ellieGray">Loading channels…</p>
+                ) : slackChannels.length > 0 ? (
+                  <>
+                    <select
+                      id="export-slack-channel"
+                      value={pendingExport.channel}
+                      onChange={(e) =>
+                        setPendingExport(prev => (prev ? { ...prev, channel: e.target.value } : prev))
+                      }
+                      className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 font-nunito text-sm text-ellieBlack focus:border-ellieBlue focus:outline-none focus:ring-2 focus:ring-ellieBlue/30"
+                    >
+                      <option value="">Choose a channel…</option>
+                      {slackChannels.map(c => (
+                        <option key={c.id} value={`#${c.name}`}>
+                          #{c.name}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="mt-1 font-nunito text-xs text-ellieGray">
+                      Private channels aren&rsquo;t listed. To use one, run{' '}
+                      <code className="rounded bg-gray-100 px-1">/invite @Ellie</code> in that
+                      channel, then type its name below.
+                    </p>
+                    <input
+                      type="text"
+                      value={pendingExport.channel}
+                      onChange={(e) =>
+                        setPendingExport(prev => (prev ? { ...prev, channel: e.target.value } : prev))
+                      }
+                      placeholder="#private-channel"
+                      aria-label="Or type a channel name"
+                      className="mt-2 w-full rounded-lg border border-gray-200 px-3 py-2 font-nunito text-sm text-ellieBlack focus:border-ellieBlue focus:outline-none focus:ring-2 focus:ring-ellieBlue/30"
+                    />
+                  </>
+                ) : (
+                  <div className="mt-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2.5">
+                    <p className="font-nunito text-xs text-amber-900">
+                      {slackChannelsError
+                        ? `Ellie couldn't read your channel list (${slackChannelsError}).`
+                        : 'Ellie can\u2019t see any channels in this workspace yet.'}{' '}
+                      Create a public channel, or run{' '}
+                      <code className="rounded bg-amber-100 px-1">/invite @Ellie</code> in the
+                      channel you want to use, then reopen this dialog.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {pendingExport.exportType === 'hubspot' && !pendingExport.duplicateWarning && (
+              <p className="mt-3 font-nunito text-xs text-ellieGray">
+                The summary is attached as a note to every HubSpot contact matching this
+                meeting&rsquo;s attendees.
+              </p>
+            )}
+
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setPendingExport(null)}
+                className="rounded-lg px-4 py-2 font-nunito text-sm font-semibold text-ellieGray hover:bg-gray-100"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={pendingExport.exportType === 'slack' && !pendingExport.duplicateWarning && !pendingExport.channel.trim()}
+                onClick={() => {
+                  const request = pendingExport;
+                  setPendingExport(null);
+                  void handleExport(request.transcriptionId, request.exportType, {
+                    channel: request.channel,
+                    force: Boolean(request.duplicateWarning),
+                  });
+                }}
+                className="rounded-lg bg-ellieBlue px-4 py-2 font-nunito text-sm font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {pendingExport.duplicateWarning ? 'Send again' : 'Export'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 }

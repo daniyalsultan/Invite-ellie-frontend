@@ -106,8 +106,9 @@ export async function notionExport(
   transcriptionId: string,
   meetingTitle: string,
   summary: string,
-  actionItems: any[]
-): Promise<{ success: boolean; message?: string; error?: string }> {
+  actionItems: any[],
+  force = false
+): Promise<{ success: boolean; message?: string; error?: string; duplicate?: boolean }> {
   const apiUrl = buildNotionApiUrl('/api/notion/export');
 
   try {
@@ -123,6 +124,7 @@ export async function notionExport(
         meeting_title: meetingTitle,
         summary,
         action_items: actionItems,
+        force,
       }),
     });
 
@@ -131,6 +133,7 @@ export async function notionExport(
     if (!response.ok) {
       return {
         success: false,
+        duplicate: response.status === 409 || Boolean(data?.duplicate),
         error: data?.error || data?.message || `HTTP error ${response.status}`,
       };
     }
