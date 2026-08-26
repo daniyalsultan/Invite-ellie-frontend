@@ -24,7 +24,6 @@ import { TranscriptionsPage } from './components/transcriptions';
 import { UnresolvedMeetingsPage } from './components/unresolved/UnresolvedMeetingsPage';
 import { AssignFolderFromEmailPage } from './components/assign-folder/AssignFolderFromEmailPage';
 import { MeetingRecordingsPage } from './components/meetingrecordings';
-import { MeetingViewPage } from './components/meetingView';
 import { SearchResultsPage } from './components/search';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { ChatBot } from './components/chatbot';
@@ -171,7 +170,6 @@ function App(): JSX.Element {
     location.pathname.startsWith('/unresolved-meetings') ||
     location.pathname.startsWith('/ask-ellie') ||
     location.pathname.startsWith('/meeting-recordings') ||
-    location.pathname.startsWith('/meeting-view') ||
     location.pathname.startsWith('/search-results') ||
     location.pathname === '/choose-plan' ||
     location.pathname === '/connect-integrations';
@@ -212,7 +210,6 @@ function App(): JSX.Element {
           <Route path="/assign-folder/:meetingId" element={<AssignFolderFromEmailPage />} />
           <Route path="/ask-ellie" element={<AskElliePage />} />
           <Route path="/meeting-recordings" element={<MeetingRecordingsPage />} />
-          <Route path="/meeting-view" element={<MeetingViewPage />} />
         </Route>
         
         <Route path="*" element={<LandingPage />} />
