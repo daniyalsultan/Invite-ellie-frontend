@@ -450,7 +450,7 @@ export function TranscriptionsPage(): JSX.Element {
           transcriptText,
           summaryText,
           actionItems,
-          options.channel || '#general',
+          options.channel || '',
           options.force,
         );
       } else if (exportType === 'notion') {
@@ -488,7 +488,7 @@ export function TranscriptionsPage(): JSX.Element {
           exportType,
           meetingTitle,
           destination: '',
-          channel: options.channel || '#general',
+          channel: options.channel || '',
           duplicateWarning: result.error || 'This meeting has already been exported there.',
         });
       } else {
