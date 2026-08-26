@@ -344,7 +344,15 @@ export function TranscriptionsPage(): JSX.Element {
         if (!status.connected) { redirectToIntegrations('HubSpot'); return; }
         destination = status.portal_name || 'your HubSpot portal';
       }
-      setPendingExport({ transcriptionId, exportType, meetingTitle, destination, channel: '' });
+      const meeting = transcriptions.find(t => t.id === transcriptionId);
+      setPendingExport({
+        transcriptionId,
+        exportType,
+        meetingTitle,
+        destination,
+        channel: '',
+        attendeeCount: meeting?.attendee_count,
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not check the connection. Please try again.');
     }

@@ -15,6 +15,9 @@ export interface PendingExport {
   /** Human-readable destination, e.g. `the Webring workspace`. */
   destination: string;
   channel: string;
+  /** Attendees on the meeting. HubSpot matches these to contacts, so zero
+   *  means the export cannot succeed — worth saying before the user sends. */
+  attendeeCount?: number;
   duplicateWarning?: string;
 }
 
@@ -129,10 +132,21 @@ export function ExportConfirmDialog({
         )}
 
         {pending.exportType === 'hubspot' && !pending.duplicateWarning && (
-          <p className="mt-3 font-nunito text-xs text-ellieGray">
-            The summary is attached as a note to every HubSpot contact matching this
-            meeting&rsquo;s attendees.
-          </p>
+          pending.attendeeCount ? (
+            <p className="mt-3 font-nunito text-xs text-ellieGray">
+              The summary is attached as a note to every HubSpot contact matching this
+              meeting&rsquo;s attendees.
+            </p>
+          ) : (
+            <div className="mt-3 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2.5">
+              <p className="font-nunito text-xs text-amber-900">
+                This meeting has no attendees recorded, so there is nothing for HubSpot to
+                match a contact against and the export will fail. Meetings started from a
+                pasted link carry no attendee list — start one from a calendar event to
+                export it.
+              </p>
+            </div>
+          )
         )}
 
         <div className="mt-5 flex justify-end gap-2">

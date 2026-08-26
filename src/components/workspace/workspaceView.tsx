@@ -43,6 +43,9 @@ type MeetingWithWorkspace = {
   platform: string;
   duration: string | null;
   paticipants: number | null;
+  // HubSpot matches attendees to contacts, so a meeting with none can never
+  // succeed there. Carried through so the button can say so up front.
+  attendee_count?: number;
   status: MeetingStatus;
   audio_url: string | null;
   transcript: string | null;
@@ -225,6 +228,7 @@ export function WorkspaceViewPage(): JSX.Element {
       platform: t.platform || t.calendar_platform || 'Unknown',
       duration: t.duration ? String(t.duration) : null,
       paticipants: null,
+      attendee_count: t.attendee_count,
       status: mapTranscriptionStatus(t.status),
       audio_url: t.meeting_url,
       // The list endpoint omits transcript bodies; the meeting modal loads
@@ -412,7 +416,7 @@ export function WorkspaceViewPage(): JSX.Element {
   const handleExport = async (
     transcriptionId: string,
     exportType: 'slack' | 'notion' | 'hubspot',
-    options: { channel?: string; force?: boolean } = {},
+    options: { channel?: string; force?: boolean; confirmed?: boolean } = {},
   ): Promise<void> => {
     if (!profile?.id) {
       setStatusMessage({ type: 'error', text: 'Please log in to export.' });
@@ -450,8 +454,10 @@ export function WorkspaceViewPage(): JSX.Element {
         return;
       }
 
-      // Slack: ask which channel before sending anything.
-      if (exportType === 'slack' && !options.channel) {
+      // Confirm before sending, whatever the destination. Only Slack used to
+      // ask anything here, so Notion and HubSpot fired the moment the button
+      // was pressed — the meetings list has always confirmed all three.
+      if (!options.confirmed && !options.force) {
         setExporting((prev) => ({ ...prev, [exportKey]: false }));
         const meeting = transcriptions.find((t) => t.id === transcriptionId);
         setPendingExport({
@@ -460,13 +466,16 @@ export function WorkspaceViewPage(): JSX.Element {
           meetingTitle: meeting?.meeting_title || 'this meeting',
           destination,
           channel: '',
+          attendeeCount: meeting?.attendee_count,
         });
-        setSlackChannels(null);
-        setSlackChannelsError(null);
-        void getSlackChannels(profile.id).then((res) => {
-          setSlackChannels(res.channels);
-          setSlackChannelsError(res.error || null);
-        });
+        if (exportType === 'slack') {
+          setSlackChannels(null);
+          setSlackChannelsError(null);
+          void getSlackChannels(profile.id).then((res) => {
+            setSlackChannels(res.channels);
+            setSlackChannelsError(res.error || null);
+          });
+        }
         return;
       }
 
@@ -525,6 +534,7 @@ export function WorkspaceViewPage(): JSX.Element {
           meetingTitle: meeting?.meeting_title || meetingTitle,
           destination,
           channel: options.channel || '',
+          attendeeCount: meeting?.attendee_count,
           duplicateWarning: result.error || 'This meeting has already been exported there.',
         });
       } else {
@@ -1027,10 +1037,17 @@ export function WorkspaceViewPage(): JSX.Element {
                 <button
                   type="button"
                   onClick={() => void handleExport(selectedMeetingForModal.id, 'hubspot')}
-                  disabled={exporting[`${selectedMeetingForModal.id}-hubspot`]}
+                  disabled={
+                    exporting[`${selectedMeetingForModal.id}-hubspot`] ||
+                    !selectedMeetingForModal.attendee_count
+                  }
                   className="px-3 py-1.5 rounded-lg text-white font-nunito text-xs font-semibold hover:opacity-90 transition-opacity flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{ backgroundColor: '#FF7A59' }}
-                  title="Export to HubSpot"
+                  title={
+                    selectedMeetingForModal.attendee_count
+                      ? 'Export to HubSpot'
+                      : 'HubSpot needs meeting attendees to match against contacts. This meeting has none.'
+                  }
                 >
                   {exporting[`${selectedMeetingForModal.id}-hubspot`] ? 'Exporting...' : 'HubSpot'}
                 </button>
@@ -1131,6 +1148,7 @@ export function WorkspaceViewPage(): JSX.Element {
           setPendingExport(null);
           void handleExport(request.transcriptionId, request.exportType, {
             channel: request.channel,
+            confirmed: true,
             force: Boolean(request.duplicateWarning),
           });
         }}
