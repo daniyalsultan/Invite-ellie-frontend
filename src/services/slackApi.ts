@@ -97,7 +97,10 @@ export async function slackExport(
   transcript: string,
   summary: string,
   actionItems: any[],
-  channel: string = '#general',
+  // Required. This defaulted to '#general', so any caller that forgot to pass
+  // a channel silently posted a customer's meeting summary to whatever
+  // #general happened to be.
+  channel: string,
   force = false
 ): Promise<{ success: boolean; message?: string; error?: string; duplicate?: boolean }> {
   const apiUrl = `${getSlackApiBaseUrl()}/api/slack/export`;

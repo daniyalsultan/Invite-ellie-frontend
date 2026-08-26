@@ -26,7 +26,7 @@ import {
   type FolderMeetingsOverviewActionItem,
 } from '../../services/transcriptionApi';
 import { MeetingInsightsPanel } from '../meeting/MeetingInsightsPanel';
-import { getSlackStatus, slackExport } from '../../services/slackApi';
+import { getSlackStatus, slackExport, getSlackChannels, type SlackChannel } from '../../services/slackApi';
 import { getNotionStatus, notionExport } from '../../services/notionApi';
 import { getHubSpotStatus, hubspotExport } from '../../services/hubspotApi';
 import { splitOverviewSummaryToBullets } from '../../utils/overviewSummaryBullets';
@@ -162,6 +162,16 @@ export function WorkspaceViewPage(): JSX.Element {
   // Export state
   const [exporting, setExporting] = useState<{ [key: string]: boolean }>({});
   const [exportMessage, setExportMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  // Slack needs a destination channel from the user. This modal used to send
+  // without asking, which meant the export silently went to #general — a
+  // channel nobody picked and which need not even exist.
+  const [pendingSlackExport, setPendingSlackExport] = useState<{
+    transcriptionId: string;
+    meetingTitle: string;
+    channel: string;
+  } | null>(null);
+  const [slackChannels, setSlackChannels] = useState<SlackChannel[] | null>(null);
+  const [slackChannelsError, setSlackChannelsError] = useState<string | null>(null);
 
   // Detail panel view: overview or single meeting
   const [, setDetailPanel] = useState<'overview' | 'meeting'>('overview');
@@ -400,7 +410,11 @@ export function WorkspaceViewPage(): JSX.Element {
   };
 
   // Handle export
-  const handleExport = async (transcriptionId: string, exportType: 'slack' | 'notion' | 'hubspot'): Promise<void> => {
+  const handleExport = async (
+    transcriptionId: string,
+    exportType: 'slack' | 'notion' | 'hubspot',
+    channel?: string,
+  ): Promise<void> => {
     if (!profile?.id) {
       setStatusMessage({ type: 'error', text: 'Please log in to export.' });
       return;
@@ -429,6 +443,29 @@ export function WorkspaceViewPage(): JSX.Element {
         return;
       }
 
+      // Slack: ask which channel before sending anything.
+      if (exportType === 'slack' && !channel) {
+        setExporting((prev) => ({ ...prev, [exportKey]: false }));
+        const meeting = transcriptions.find((t) => t.id === transcriptionId);
+        setPendingSlackExport({
+          transcriptionId,
+          meetingTitle: meeting?.meeting_title || 'this meeting',
+          channel: '',
+        });
+        setSlackChannels(null);
+        setSlackChannelsError(null);
+        void getSlackChannels(profile.id).then((res) => {
+          setSlackChannels(res.channels);
+          setSlackChannelsError(res.error || null);
+          // Pre-select the first reachable channel so the confirm button is
+          // never enabled with nothing chosen.
+          if (res.channels && res.channels.length > 0) {
+            setPendingSlackExport((prev) => (prev ? { ...prev, channel: res.channels[0].name } : prev));
+          }
+        });
+        return;
+      }
+
       let fullData = fullModalTranscription;
       if (!fullData || fullData.id !== transcriptionId) {
         fullData = await getTranscription(transcriptionId, profile.id);
@@ -447,7 +484,15 @@ export function WorkspaceViewPage(): JSX.Element {
 
       let result: { success: boolean; message?: string; error?: string };
       if (exportType === 'slack') {
-        result = await slackExport(profile.id, transcriptionId, meetingTitle, transcriptText, summaryText, actionItems);
+        result = await slackExport(
+          profile.id,
+          transcriptionId,
+          meetingTitle,
+          transcriptText,
+          summaryText,
+          actionItems,
+          channel as string,
+        );
       } else if (exportType === 'notion') {
         result = await notionExport(profile.id, transcriptionId, meetingTitle, summaryText, actionItems);
       } else {
@@ -1045,6 +1090,68 @@ export function WorkspaceViewPage(): JSX.Element {
                   )}
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {pendingSlackExport && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+            <h3 className="font-nunito text-lg font-bold text-ellieBlack">Confirm export</h3>
+            <p className="mt-2 font-nunito text-sm text-ellieGray">
+              Send <span className="font-semibold">{pendingSlackExport.meetingTitle}</span> to Slack.
+            </p>
+
+            <label className="mt-4 block font-nunito text-xs font-semibold uppercase tracking-wider text-ellieGray">
+              Channel
+            </label>
+            {slackChannels === null ? (
+              <p className="mt-2 font-nunito text-sm text-ellieGray">Loading your channels...</p>
+            ) : slackChannels.length > 0 ? (
+              <select
+                value={pendingSlackExport.channel}
+                onChange={(e) =>
+                  setPendingSlackExport((prev) => (prev ? { ...prev, channel: e.target.value } : prev))
+                }
+                className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 font-nunito text-sm"
+              >
+                {slackChannels.map((c) => (
+                  <option key={c.id} value={c.name}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <p className="mt-2 font-nunito text-sm text-[#E45A5A]">
+                {slackChannelsError
+                  ? `Ellie couldn't read your channel list (${slackChannelsError}).`
+                  : 'No public channels found. Create one in Slack, or invite Ellie to a private channel with /invite @Ellie.'}
+              </p>
+            )}
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                onClick={() => setPendingSlackExport(null)}
+                className="rounded-lg px-4 py-2 font-nunito text-sm font-semibold text-ellieGray hover:bg-gray-100"
+              >
+                Cancel
+              </button>
+              <button
+                disabled={!pendingSlackExport.channel}
+                onClick={() => {
+                  const target = pendingSlackExport;
+                  setPendingSlackExport(null);
+                  void handleExport(target.transcriptionId, 'slack', target.channel);
+                }}
+                className="rounded-lg bg-ellieBlue px-4 py-2 font-nunito text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Export
+              </button>
             </div>
           </div>
         </div>
