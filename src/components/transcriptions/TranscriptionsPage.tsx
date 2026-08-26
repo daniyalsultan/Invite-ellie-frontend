@@ -7,6 +7,7 @@ import { getTranscriptions, getTranscription, buildRecallaiUrl, type Transcripti
 import { listWorkspaces, type WorkspaceRecord } from '../workspace/workspaceApi';
 import { MeetingInsightsPanel } from '../meeting/MeetingInsightsPanel';
 import { getSlackStatus, slackExport, getSlackChannels, type SlackChannel } from '../../services/slackApi';
+import { ExportConfirmDialog, type PendingExport } from '../exports';
 import { getNotionStatus, notionExport } from '../../services/notionApi';
 import { getHubSpotStatus, hubspotExport } from '../../services/hubspotApi';
 // import { getApiBaseUrl } from '../../utils/apiBaseUrl';
@@ -306,14 +307,7 @@ export function TranscriptionsPage(): JSX.Element {
   // indication of where it was going — Slack in particular defaulted to
   // #general and, failing that, whichever public channel came first. The user
   // now sees the destination and confirms it.
-  const [pendingExport, setPendingExport] = useState<{
-    transcriptionId: string;
-    exportType: 'slack' | 'notion' | 'hubspot';
-    meetingTitle: string;
-    destination: string;
-    channel: string;
-    duplicateWarning?: string;
-  } | null>(null);
+  const [pendingExport, setPendingExport] = useState<PendingExport | null>(null);
   const [slackChannels, setSlackChannels] = useState<SlackChannel[] | null>(null);
   const [slackChannelsError, setSlackChannelsError] = useState<string | null>(null);
 
@@ -1040,127 +1034,22 @@ export function TranscriptionsPage(): JSX.Element {
         </div>
       </div>
 
-      {pendingExport && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="export-confirm-title"
-        >
-          <div className="w-full max-w-md rounded-xl bg-white p-5 md:p-6 shadow-xl">
-            <h2 id="export-confirm-title" className="font-nunito text-lg font-bold text-ellieBlack">
-              {pendingExport.duplicateWarning ? 'Export again?' : 'Confirm export'}
-            </h2>
-
-            {pendingExport.duplicateWarning ? (
-              <p className="mt-2 font-nunito text-sm text-ellieBlack">
-                {pendingExport.duplicateWarning}
-              </p>
-            ) : (
-              <p className="mt-2 font-nunito text-sm text-ellieBlack">
-                Send <span className="font-semibold">{pendingExport.meetingTitle}</span> to{' '}
-                <span className="font-semibold">
-                  {pendingExport.exportType === 'slack'
-                    ? `${pendingExport.channel} in ${pendingExport.destination}`
-                    : pendingExport.destination}
-                </span>
-                ?
-              </p>
-            )}
-
-            {pendingExport.exportType === 'slack' && !pendingExport.duplicateWarning && (
-              <div className="mt-4">
-                <label
-                  htmlFor="export-slack-channel"
-                  className="block font-nunito text-xs font-semibold uppercase tracking-wide text-ellieGray"
-                >
-                  Channel
-                </label>
-
-                {slackChannels === null ? (
-                  <p className="mt-2 font-nunito text-sm text-ellieGray">Loading channels…</p>
-                ) : slackChannels.length > 0 ? (
-                  <>
-                    <select
-                      id="export-slack-channel"
-                      value={pendingExport.channel}
-                      onChange={(e) =>
-                        setPendingExport(prev => (prev ? { ...prev, channel: e.target.value } : prev))
-                      }
-                      className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 font-nunito text-sm text-ellieBlack focus:border-ellieBlue focus:outline-none focus:ring-2 focus:ring-ellieBlue/30"
-                    >
-                      <option value="">Choose a channel…</option>
-                      {slackChannels.map(c => (
-                        <option key={c.id} value={`#${c.name}`}>
-                          #{c.name}
-                        </option>
-                      ))}
-                    </select>
-                    <p className="mt-1 font-nunito text-xs text-ellieGray">
-                      Private channels aren&rsquo;t listed. To use one, run{' '}
-                      <code className="rounded bg-gray-100 px-1">/invite @Ellie</code> in that
-                      channel, then type its name below.
-                    </p>
-                    <input
-                      type="text"
-                      value={pendingExport.channel}
-                      onChange={(e) =>
-                        setPendingExport(prev => (prev ? { ...prev, channel: e.target.value } : prev))
-                      }
-                      placeholder="#private-channel"
-                      aria-label="Or type a channel name"
-                      className="mt-2 w-full rounded-lg border border-gray-200 px-3 py-2 font-nunito text-sm text-ellieBlack focus:border-ellieBlue focus:outline-none focus:ring-2 focus:ring-ellieBlue/30"
-                    />
-                  </>
-                ) : (
-                  <div className="mt-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2.5">
-                    <p className="font-nunito text-xs text-amber-900">
-                      {slackChannelsError
-                        ? `Ellie couldn't read your channel list (${slackChannelsError}).`
-                        : 'Ellie can\u2019t see any channels in this workspace yet.'}{' '}
-                      Create a public channel, or run{' '}
-                      <code className="rounded bg-amber-100 px-1">/invite @Ellie</code> in the
-                      channel you want to use, then reopen this dialog.
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {pendingExport.exportType === 'hubspot' && !pendingExport.duplicateWarning && (
-              <p className="mt-3 font-nunito text-xs text-ellieGray">
-                The summary is attached as a note to every HubSpot contact matching this
-                meeting&rsquo;s attendees.
-              </p>
-            )}
-
-            <div className="mt-5 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setPendingExport(null)}
-                className="rounded-lg px-4 py-2 font-nunito text-sm font-semibold text-ellieGray hover:bg-gray-100"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={pendingExport.exportType === 'slack' && !pendingExport.duplicateWarning && !pendingExport.channel.trim()}
-                onClick={() => {
-                  const request = pendingExport;
-                  setPendingExport(null);
-                  void handleExport(request.transcriptionId, request.exportType, {
-                    channel: request.channel,
-                    force: Boolean(request.duplicateWarning),
-                  });
-                }}
-                className="rounded-lg bg-ellieBlue px-4 py-2 font-nunito text-sm font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {pendingExport.duplicateWarning ? 'Send again' : 'Export'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ExportConfirmDialog
+        pending={pendingExport}
+        slackChannels={slackChannels}
+        slackChannelsError={slackChannelsError}
+        onChannelChange={(channel) =>
+          setPendingExport(prev => (prev ? { ...prev, channel } : prev))
+        }
+        onCancel={() => setPendingExport(null)}
+        onConfirm={(request) => {
+          setPendingExport(null);
+          void handleExport(request.transcriptionId, request.exportType, {
+            channel: request.channel,
+            force: Boolean(request.duplicateWarning),
+          });
+        }}
+      />
     </DashboardLayout>
   );
 }
