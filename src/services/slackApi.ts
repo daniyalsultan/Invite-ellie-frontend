@@ -101,7 +101,11 @@ export async function slackExport(
   // a channel silently posted a customer's meeting summary to whatever
   // #general happened to be.
   channel: string,
-  force = false
+  force = false,
+  // Required. Exports post a meeting's contents into a third-party workspace,
+  // so they must prove who is asking rather than trusting a user id in the
+  // body — a user id travels in ordinary network calls and is not a secret.
+  token: string,
 ): Promise<{ success: boolean; message?: string; error?: string; duplicate?: boolean }> {
   const apiUrl = `${getSlackApiBaseUrl()}/api/slack/export`;
 
@@ -111,6 +115,7 @@ export async function slackExport(
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json',
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
         user_id: userId,

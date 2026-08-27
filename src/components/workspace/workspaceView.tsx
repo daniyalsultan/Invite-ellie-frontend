@@ -495,6 +495,12 @@ export function WorkspaceViewPage(): JSX.Element {
       const meetingTitle = fullData.meeting_title || 'Untitled Meeting';
       const summaryText = fullData.summary || '';
 
+      // Exports must prove who is asking, not just name a user id.
+      const token = await ensureFreshAccessToken();
+      if (!token) {
+        throw new Error('Your session has expired. Please sign in again to export.');
+      }
+
       let result: { success: boolean; message?: string; error?: string; duplicate?: boolean };
       if (exportType === 'slack') {
         result = await slackExport(
@@ -506,9 +512,10 @@ export function WorkspaceViewPage(): JSX.Element {
           actionItems,
           options.channel as string,
           options.force,
+          token,
         );
       } else if (exportType === 'notion') {
-        result = await notionExport(profile.id, transcriptionId, meetingTitle, summaryText, actionItems, options.force);
+        result = await notionExport(profile.id, transcriptionId, meetingTitle, summaryText, actionItems, options.force, token);
       } else {
         result = await hubspotExport(
           profile.id,
@@ -518,6 +525,7 @@ export function WorkspaceViewPage(): JSX.Element {
           actionItems,
           fullData.event_id,
           options.force,
+          token,
         );
       }
 

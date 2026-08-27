@@ -443,6 +443,12 @@ export function TranscriptionsPage(): JSX.Element {
       // Each platform owns its own request contract in its service module —
       // previously this posted one Slack-shaped body to a hardcoded, dead
       // third-party URL for all three platforms, so no export ever worked.
+      // Exports must prove who is asking, not just name a user id.
+      const token = await ensureFreshAccessToken();
+      if (!token) {
+        throw new Error('Your session has expired. Please sign in again to export.');
+      }
+
       let result: { success: boolean; message?: string; error?: string; duplicate?: boolean };
       if (exportType === 'slack') {
         result = await slackExport(
@@ -454,6 +460,7 @@ export function TranscriptionsPage(): JSX.Element {
           actionItems,
           options.channel || '',
           options.force,
+          token,
         );
       } else if (exportType === 'notion') {
         result = await notionExport(
@@ -463,6 +470,7 @@ export function TranscriptionsPage(): JSX.Element {
           summaryText,
           actionItems,
           options.force,
+          token,
         );
       } else {
         result = await hubspotExport(
@@ -473,6 +481,7 @@ export function TranscriptionsPage(): JSX.Element {
           actionItems,
           fullTranscription.event_id,
           options.force,
+          token,
         );
       }
 

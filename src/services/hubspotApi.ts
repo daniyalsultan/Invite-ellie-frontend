@@ -101,8 +101,11 @@ export async function hubspotExport(
   meetingTitle: string,
   summary: string,
   actionItems: any[],
-  eventId?: string | null,
-  force = false
+  eventId: string | null | undefined,
+  force = false,
+  // Required — see slackApi.slackExport. An export writes a meeting's contents
+  // into a third-party workspace, so it has to prove who is asking.
+  token: string,
 ): Promise<{ success: boolean; message?: string; error?: string; duplicate?: boolean }> {
   const apiUrl = `${getHubSpotApiBaseUrl()}/api/hubspot/export`;
 
@@ -111,6 +114,7 @@ export async function hubspotExport(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
         Accept: 'application/json',
       },
       body: JSON.stringify({

@@ -107,7 +107,10 @@ export async function notionExport(
   meetingTitle: string,
   summary: string,
   actionItems: any[],
-  force = false
+  force = false,
+  // Required — see slackApi.slackExport. An export writes a meeting's contents
+  // into a third-party workspace, so it has to prove who is asking.
+  token: string,
 ): Promise<{ success: boolean; message?: string; error?: string; duplicate?: boolean }> {
   const apiUrl = buildNotionApiUrl('/api/notion/export');
 
@@ -116,6 +119,7 @@ export async function notionExport(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
         Accept: 'application/json',
       },
       body: JSON.stringify({
