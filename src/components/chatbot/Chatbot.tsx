@@ -2,11 +2,25 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import { useProfile } from '../../context/ProfileContext';
 import { buildRecallaiUrl } from '../../services/transcriptionApi';
 import logo from '../../assets/logo.svg';
+import {
+  ResponseStateBadge,
+  TranscriptReferences,
+  type GroundedSegment,
+  type ResponseState,
+} from '../askEllie/ConfidenceSignals';
+
+interface Message {
+  id: number;
+  text: string;
+  sender: 'user' | 'ellie';
+  responseState?: ResponseState;
+  groundedSegments?: GroundedSegment[];
+}
 
 export function ChatBot(): JSX.Element {
   const { profile } = useProfile();
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<Array<{ id: number; text: string; sender: 'user' | 'ellie' }>>([
+  const [messages, setMessages] = useState<Message[]>([
     {
       id: 1,
       text: "Hi! I'm Ellie. How can I help you today?",
@@ -114,10 +128,12 @@ export function ChatBot(): JSX.Element {
 
       const data = await response.json();
 
-      const ellieResponse = {
+      const ellieResponse: Message = {
         id: messages.length + 2,
         text: data.response || "I'm sorry, I couldn't process that. Could you please try again?",
-        sender: 'ellie' as const,
+        sender: 'ellie',
+        responseState: data.response_state || 'confident',
+        groundedSegments: data.grounded_segments || [],
       };
 
       setMessages((prev) => [...prev, ellieResponse]);
@@ -228,6 +244,7 @@ export function ChatBot(): JSX.Element {
                           <span className="font-spaceGrotesk text-sm font-semibold text-ellieBlue lg:text-base">
                             Ellie
                           </span>
+                          <ResponseStateBadge state={message.responseState} />
                         </div>
                       )}
                       <div className={`font-nunito text-sm leading-relaxed ${
@@ -235,6 +252,11 @@ export function ChatBot(): JSX.Element {
                       }`}>
                         {formatMessageText(message.text)}
                       </div>
+                      {/* The widget is too small for up to five full quotes, so
+                          references start collapsed behind a toggle. */}
+                      {message.sender === 'ellie' && (
+                        <TranscriptReferences segments={message.groundedSegments} collapsible />
+                      )}
                     </div>
                   </div>
                 ))}

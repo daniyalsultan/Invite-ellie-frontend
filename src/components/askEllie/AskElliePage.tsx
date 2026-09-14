@@ -7,20 +7,13 @@ import { listWorkspaces, type WorkspaceRecord } from '../workspace/workspaceApi'
 import { getUserWorkspaceByEmail } from '../../utils/workspaceAutoCreate';
 import { buildRecallaiUrl } from '../../services/transcriptionApi';
 import logo from '../../assets/logo.svg';
-
-interface GroundedSegment {
-  text: string;
-  speaker: string;
-  timestamp: string;
-  start_time: number;
-  relevance_score?: number;
-}
+import { ResponseStateBadge, TranscriptReferences, type GroundedSegment, type ResponseState } from './ConfidenceSignals';
 
 interface Message {
   id: number;
   text: string;
   sender: 'user' | 'ellie';
-  responseState?: 'confident' | 'tentative' | 'no_answer';
+  responseState?: ResponseState;
   confidenceScore?: number;
   groundedSegments?: GroundedSegment[];
   hasSufficientContext?: boolean;
@@ -557,16 +550,7 @@ export function AskElliePage(): JSX.Element {
                             <span className="font-spaceGrotesk text-sm md:text-base font-semibold text-ellieBlue">
                               Ellie
                             </span>
-                            {message.responseState === 'tentative' && (
-                              <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded text-xs font-nunito font-medium">
-                                Tentative
-                              </span>
-                            )}
-                            {message.responseState === 'no_answer' && (
-                              <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs font-nunito font-medium">
-                                Insufficient Context
-                              </span>
-                            )}
+                            <ResponseStateBadge state={message.responseState} />
                           </div>
                         )}
                         <div
@@ -576,32 +560,8 @@ export function AskElliePage(): JSX.Element {
                           {formatMessageText(message.text)}
                         </div>
                         
-                        {/* Show grounded segments if available */}
-                        {message.sender === 'ellie' && message.groundedSegments && message.groundedSegments.length > 0 && (
-                          <div className="mt-3 pt-3 border-t border-gray-200">
-                            <div className="mb-2">
-                              <span className="text-xs font-nunito font-semibold text-ellieGray">
-                                Referenced from transcript:
-                              </span>
-                            </div>
-                            <div className="space-y-2">
-                              {message.groundedSegments.map((segment, idx) => (
-                                <div
-                                  key={idx}
-                                  className="bg-gray-50 rounded p-2 text-xs font-nunito"
-                                >
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <span className="font-semibold text-ellieBlue">{segment.speaker}</span>
-                                    <span className="text-ellieGray">•</span>
-                                    <span className="text-ellieGray">{segment.timestamp}</span>
-                                  </div>
-                                  <div className="text-ellieBlack italic">
-                                    "{segment.text}"
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
+                        {message.sender === 'ellie' && (
+                          <TranscriptReferences segments={message.groundedSegments} />
                         )}
                       </div>
                     </div>
