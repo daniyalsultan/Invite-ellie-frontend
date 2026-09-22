@@ -612,6 +612,11 @@ export function WorkspacePage(): JSX.Element {
                                 <h2 className="font-nunito text-base font-bold text-[#25324B]">
                                   {workspace.name}
                                 </h2>
+                                {describeSharing(workspace) && (
+                                  <p className="font-nunito text-xs text-[#6B7A96]">
+                                    {describeSharing(workspace)}
+                                  </p>
+                                )}
                                 {/* Workspace ID - hidden */}
                                 {/*
                                 <p className="font-nunito text-xs text-[#6B7A96]">
