@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, useRef } from 'react';
 import { Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
+import { PENDING_INVITE_KEY } from '../invite';
 import { useAuth } from '../../context/AuthContext';
 import { getApiBaseUrl } from '../../utils/apiBaseUrl';
 import { autoCreateWorkspaceForEmail } from '../../utils/workspaceAutoCreate';
@@ -94,6 +95,22 @@ export function ConfirmSignupPage(): JSX.Element {
     }
     return { status: 'idle' };
   });
+  // Someone who signed up from a workspace invitation comes back here after
+  // confirming their email, and the invitation link itself is long gone. The
+  // token was kept when they left the invite page, so take them back to it.
+  useEffect(() => {
+    if (confirmation.status !== 'success') return;
+    let pending: string | null = null;
+    try {
+      pending = localStorage.getItem(PENDING_INVITE_KEY);
+    } catch {
+      /* private browsing: the link in the email still works */
+    }
+    if (pending) {
+      navigate(`/invite/${pending}`, { replace: true });
+    }
+  }, [confirmation.status, navigate]);
+
   const [isResending, setIsResending] = useState(false);
   const [resendStatus, setResendStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [emailInput, setEmailInput] = useState(email || '');

@@ -25,6 +25,7 @@ import { UnresolvedMeetingsPage } from './components/unresolved/UnresolvedMeetin
 import { AssignFolderFromEmailPage } from './components/assign-folder/AssignFolderFromEmailPage';
 import { MeetingRecordingsPage } from './components/meetingrecordings';
 import { SearchResultsPage } from './components/search';
+import { InviteAcceptPage } from './components/invite';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { ChatBot } from './components/chatbot';
 import { AskElliePage } from './components/askEllie';
@@ -189,6 +190,9 @@ function App(): JSX.Element {
         <Route path="/new-password" element={<NewPasswordPage />} />
         <Route path="/search-results" element={<SearchResultsPage />} />
         <Route path="/auth/callback" element={<SSOCallbackPage />} />
+        {/* Public on purpose: an invited person may have no account yet, and
+            should see who invited them before signing up or in. */}
+        <Route path="/invite/:token" element={<InviteAcceptPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/terms" element={<TermsOfServicePage />} />
         <Route element={<ProtectedRoute />}>

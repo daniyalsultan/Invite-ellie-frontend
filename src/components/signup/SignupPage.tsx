@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import groupImage from '../../assets/Group 40999.png';
 import { useAuth } from '../../context/AuthContext';
+import { PENDING_INVITE_KEY } from '../invite';
 import { getApiBaseUrl } from '../../utils/apiBaseUrl';
 import { savePkceVerifier } from '../../utils/authStorage';
 
@@ -24,7 +25,23 @@ export function SignupPage(): JSX.Element {
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [email, setEmail] = useState('');
+  // Arriving from a workspace invitation: the address is fixed (the invite
+  // can only be accepted by it), and the token is kept so the invitation can
+  // be picked up again after email confirmation, which loses the link.
+  const [searchParams] = useSearchParams();
+  const invitedEmail = searchParams.get('email') ?? '';
+  const inviteToken = searchParams.get('invite');
+  const [email, setEmail] = useState(invitedEmail);
+
+  useEffect(() => {
+    if (inviteToken) {
+      try {
+        localStorage.setItem(PENDING_INVITE_KEY, inviteToken);
+      } catch {
+        /* private browsing: the link in the email still works */
+      }
+    }
+  }, [inviteToken]);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [agreedToTerms, setAgreedToTerms] = useState(false);
