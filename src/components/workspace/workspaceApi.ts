@@ -279,3 +279,95 @@ export function getWorkspaceCategoryLabel(category: WorkspaceCategory | null | u
 }
 
 
+
+// ---------------------------------------------------------------------------
+// Membership: who is in a workspace, and the invitations still outstanding.
+// Owner-only actions are rejected by the API for anyone else; hiding the
+// buttons is a courtesy, not the protection.
+// ---------------------------------------------------------------------------
+
+export type WorkspaceRole = 'owner' | 'member';
+
+export interface WorkspaceMember {
+  id: string;
+  profile_id: string | null;
+  name: string;
+  email: string;
+  role: WorkspaceRole;
+  status: 'active' | 'invited';
+  joined_at: string | null;
+  created_at: string;
+  invite_expires_at: string | null;
+}
+
+async function membershipRequest<T>(
+  token: string,
+  path: string,
+  init: RequestInit = {}
+): Promise<T> {
+  const response = await fetch(`${ensureApiBaseUrl()}/workspaces/${path}`, {
+    ...init,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      ...(init.headers ?? {}),
+    },
+  });
+  if (response.status === 204) {
+    return undefined as T;
+  }
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    // The API explains refusals in plain words ("That's the workspace's only
+    // owner..."), so show what it said rather than a generic failure.
+    throw new Error((data as { error?: string; detail?: string }).error
+      ?? (data as { detail?: string }).detail
+      ?? 'Something went wrong. Please try again.');
+  }
+  return data as T;
+}
+
+export function listWorkspaceMembers(token: string, workspaceId: string): Promise<WorkspaceMember[]> {
+  return membershipRequest<WorkspaceMember[]>(token, `${workspaceId}/members/`);
+}
+
+export function inviteToWorkspace(
+  token: string,
+  workspaceId: string,
+  email: string,
+  role: WorkspaceRole = 'member'
+): Promise<WorkspaceMember> {
+  return membershipRequest<WorkspaceMember>(token, `${workspaceId}/invites/`, {
+    method: 'POST',
+    body: JSON.stringify({ email, role }),
+  });
+}
+
+export function resendWorkspaceInvite(token: string, workspaceId: string, membershipId: string): Promise<void> {
+  return membershipRequest<void>(token, `${workspaceId}/invites/${membershipId}/resend/`, { method: 'POST' });
+}
+
+export function revokeWorkspaceInvite(token: string, workspaceId: string, membershipId: string): Promise<void> {
+  return membershipRequest<void>(token, `${workspaceId}/invites/${membershipId}/`, { method: 'DELETE' });
+}
+
+export function removeWorkspaceMember(token: string, workspaceId: string, membershipId: string): Promise<void> {
+  return membershipRequest<void>(token, `${workspaceId}/members/${membershipId}/`, { method: 'DELETE' });
+}
+
+export function changeWorkspaceMemberRole(
+  token: string,
+  workspaceId: string,
+  membershipId: string,
+  role: WorkspaceRole
+): Promise<WorkspaceMember> {
+  return membershipRequest<WorkspaceMember>(token, `${workspaceId}/members/${membershipId}/role/`, {
+    method: 'PATCH',
+    body: JSON.stringify({ role }),
+  });
+}
+
+export function leaveWorkspace(token: string, workspaceId: string): Promise<void> {
+  return membershipRequest<void>(token, `${workspaceId}/leave/`, { method: 'POST' });
+}

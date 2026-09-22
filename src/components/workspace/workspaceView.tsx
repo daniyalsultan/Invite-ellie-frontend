@@ -6,6 +6,7 @@ import {
 } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { DashboardLayout } from '../sidebar';
+import { WorkspaceMembersPanel } from './WorkspaceMembersPanel';
 import searchIcon from '../../assets/Vector.png';
 import { useAuth } from '../../context/AuthContext';
 import { useProfile } from '../../context/ProfileContext';
@@ -758,6 +759,9 @@ export function WorkspaceViewPage(): JSX.Element {
 
                 {/* Workspace Intelligence */}
                 <div className="space-y-6 lg:pl-3">
+                  {/* Who is in this workspace, and who has been invited. */}
+                  <WorkspaceMembersPanel workspaceId={workspace.id} workspaceName={workspace.name} />
+
                   <div className="rounded-[12px] bg-white p-4 shadow-[0px_18px_30px_rgba(15,23,42,0.05)] md:rounded-[18px] md:p-6 lg:p-8">
                     <div className="mb-4">
                       <h3 className="font-nunito text-xl font-bold text-[#25324B]">Workspace Intelligence</h3>
