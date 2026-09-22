@@ -477,12 +477,19 @@ export function IntegrationsPage(): JSX.Element {
     let reconnectTimeout: number | null = null;
     let isManualClose = false;
 
-    const connectWebSocket = () => {
+    const connectWebSocket = async () => {
+      // The socket has to prove who is listening: it used to pass a user id,
+      // which anyone could claim. The id is still sent so a server that has
+      // not deployed yet still accepts the socket; the new one ignores it.
+      const authToken = await ensureFreshAccessToken();
+      if (!authToken) {
+        return;
+      }
       // Convert https to wss, http to ws
       const wsUrl = recallaiBaseUrl
         .replace(/^https:/, 'wss:')
         .replace(/^http:/, 'ws:')
-        .replace(/\/$/, '') + `/ws/calendar-updates?userId=${profile.id}`;
+        .replace(/\/$/, '') + `/ws/calendar-updates?token=${encodeURIComponent(authToken)}&userId=${profile.id}`;
 
       console.log('Connecting to WebSocket for calendar updates:', wsUrl);
       ws = new WebSocket(wsUrl);
@@ -576,7 +583,7 @@ export function IntegrationsPage(): JSX.Element {
           console.log('Attempting to reconnect WebSocket in 3 seconds...');
           reconnectTimeout = setTimeout(() => {
             if (profile?.id && !isManualClose) {
-              connectWebSocket();
+              void connectWebSocket();
             }
           }, 3000);
         }
@@ -584,7 +591,7 @@ export function IntegrationsPage(): JSX.Element {
     };
 
     // Initial connection
-    connectWebSocket();
+    void connectWebSocket();
 
     // Cleanup on unmount
     return () => {

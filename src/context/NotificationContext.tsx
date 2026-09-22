@@ -112,8 +112,15 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     }
   }, [fetchNotifications]);
 
-  const connectWebSocket = useCallback(() => {
+  const connectWebSocket = useCallback(async () => {
     if (!profile?.id) {
+      return;
+    }
+
+    // The socket carries meeting titles, so it has to prove who is listening:
+    // it used to pass a user id, which anyone could claim.
+    const authToken = await ensureFreshAccessToken();
+    if (!authToken) {
       return;
     }
 
@@ -127,7 +134,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     // Convert http/https to ws/wss
     const wsProtocol = baseUrl.startsWith('https') ? 'wss' : 'ws';
     const wsBaseUrl = baseUrl.replace(/^https?:\/\//, '');
-    const wsUrl = `${wsProtocol}://${wsBaseUrl}/ws/notifications?userId=${profile.id}`;
+    const wsUrl = `${wsProtocol}://${wsBaseUrl}/ws/notifications?token=${encodeURIComponent(authToken)}&userId=${profile.id}`;
 
     // Close existing connection if any
     if (wsRef.current) {
@@ -201,7 +208,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
           console.log(`[NotificationContext] Attempting to reconnect in ${delay / 1000} seconds...`);
           
           reconnectTimeoutRef.current = setTimeout(() => {
-            connectWebSocket();
+            void connectWebSocket();
           }, delay);
         }
       };
@@ -216,7 +223,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   // Connect WebSocket when profile is available
   useEffect(() => {
     if (profile?.id) {
-      connectWebSocket();
+      void connectWebSocket();
     }
 
     return () => {
