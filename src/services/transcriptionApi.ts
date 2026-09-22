@@ -2,7 +2,7 @@
  * API service for fetching transcriptions and summaries
  */
 
-function getRecallaiBaseUrl(): string | null {
+export function getRecallaiBaseUrl(): string | null {
   const raw = import.meta.env.VITE_RECALLAI_BASE_URL;
   if (typeof raw !== 'string' || !raw.trim()) {
     console.warn(

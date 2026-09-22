@@ -7,6 +7,7 @@ import {
   StoredSession,
 } from '../utils/authStorage';
 import { getApiBaseUrl } from '../utils/apiBaseUrl';
+import { installRecallAuthFetch, setRecallTokenProvider } from '../services/recallAuth';
 import { autoCreateWorkspaceForEmail } from '../utils/workspaceAutoCreate';
 
 type Session = StoredSession;
@@ -155,6 +156,13 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
 
     return refreshSession();
   }, [refreshSession]);
+
+  // Every request to recall-server carries this user's token from here on.
+  useEffect(() => {
+    installRecallAuthFetch();
+    setRecallTokenProvider(ensureFreshAccessToken);
+    return () => setRecallTokenProvider(null);
+  }, [ensureFreshAccessToken]);
 
   const establishSession = useCallback(
     (nextSession: Session, options?: { rememberMe?: boolean }) => {
