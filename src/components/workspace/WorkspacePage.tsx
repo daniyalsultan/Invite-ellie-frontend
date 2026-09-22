@@ -7,6 +7,7 @@ import {
   deleteWorkspace,
   listWorkspaces,
   patchWorkspace,
+  describeSharing,
 } from './workspaceApi';
 import deleteIllustration from '../../assets/delete.png';
 
@@ -484,6 +485,11 @@ export function WorkspacePage(): JSX.Element {
                                   <span className="font-nunito text-base font-bold text-[#25324B]">
                                     {workspace.name}
                                   </span>
+                                  {describeSharing(workspace) && (
+                                    <span className="font-nunito text-xs text-[#6B7A96]">
+                                      {describeSharing(workspace)}
+                                    </span>
+                                  )}
                                   {/* Workspace ID - hidden */}
                                   {/*
                                   <span className="font-nunito text-sm text-[#6B7A96]">

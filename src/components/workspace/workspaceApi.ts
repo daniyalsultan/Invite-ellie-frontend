@@ -43,6 +43,24 @@ export interface WorkspaceRecord {
   category: WorkspaceCategory | null;
   created_at: string;
   updated_at: string;
+  // Workspace names are only unique per owner, so someone in two workspaces
+  // both called "Personal" needs to see whose is whose.
+  owner_name?: string;
+  owner_email?: string;
+  member_count?: number;
+  my_role?: 'owner' | 'member' | null;
+}
+
+/** "Shared by Ada Lovelace" / "Shared with 3 people", or nothing for a workspace of one. */
+export function describeSharing(workspace: WorkspaceRecord): string | null {
+  if (workspace.my_role === 'member') {
+    return `Shared by ${workspace.owner_name || workspace.owner_email || 'someone else'}`;
+  }
+  const others = (workspace.member_count ?? 1) - 1;
+  if (others > 0) {
+    return `Shared with ${others} ${others === 1 ? 'person' : 'people'}`;
+  }
+  return null;
 }
 
 export interface PaginatedResponse<T> {

@@ -14,6 +14,7 @@ import {
   WorkspaceRecord,
   getWorkspace,
   MeetingStatus,
+  describeSharing,
 } from './workspaceApi';
 import {
   getTranscriptions,
@@ -585,7 +586,14 @@ export function WorkspaceViewPage(): JSX.Element {
                 </Link>
               </li>
               <li className="text-ellieGray">›</li>
-              <li className="text-ellieBlue">{workspace?.name ?? 'Workspace'}</li>
+              <li className="text-ellieBlue">
+                {workspace?.name ?? 'Workspace'}
+                {workspace && describeSharing(workspace) && (
+                  <span className="ml-2 normal-case tracking-normal text-ellieGray">
+                    · {describeSharing(workspace)}
+                  </span>
+                )}
+              </li>
             </ol>
           </nav>
 
