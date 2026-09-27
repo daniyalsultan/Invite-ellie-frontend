@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import groupImage from '../../assets/Group 40999.png';
 import { useAuth } from '../../context/AuthContext';
@@ -45,6 +45,7 @@ export function SignupPage(): JSX.Element {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const termsRef = useRef<HTMLInputElement>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(locationState?.confirmationNotice ?? null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -212,16 +213,29 @@ export function SignupPage(): JSX.Element {
     }
   };
 
+  // The SSO buttons are at the top of the page and the consent checkbox is
+  // near the bottom, so on a phone a blocked click changed nothing the user
+  // could see: the checkbox and the message were both below the fold, and it
+  // looked like the button simply did nothing. Bring the checkbox to them
+  // rather than only setting text they will never scroll to.
+  const consentGivenOrPrompted = () => {
+    if (agreedToTerms) {
+      return true;
+    }
+    setErrorMessage('Please accept the Privacy Policy before continuing.');
+    termsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    termsRef.current?.focus({ preventScroll: true });
+    return false;
+  };
+
   const handleGoogleSignup = () => {
-    if (!agreedToTerms) {
-      setErrorMessage('Please accept the Privacy Policy before continuing.');
+    if (!consentGivenOrPrompted()) {
       return;
     }
     initiateSSOSignup('google');
   };
   const handleMicrosoftSignup = () => {
-    if (!agreedToTerms) {
-      setErrorMessage('Please accept the Privacy Policy before continuing.');
+    if (!consentGivenOrPrompted()) {
       return;
     }
     initiateSSOSignup('microsoft');
@@ -351,6 +365,7 @@ export function SignupPage(): JSX.Element {
 
             <div className="flex items-start gap-3">
               <input
+                ref={termsRef}
                 type="checkbox"
                 id="terms"
                 checked={agreedToTerms}
