@@ -178,7 +178,9 @@ function App(): JSX.Element {
     location.pathname === '/connect-integrations';
 
   return (
-    <div className="min-h-screen bg-white">
+    // On "/" the landing page lives outside this root (see LandingPage), so the
+    // wrapper must not add a full-height white block beneath it.
+    <div className={location.pathname === '/' ? undefined : 'min-h-screen bg-white'}>
       {!hideHeader && <Header />}
       <Routes>
         <Route path="/" element={<LandingPage />} />
