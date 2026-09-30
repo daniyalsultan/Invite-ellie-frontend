@@ -441,3 +441,9 @@ p{margin:0}
 .nav-signin{text-decoration:none;color:var(--muted);font-weight:500;font-size:.96rem;white-space:nowrap}
 .nav-signin:hover{color:var(--text)}
 
+/* Leave room under the footer for the app's floating chat button
+   (fixed 24px from the corner, up to 80px tall) so it never covers the text. */
+.foot-in{padding-bottom:120px}
+/* Fit "Sign in" beside the CTA on phones without pushing it off-screen. */
+@media(max-width:420px){.nav-in{gap:12px}.nav-r{gap:14px}.nav-signin{font-size:.86rem}.nav .btn-sm{padding:10px 12px}}
+@media(max-width:480px){.nav .brand .word{display:none}}
