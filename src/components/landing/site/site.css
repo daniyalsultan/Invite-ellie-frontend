@@ -438,6 +438,10 @@ p{margin:0}
 
 /* App integration */
 .ie-site{background:var(--bg);color:var(--text);font:400 17px/1.55 var(--fb)}
+/* The app sizes #root to the viewport; on this page it only holds the
+   floating chat button, so it must not add an empty screen under the footer.
+   (Extra specificity: in dev the app CSS loads after this.) */
+body #root{height:auto}
 .nav-signin{text-decoration:none;color:var(--muted);font-weight:500;font-size:.96rem;white-space:nowrap}
 .nav-signin:hover{color:var(--text)}
 
