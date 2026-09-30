@@ -67,6 +67,27 @@ function landingPrerender(): Plugin {
   };
 }
 
+// Vite puts the app stylesheet in <head>, where it blocks the inline script
+// that shows the baked-in landing page, so "/" could not paint until the app
+// CSS had downloaded. Move the link to just after that script: the landing
+// page (which has its own inline CSS) paints first, while app pages are still
+// styled before React renders, because the app's module script waits for
+// every pending stylesheet.
+function landingPaintsBeforeAppCss(): Plugin {
+  return {
+    name: 'landing-paints-before-app-css',
+    apply: 'build',
+    transformIndexHtml: {
+      order: 'post',
+      handler(html) {
+        const links = html.match(/<link rel="stylesheet"[^>]*href="\/assets\/[^"]+\.css"[^>]*>/g) ?? [];
+        for (const link of links) html = html.replace(link, '');
+        return html.replace('<div id="root"></div>', `${links.join('\n    ')}\n    <div id="root"></div>`);
+      },
+    },
+  };
+}
+
 // www.inviteellie.ai and inviteellie.ai are separate origins with separate
 // storage, so everything must run on the apex (see the script in index.html).
 // Redirect on the server so www visitors never download the app twice.
@@ -88,7 +109,7 @@ function redirectWwwToApex(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [react(), landingPrerender(), redirectWwwToApex()],
+  plugins: [react(), landingPrerender(), landingPaintsBeforeAppCss(), redirectWwwToApex()],
   server: {
     port: 3000,
     host: true,
