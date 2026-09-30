@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { Header } from './components/landing/Header';
 import { LandingPage } from './components/landing/LandingPage';
 import { SetupProfilePage } from './components/setupProfile/SetupProfilePage';
@@ -157,6 +157,8 @@ function AuthRedirectHandler(): null {
 function App(): JSX.Element {
   const location = useLocation();
   const hideHeader =
+    // The landing page brings its own navigation bar.
+    location.pathname === '/' ||
     location.pathname === '/coming-soon' ||
     location.pathname.startsWith('/dashboard') ||
     location.pathname.startsWith('/integrations') ||
@@ -216,7 +218,10 @@ function App(): JSX.Element {
           <Route path="/meeting-recordings" element={<MeetingRecordingsPage />} />
         </Route>
         
-        <Route path="*" element={<LandingPage />} />
+        <Route
+          path="*"
+          element={<Navigate to={{ pathname: '/', search: location.search, hash: location.hash }} replace />}
+        />
       </Routes>
       <ChatBot />
       <AuthRedirectHandler />

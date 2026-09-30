@@ -23,9 +23,10 @@ export function Header({ logoAlt = 'Invite Ellie' }: HeaderProps): JSX.Element {
   const closeMenu = (): void => setIsMenuOpen(false);
 
   const navLinks = [
-    { to: '/#features', label: 'Features' },
-    { to: '/#cta', label: 'Business' },
-    { to: '/#integrations', label: 'Integrations' },
+    { to: '/#how', label: 'How it works' },
+    { to: '/#features', label: 'What it does' },
+    { to: '/#who', label: "Who it's for" },
+    { to: '/#beta', label: 'Beta' },
   ];
 
   return (
