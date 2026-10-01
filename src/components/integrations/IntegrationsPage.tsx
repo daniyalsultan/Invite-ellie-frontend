@@ -151,7 +151,17 @@ export function IntegrationsPage(): JSX.Element {
   useEffect(() => {
     const connected = searchParams.get('connected');
     const email = searchParams.get('email');
-    
+    const error = searchParams.get('error');
+
+    // A failed calendar connection returns with `error` and no `connected`
+    // (app/logic/oauth.py). Nothing read it, so the user came back to an
+    // unchanged page with no explanation.
+    if (error && (!connected || connected === 'google' || connected === 'microsoft')) {
+      setError(`Failed to connect: ${error}`);
+      setSearchParams({});
+      return;
+    }
+
     if (connected === 'google' || connected === 'microsoft') {
       const platform = connected === 'google' ? 'Google Calendar' : 'Microsoft Calendar';
       const platformKey = connected === 'google' ? 'google_calendar' : 'microsoft_outlook';
@@ -225,7 +235,14 @@ export function IntegrationsPage(): JSX.Element {
     const workspace = searchParams.get('workspace');
     const portal = searchParams.get('portal');
     
-    if (connected === 'slack') {
+    // The error check comes FIRST: recall-server sends `connected=<provider>` on
+    // the failure path too, so testing `connected` first made the error branch
+    // below unreachable — a failed Slack connect reported "connected
+    // successfully" while nothing had been saved.
+    if (error && (connected === 'slack' || connected === 'notion' || connected === 'hubspot')) {
+      setError(`Failed to connect: ${error}`);
+      setTimeout(() => setSearchParams({}), 100);
+    } else if (connected === 'slack') {
       setSuccessMessage(`Slack connected successfully${team ? ` to ${team}` : ''}`);
       setTimeout(() => setSearchParams({}), 100);
       if (profile?.id) {
@@ -243,9 +260,6 @@ export function IntegrationsPage(): JSX.Element {
       if (profile?.id) {
         setTimeout(() => void fetchHubspotStatus(), 500);
       }
-    } else if (error && (connected === 'slack' || connected === 'notion' || connected === 'hubspot')) {
-      setError(`Failed to connect: ${error}`);
-      setTimeout(() => setSearchParams({}), 100);
     }
   }, [searchParams, setSearchParams, profile?.id]);
 
