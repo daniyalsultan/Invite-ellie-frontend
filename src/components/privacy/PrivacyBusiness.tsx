@@ -1,15 +1,15 @@
 export function PrivacyBusiness(): JSX.Element {
   return (
-    <div className="space-y-8 lg:space-y-12 font-nunito text-ellieBlack">
+    <div className="ie-legal space-y-10 lg:space-y-14">
       <div>
-        <h2 className="text-[24px] lg:text-[32px] font-bold mb-4">1. Data Collection and Processing</h2>
+        <h2 className="font-display font-bold leading-[1.15] tracking-[-0.03em] mb-4 text-[1.55rem] lg:text-[2rem]">1. Data Collection and Processing</h2>
         <p className="text-[16px] lg:text-[18px] mb-4">
           Invite Ellie processes the following categories of data to deliver meeting intelligence services:
         </p>
 
         <div className="space-y-6">
           <div>
-            <h3 className="text-[20px] lg:text-[24px] font-semibold mb-3">Meeting Content Data:</h3>
+            <h3 className="font-display font-bold leading-[1.2] tracking-[-0.02em] mb-3 text-[1.2rem] lg:text-[1.4rem]">Meeting Content Data:</h3>
             <ul className="list-disc list-inside space-y-2 ml-4 text-[16px] lg:text-[18px]">
               <li>Audio recordings (WAV/MP3 format)</li>
               <li>Video recordings (where applicable)</li>
@@ -20,7 +20,7 @@ export function PrivacyBusiness(): JSX.Element {
           </div>
 
           <div>
-            <h3 className="text-[20px] lg:text-[24px] font-semibold mb-3">Meeting Metadata:</h3>
+            <h3 className="font-display font-bold leading-[1.2] tracking-[-0.02em] mb-3 text-[1.2rem] lg:text-[1.4rem]">Meeting Metadata:</h3>
             <ul className="list-disc list-inside space-y-2 ml-4 text-[16px] lg:text-[18px]">
               <li>Meeting identifiers (UUID)</li>
               <li>Timestamp data (start time, end time, duration)</li>
@@ -30,7 +30,7 @@ export function PrivacyBusiness(): JSX.Element {
           </div>
 
           <div>
-            <h3 className="text-[20px] lg:text-[24px] font-semibold mb-3">Account and Usage Data:</h3>
+            <h3 className="font-display font-bold leading-[1.2] tracking-[-0.02em] mb-3 text-[1.2rem] lg:text-[1.4rem]">Account and Usage Data:</h3>
             <ul className="list-disc list-inside space-y-2 ml-4 text-[16px] lg:text-[18px]">
               <li>User account information (name, email, organization)</li>
               <li>Authentication credentials (hashed and salted)</li>
@@ -40,8 +40,8 @@ export function PrivacyBusiness(): JSX.Element {
           </div>
         </div>
 
-        <div className="mt-6 p-4 bg-ellieBlue/10 rounded-lg">
-          <h3 className="text-[20px] lg:text-[24px] font-semibold mb-2">Processing Purpose:</h3>
+        <div className="mt-6 p-4 ie-callout">
+          <h3 className="font-display font-bold leading-[1.2] tracking-[-0.02em] mb-2 text-[1.2rem] lg:text-[1.4rem]">Processing Purpose:</h3>
           <ul className="list-disc list-inside space-y-2 ml-4 text-[16px] lg:text-[18px]">
             <li><strong>Contract performance:</strong> Delivering core transcription and summarization services</li>
             <li><strong>Legitimate interest:</strong> Service improvement using platform usage patterns (feature clicks, error rates, session duration) - NOT your meeting content</li>
@@ -51,13 +51,13 @@ export function PrivacyBusiness(): JSX.Element {
       </div>
 
       <div>
-        <h2 className="text-[24px] lg:text-[32px] font-bold mb-4">2. Meeting Recording Consent and Legal Compliance</h2>
+        <h2 className="font-display font-bold leading-[1.15] tracking-[-0.03em] mb-4 text-[1.55rem] lg:text-[2rem]">2. Meeting Recording Consent and Legal Compliance</h2>
         <p className="text-[16px] lg:text-[18px] mb-4">
           Invite Ellie implements a comprehensive consent mechanism to ensure compliance with recording consent laws across jurisdictions:
         </p>
 
         <div>
-          <h3 className="text-[20px] lg:text-[24px] font-semibold mb-3">Technical Implementation:</h3>
+          <h3 className="font-display font-bold leading-[1.2] tracking-[-0.02em] mb-3 text-[1.2rem] lg:text-[1.4rem]">Technical Implementation:</h3>
           <ul className="list-disc list-inside space-y-2 ml-4 text-[16px] lg:text-[18px]">
             <li>Bot announcement: Our AI assistant announces presence in the meeting: "This meeting is being recorded and transcribed by Invite Ellie"</li>
             <li>Visual indicators: Prominent recording indicators displayed to all participants</li>
@@ -70,7 +70,7 @@ export function PrivacyBusiness(): JSX.Element {
         </div>
 
         <div className="mt-6">
-          <h3 className="text-[20px] lg:text-[24px] font-semibold mb-3">Legal Framework:</h3>
+          <h3 className="font-display font-bold leading-[1.2] tracking-[-0.02em] mb-3 text-[1.2rem] lg:text-[1.4rem]">Legal Framework:</h3>
           <ul className="list-disc list-inside space-y-2 ml-4 text-[16px] lg:text-[18px]">
             <li>Complies with U.S. two-party consent states (CA, CT, DE, FL, IL, MD, MA, MT, NH, PA, WA)</li>
             <li>GDPR Article 6(1)(a) consent requirements</li>
@@ -81,10 +81,10 @@ export function PrivacyBusiness(): JSX.Element {
       </div>
 
       <div>
-        <h2 className="text-[24px] lg:text-[32px] font-bold mb-4">3. Data Retention and Lifecycle Management</h2>
+        <h2 className="font-display font-bold leading-[1.15] tracking-[-0.03em] mb-4 text-[1.55rem] lg:text-[2rem]">3. Data Retention and Lifecycle Management</h2>
         
         <div>
-          <h3 className="text-[20px] lg:text-[24px] font-semibold mb-3">Production Data Retention:</h3>
+          <h3 className="font-display font-bold leading-[1.2] tracking-[-0.02em] mb-3 text-[1.2rem] lg:text-[1.4rem]">Production Data Retention:</h3>
           <ul className="list-disc list-inside space-y-2 ml-4 text-[16px] lg:text-[18px]">
             <li>Audio recordings: Customer-configurable retention period (default: 30 days if not specified)</li>
             <li>Transcripts and summaries: Customer-configurable retention period (default: 90 days if not specified)</li>
@@ -95,7 +95,7 @@ export function PrivacyBusiness(): JSX.Element {
         </div>
 
         <div className="mt-6">
-          <h3 className="text-[20px] lg:text-[24px] font-semibold mb-3">Automated Deletion:</h3>
+          <h3 className="font-display font-bold leading-[1.2] tracking-[-0.02em] mb-3 text-[1.2rem] lg:text-[1.4rem]">Automated Deletion:</h3>
           <ul className="list-disc list-inside space-y-2 ml-4 text-[16px] lg:text-[18px]">
             <li>Scheduled deletion jobs run daily at 00:00 UTC</li>
             <li>Hard deletion (no soft delete/archival for meeting content)</li>
@@ -105,7 +105,7 @@ export function PrivacyBusiness(): JSX.Element {
         </div>
 
         <div className="mt-6">
-          <h3 className="text-[20px] lg:text-[24px] font-semibold mb-3">Backup Retention:</h3>
+          <h3 className="font-display font-bold leading-[1.2] tracking-[-0.02em] mb-3 text-[1.2rem] lg:text-[1.4rem]">Backup Retention:</h3>
           <ul className="list-disc list-inside space-y-2 ml-4 text-[16px] lg:text-[18px]">
             <li>Encrypted backups: 30-day retention cycle</li>
             <li>Deleted data removed from backups within 30 days</li>
@@ -115,7 +115,7 @@ export function PrivacyBusiness(): JSX.Element {
         </div>
 
         <div className="mt-6">
-          <h3 className="text-[20px] lg:text-[24px] font-semibold mb-3">User-Initiated Deletion:</h3>
+          <h3 className="font-display font-bold leading-[1.2] tracking-[-0.02em] mb-3 text-[1.2rem] lg:text-[1.4rem]">User-Initiated Deletion:</h3>
           <ul className="list-disc list-inside space-y-2 ml-4 text-[16px] lg:text-[18px]">
             <li>Immediate deletion from production systems: Within 24 hours</li>
             <li>Backup purge: Within 30 days (backup retention cycle)</li>
@@ -126,18 +126,18 @@ export function PrivacyBusiness(): JSX.Element {
       </div>
 
       <div>
-        <h2 className="text-[24px] lg:text-[32px] font-bold mb-4">4. Sub-Processor Data Processing</h2>
+        <h2 className="font-display font-bold leading-[1.15] tracking-[-0.03em] mb-4 text-[1.55rem] lg:text-[2rem]">4. Sub-Processor Data Processing</h2>
         <p className="text-[16px] lg:text-[18px] mb-4">
           Invite Ellie engages the following sub-processors under Data Processing Agreements (DPAs):
         </p>
 
         <div className="space-y-6">
           <div>
-            <h3 className="text-[20px] lg:text-[24px] font-semibold mb-3">AI Services:</h3>
+            <h3 className="font-display font-bold leading-[1.2] tracking-[-0.02em] mb-3 text-[1.2rem] lg:text-[1.4rem]">AI Services:</h3>
             
             <div className="ml-4 space-y-4">
               <div>
-                <h4 className="text-[18px] font-semibold mb-2">OpenAI (GPT-4)</h4>
+                <h4 className="font-display font-bold leading-[1.2] tracking-[-0.02em] mb-2 text-[1.1rem]">OpenAI (GPT-4)</h4>
                 <ul className="list-disc list-inside space-y-2 ml-4 text-[16px] lg:text-[18px]">
                   <li><strong>Purpose:</strong> Natural language processing, summarization, action item extraction</li>
                   <li><strong>Data Processed:</strong> Meeting transcripts, user prompts</li>
@@ -148,7 +148,7 @@ export function PrivacyBusiness(): JSX.Element {
               </div>
 
               <div>
-                <h4 className="text-[18px] font-semibold mb-2">Recall.ai (Hyperdoc Inc.)</h4>
+                <h4 className="font-display font-bold leading-[1.2] tracking-[-0.02em] mb-2 text-[1.1rem]">Recall.ai (Hyperdoc Inc.)</h4>
                 <ul className="list-disc list-inside space-y-2 ml-4 text-[16px] lg:text-[18px]">
                   <li><strong>Purpose:</strong> Meeting audio/video capture from third-party platforms</li>
                   <li><strong>Data Processed:</strong> Real-time audio/video streams, participant metadata</li>
@@ -162,11 +162,11 @@ export function PrivacyBusiness(): JSX.Element {
           </div>
 
           <div>
-            <h3 className="text-[20px] lg:text-[24px] font-semibold mb-3">Infrastructure Services:</h3>
+            <h3 className="font-display font-bold leading-[1.2] tracking-[-0.02em] mb-3 text-[1.2rem] lg:text-[1.4rem]">Infrastructure Services:</h3>
             
             <div className="ml-4 space-y-4">
               <div>
-                <h4 className="text-[18px] font-semibold mb-2">Supabase (PostgreSQL)</h4>
+                <h4 className="font-display font-bold leading-[1.2] tracking-[-0.02em] mb-2 text-[1.1rem]">Supabase (PostgreSQL)</h4>
                 <ul className="list-disc list-inside space-y-2 ml-4 text-[16px] lg:text-[18px]">
                   <li><strong>Purpose:</strong> Application database, user authentication</li>
                   <li><strong>Data Processed:</strong> Structured application data, authentication tokens</li>
@@ -176,7 +176,7 @@ export function PrivacyBusiness(): JSX.Element {
               </div>
 
               <div>
-                <h4 className="text-[18px] font-semibold mb-2">Stripe</h4>
+                <h4 className="font-display font-bold leading-[1.2] tracking-[-0.02em] mb-2 text-[1.1rem]">Stripe</h4>
                 <ul className="list-disc list-inside space-y-2 ml-4 text-[16px] lg:text-[18px]">
                   <li><strong>Purpose:</strong> Payment processing</li>
                   <li><strong>Data Processed:</strong> Billing information, subscription status (PCI-DSS compliant)</li>
@@ -188,7 +188,7 @@ export function PrivacyBusiness(): JSX.Element {
           </div>
 
           <div className="mt-6">
-            <h3 className="text-[20px] lg:text-[24px] font-semibold mb-3">All sub-processors:</h3>
+            <h3 className="font-display font-bold leading-[1.2] tracking-[-0.02em] mb-3 text-[1.2rem] lg:text-[1.4rem]">All sub-processors:</h3>
             <ul className="list-disc list-inside space-y-2 ml-4 text-[16px] lg:text-[18px]">
               <li>Operate under executed Data Processing Agreements</li>
               <li>Implement appropriate technical and organizational measures (Article 32 GDPR)</li>
@@ -201,13 +201,13 @@ export function PrivacyBusiness(): JSX.Element {
       </div>
 
       <div>
-        <h2 className="text-[24px] lg:text-[32px] font-bold mb-4">5. Special Category Data Processing</h2>
+        <h2 className="font-display font-bold leading-[1.15] tracking-[-0.03em] mb-4 text-[1.55rem] lg:text-[2rem]">5. Special Category Data Processing</h2>
         <p className="text-[16px] lg:text-[18px] mb-4">
           Invite Ellie processes special category data as defined under GDPR Article 9:
         </p>
 
         <div>
-          <h3 className="text-[20px] lg:text-[24px] font-semibold mb-3">Categories Processed:</h3>
+          <h3 className="font-display font-bold leading-[1.2] tracking-[-0.02em] mb-3 text-[1.2rem] lg:text-[1.4rem]">Categories Processed:</h3>
           <ul className="list-disc list-inside space-y-2 ml-4 text-[16px] lg:text-[18px]">
             <li>Biometric data: Voice recordings constitute biometric data for unique identification purposes</li>
             <li>Health data: Meeting transcripts may inadvertently contain health information</li>
@@ -216,7 +216,7 @@ export function PrivacyBusiness(): JSX.Element {
         </div>
 
         <div className="mt-6">
-          <h3 className="text-[20px] lg:text-[24px] font-semibold mb-3">Legal Basis (Article 9(2)):</h3>
+          <h3 className="font-display font-bold leading-[1.2] tracking-[-0.02em] mb-3 text-[1.2rem] lg:text-[1.4rem]">Legal Basis (Article 9(2)):</h3>
           <ul className="list-disc list-inside space-y-2 ml-4 text-[16px] lg:text-[18px]">
             <li>Article 9(2)(a): Explicit consent obtained through meeting recording consent mechanism</li>
             <li>Article 9(2)(f): Processing necessary for establishment, exercise, or defense of legal claims (audit logs, compliance)</li>
@@ -224,7 +224,7 @@ export function PrivacyBusiness(): JSX.Element {
         </div>
 
         <div className="mt-6">
-          <h3 className="text-[20px] lg:text-[24px] font-semibold mb-3">Technical Safeguards:</h3>
+          <h3 className="font-display font-bold leading-[1.2] tracking-[-0.02em] mb-3 text-[1.2rem] lg:text-[1.4rem]">Technical Safeguards:</h3>
           <ul className="list-disc list-inside space-y-2 ml-4 text-[16px] lg:text-[18px]">
             <li>Enhanced encryption: AES-256 for special category data at rest</li>
             <li>Access controls: Role-based access control (RBAC) with audit logging</li>
@@ -234,7 +234,7 @@ export function PrivacyBusiness(): JSX.Element {
         </div>
 
         <div className="mt-6">
-          <h3 className="text-[20px] lg:text-[24px] font-semibold mb-3">Organizational Measures:</h3>
+          <h3 className="font-display font-bold leading-[1.2] tracking-[-0.02em] mb-3 text-[1.2rem] lg:text-[1.4rem]">Organizational Measures:</h3>
           <ul className="list-disc list-inside space-y-2 ml-4 text-[16px] lg:text-[18px]">
             <li>Staff training: Data protection training for all personnel with data access</li>
             <li>Contractual obligations: Third-party processors bound by confidentiality obligations</li>
@@ -245,14 +245,14 @@ export function PrivacyBusiness(): JSX.Element {
       </div>
 
       <div>
-        <h2 className="text-[24px] lg:text-[32px] font-bold mb-4">6. Data Subject Rights Implementation</h2>
+        <h2 className="font-display font-bold leading-[1.15] tracking-[-0.03em] mb-4 text-[1.55rem] lg:text-[2rem]">6. Data Subject Rights Implementation</h2>
         <p className="text-[16px] lg:text-[18px] mb-4">
           Invite Ellie provides comprehensive data subject rights management:
         </p>
 
         <div className="space-y-4">
           <div>
-            <h3 className="text-[20px] lg:text-[24px] font-semibold mb-2">Right of Access (GDPR Article 15, CCPA § 1798.110):</h3>
+            <h3 className="font-display font-bold leading-[1.2] tracking-[-0.02em] mb-2 text-[1.2rem] lg:text-[1.4rem]">Right of Access (GDPR Article 15, CCPA § 1798.110):</h3>
             <ul className="list-disc list-inside space-y-2 ml-4 text-[16px] lg:text-[18px]">
               <li>Self-service data export: JSON format via dashboard</li>
               <li>API endpoint: Programmatic data access for enterprise customers</li>
@@ -262,7 +262,7 @@ export function PrivacyBusiness(): JSX.Element {
           </div>
 
           <div>
-            <h3 className="text-[20px] lg:text-[24px] font-semibold mb-2">Right to Rectification (GDPR Article 16):</h3>
+            <h3 className="font-display font-bold leading-[1.2] tracking-[-0.02em] mb-2 text-[1.2rem] lg:text-[1.4rem]">Right to Rectification (GDPR Article 16):</h3>
             <ul className="list-disc list-inside space-y-2 ml-4 text-[16px] lg:text-[18px]">
               <li>Transcript editing: In-app correction of transcription errors</li>
               <li>Account information updates: Self-service via dashboard</li>
@@ -271,7 +271,7 @@ export function PrivacyBusiness(): JSX.Element {
           </div>
 
           <div>
-            <h3 className="text-[20px] lg:text-[24px] font-semibold mb-2">Right to Erasure (GDPR Article 17, CCPA § 1798.105):</h3>
+            <h3 className="font-display font-bold leading-[1.2] tracking-[-0.02em] mb-2 text-[1.2rem] lg:text-[1.4rem]">Right to Erasure (GDPR Article 17, CCPA § 1798.105):</h3>
             <ul className="list-disc list-inside space-y-2 ml-4 text-[16px] lg:text-[18px]">
               <li>User-initiated deletion: Meeting-level or account-level</li>
               <li>Deletion timeline: 24 hours (production), 30 days (backups)</li>
@@ -281,7 +281,7 @@ export function PrivacyBusiness(): JSX.Element {
           </div>
 
           <div>
-            <h3 className="text-[20px] lg:text-[24px] font-semibold mb-2">Right to Data Portability (GDPR Article 20):</h3>
+            <h3 className="font-display font-bold leading-[1.2] tracking-[-0.02em] mb-2 text-[1.2rem] lg:text-[1.4rem]">Right to Data Portability (GDPR Article 20):</h3>
             <ul className="list-disc list-inside space-y-2 ml-4 text-[16px] lg:text-[18px]">
               <li>Structured format: JSON export of all meeting data</li>
               <li>Machine-readable: Standard data formats (JSON, CSV)</li>
@@ -290,7 +290,7 @@ export function PrivacyBusiness(): JSX.Element {
           </div>
 
           <div>
-            <h3 className="text-[20px] lg:text-[24px] font-semibold mb-2">Right to Object (GDPR Article 21):</h3>
+            <h3 className="font-display font-bold leading-[1.2] tracking-[-0.02em] mb-2 text-[1.2rem] lg:text-[1.4rem]">Right to Object (GDPR Article 21):</h3>
             <ul className="list-disc list-inside space-y-2 ml-4 text-[16px] lg:text-[18px]">
               <li>Processing objection: Opt-out of analytics, marketing</li>
               <li>Legitimate interest balancing: Documented balancing test performed</li>
@@ -298,7 +298,7 @@ export function PrivacyBusiness(): JSX.Element {
           </div>
 
           <div>
-            <h3 className="text-[20px] lg:text-[24px] font-semibold mb-2">Right to Restrict Processing (GDPR Article 18):</h3>
+            <h3 className="font-display font-bold leading-[1.2] tracking-[-0.02em] mb-2 text-[1.2rem] lg:text-[1.4rem]">Right to Restrict Processing (GDPR Article 18):</h3>
             <ul className="list-disc list-inside space-y-2 ml-4 text-[16px] lg:text-[18px]">
               <li>Temporary restriction: Account suspension without deletion</li>
               <li>Limited processing: Minimal data retention during restriction period</li>
@@ -308,12 +308,12 @@ export function PrivacyBusiness(): JSX.Element {
       </div>
 
       <div>
-        <h2 className="text-[24px] lg:text-[32px] font-bold mb-4">7. Security Architecture</h2>
+        <h2 className="font-display font-bold leading-[1.15] tracking-[-0.03em] mb-4 text-[1.55rem] lg:text-[2rem]">7. Security Architecture</h2>
         <p className="text-[16px] lg:text-[18px] mb-4">Enterprise-grade security controls:</p>
 
         <div className="space-y-4">
           <div>
-            <h3 className="text-[20px] lg:text-[24px] font-semibold mb-2">Encryption:</h3>
+            <h3 className="font-display font-bold leading-[1.2] tracking-[-0.02em] mb-2 text-[1.2rem] lg:text-[1.4rem]">Encryption:</h3>
             <ul className="list-disc list-inside space-y-2 ml-4 text-[16px] lg:text-[18px]">
               <li>Transport: TLS 1.3 with perfect forward secrecy</li>
               <li>At rest: AES-256-GCM with hardware security modules (HSMs)</li>
@@ -322,7 +322,7 @@ export function PrivacyBusiness(): JSX.Element {
           </div>
 
           <div>
-            <h3 className="text-[20px] lg:text-[24px] font-semibold mb-2">Access Controls:</h3>
+            <h3 className="font-display font-bold leading-[1.2] tracking-[-0.02em] mb-2 text-[1.2rem] lg:text-[1.4rem]">Access Controls:</h3>
             <ul className="list-disc list-inside space-y-2 ml-4 text-[16px] lg:text-[18px]">
               <li>Authentication: Multi-factor authentication (MFA) required</li>
               <li>Authorization: Role-based access control (RBAC) with principle of least privilege</li>
@@ -332,7 +332,7 @@ export function PrivacyBusiness(): JSX.Element {
           </div>
 
           <div>
-            <h3 className="text-[20px] lg:text-[24px] font-semibold mb-2">Network Security:</h3>
+            <h3 className="font-display font-bold leading-[1.2] tracking-[-0.02em] mb-2 text-[1.2rem] lg:text-[1.4rem]">Network Security:</h3>
             <ul className="list-disc list-inside space-y-2 ml-4 text-[16px] lg:text-[18px]">
               <li>Infrastructure: Virtual Private Cloud (VPC) with network segmentation</li>
               <li>DDoS protection: CloudFlare enterprise tier</li>
@@ -342,7 +342,7 @@ export function PrivacyBusiness(): JSX.Element {
           </div>
 
           <div>
-            <h3 className="text-[20px] lg:text-[24px] font-semibold mb-2">Application Security:</h3>
+            <h3 className="font-display font-bold leading-[1.2] tracking-[-0.02em] mb-2 text-[1.2rem] lg:text-[1.4rem]">Application Security:</h3>
             <ul className="list-disc list-inside space-y-2 ml-4 text-[16px] lg:text-[18px]">
               <li>OWASP Top 10: Comprehensive coverage</li>
               <li>Dependency scanning: Automated vulnerability detection</li>
@@ -354,13 +354,13 @@ export function PrivacyBusiness(): JSX.Element {
       </div>
 
       <div>
-        <h2 className="text-[24px] lg:text-[32px] font-bold mb-4">8. International Data Transfers and Cross-Border Compliance</h2>
+        <h2 className="font-display font-bold leading-[1.15] tracking-[-0.03em] mb-4 text-[1.55rem] lg:text-[2rem]">8. International Data Transfers and Cross-Border Compliance</h2>
         <p className="text-[16px] lg:text-[18px] mb-4">
           Invite Ellie implements compliant international data transfer mechanisms:
         </p>
 
         <div>
-          <h3 className="text-[20px] lg:text-[24px] font-semibold mb-3">Legal Mechanisms:</h3>
+          <h3 className="font-display font-bold leading-[1.2] tracking-[-0.02em] mb-3 text-[1.2rem] lg:text-[1.4rem]">Legal Mechanisms:</h3>
           <ul className="list-disc list-inside space-y-2 ml-4 text-[16px] lg:text-[18px]">
             <li>Standard Contractual Clauses (SCCs): European Commission-approved SCCs (2021) for EU transfers</li>
             <li>UK Addendum: International Data Transfer Addendum for UK GDPR</li>
@@ -369,7 +369,7 @@ export function PrivacyBusiness(): JSX.Element {
         </div>
 
         <div className="mt-6">
-          <h3 className="text-[20px] lg:text-[24px] font-semibold mb-3">Supplementary Measures (Schrems II):</h3>
+          <h3 className="font-display font-bold leading-[1.2] tracking-[-0.02em] mb-3 text-[1.2rem] lg:text-[1.4rem]">Supplementary Measures (Schrems II):</h3>
           <ul className="list-disc list-inside space-y-2 ml-4 text-[16px] lg:text-[18px]">
             <li>Transfer impact assessments: Documented assessments for each jurisdiction</li>
             <li>Encryption: AES-256 encryption in transit and at rest</li>
@@ -379,7 +379,7 @@ export function PrivacyBusiness(): JSX.Element {
         </div>
 
         <div className="mt-6">
-          <h3 className="text-[20px] lg:text-[24px] font-semibold mb-3">Data Localization Options:</h3>
+          <h3 className="font-display font-bold leading-[1.2] tracking-[-0.02em] mb-3 text-[1.2rem] lg:text-[1.4rem]">Data Localization Options:</h3>
           <ul className="list-disc list-inside space-y-2 ml-4 text-[16px] lg:text-[18px]">
             <li>EU data residency: Available for enterprise customers</li>
             <li>Regional deployment: Data processed and stored in customer-specified region</li>
@@ -388,7 +388,7 @@ export function PrivacyBusiness(): JSX.Element {
         </div>
 
         <div className="mt-6">
-          <h3 className="text-[20px] lg:text-[24px] font-semibold mb-3">Cross-Border Meeting Compliance:</h3>
+          <h3 className="font-display font-bold leading-[1.2] tracking-[-0.02em] mb-3 text-[1.2rem] lg:text-[1.4rem]">Cross-Border Meeting Compliance:</h3>
           <ul className="list-disc list-inside space-y-2 ml-4 text-[16px] lg:text-[18px]">
             <li>Highest standard rule: Apply most restrictive participant jurisdiction requirements</li>
             <li>Multi-jurisdictional consent: Obtain consent from all participants regardless of location</li>
@@ -398,18 +398,18 @@ export function PrivacyBusiness(): JSX.Element {
       </div>
 
       <div>
-        <h2 className="text-[24px] lg:text-[32px] font-bold mb-4">9. Limitation of Liability</h2>
+        <h2 className="font-display font-bold leading-[1.15] tracking-[-0.03em] mb-4 text-[1.55rem] lg:text-[2rem]">9. Limitation of Liability</h2>
         <p className="text-[16px] lg:text-[18px]">
           To the fullest extent permitted by applicable law, Invite Ellie disclaims any liability for damages arising out of unauthorized access, use, or disclosure of meeting content, except where such access results from Invite Ellie's gross negligence, willful misconduct, or material breach of this Privacy Policy.
         </p>
       </div>
 
-      <div className="mt-8 p-6 bg-ellieBlue/5 rounded-lg">
-        <h3 className="text-[20px] lg:text-[24px] font-semibold mb-3">Compliance Contacts</h3>
+      <div className="mt-8 p-6 ie-callout">
+        <h3 className="font-display font-bold leading-[1.2] tracking-[-0.02em] mb-3 text-[1.2rem] lg:text-[1.4rem]">Compliance Contacts</h3>
         <ul className="space-y-2 text-[16px] lg:text-[18px]">
-          <li>Privacy inquiries: <a href="mailto:privacy@inviteellie.com" className="text-ellieBlue hover:underline">privacy@inviteellie.com</a></li>
-          <li>Data Protection Officer: <a href="mailto:dpo@inviteellie.com" className="text-ellieBlue hover:underline">dpo@inviteellie.com</a></li>
-          <li>Security incidents: <a href="mailto:security@inviteellie.com" className="text-ellieBlue hover:underline">security@inviteellie.com</a></li>
+          <li>Privacy inquiries: <a href="mailto:privacy@inviteellie.com" className="ie-link">privacy@inviteellie.com</a></li>
+          <li>Data Protection Officer: <a href="mailto:dpo@inviteellie.com" className="ie-link">dpo@inviteellie.com</a></li>
+          <li>Security incidents: <a href="mailto:security@inviteellie.com" className="ie-link">security@inviteellie.com</a></li>
         </ul>
       </div>
     </div>

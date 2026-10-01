@@ -78,6 +78,20 @@ body {
   .ie-success {
     @apply rounded-[14px] bg-ie-tAqua px-[18px] py-3 text-[0.95rem] text-[#1D6B5A] ring-1 ring-inset ring-ie-green/30;
   }
+  /* Long-form legal text (privacy policy, terms of service) */
+  .ie-legal {
+    @apply font-dmSans text-ie-text;
+    line-height: 1.7;
+  }
+  .ie-legal strong {
+    @apply font-semibold text-ie-text;
+  }
+  .ie-legal li::marker {
+    color: #327aad;
+  }
+  .ie-callout {
+    @apply rounded-[16px] bg-ie-tBlue/60 ring-1 ring-inset ring-ie-blue/15;
+  }
   .ie-checkbox {
     @apply h-5 w-5 cursor-pointer rounded-[6px] border-[rgba(34,47,97,0.3)];
     accent-color: #222f61;

@@ -62,41 +62,42 @@ export function PrivacyPage(): JSX.Element {
   };
 
   return (
-    <div className="min-h-screen bg-white">
-      <main className="container-ellie py-8 lg:py-12">
+    <div className="ie-page min-h-screen">
+      <main className="ie-wrap max-w-[880px] pb-16 pt-8 lg:pb-24 lg:pt-14">
         {/* Header */}
         <div className="mb-8 lg:mb-12">
-          <h1 className="font-spaceGrotesk text-[32px] lg:text-[48px] font-bold text-ellieBlack mb-4">
+          <h1 className="ie-title mb-4">
             Privacy Policy
           </h1>
-          <p className="font-nunito text-[16px] lg:text-[18px] text-ellieGray">
+          <p className="ie-lede">
             Last updated: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
           </p>
         </div>
 
         {/* Version Selector */}
-        <div className="mb-8 border-b border-ellieGray/20">
-          <div className="flex flex-wrap gap-4 lg:gap-6">
+        <div className="mb-10">
+          <div className="flex flex-wrap gap-2">
             {versions.map((version) => (
               <button
                 key={version.id}
                 type="button"
                 onClick={() => handleVersionChange(version.id)}
-                className={`px-4 py-2 font-nunito text-[14px] lg:text-[16px] font-semibold transition-colors border-b-2 ${
+                aria-pressed={activeVersion === version.id}
+                className={`rounded-[16px] px-4 py-2.5 text-left font-dmSans text-[0.93rem] font-semibold leading-snug transition-colors focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-[3px] focus-visible:outline-ie-blue ${
                   activeVersion === version.id
-                    ? 'text-ellieBlue border-ellieBlue'
-                    : 'text-ellieGray border-transparent hover:text-ellieBlack'
+                    ? 'bg-ie-indigo text-white'
+                    : 'bg-white text-ie-text ring-1 ring-inset ring-ie-line hover:bg-ie-bgAlt'
                 }`}
               >
                 <span className="block">{version.label}</span>
-                <span className="text-[12px] font-normal opacity-75">{version.description}</span>
+                <span className="text-[0.8rem] font-normal opacity-75">{version.description}</span>
               </button>
             ))}
           </div>
         </div>
 
         {/* Content */}
-        <div className="prose prose-lg max-w-none">
+        <div className="ie-legal">
           {renderContent()}
         </div>
       </main>
