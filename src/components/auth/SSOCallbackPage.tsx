@@ -333,19 +333,19 @@ export function SSOCallbackPage(): JSX.Element {
   }, [session, isAuthenticated, navigate, apiBaseUrl]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-white">
-      <div className="text-center">
+    <div className="ie-page flex min-h-screen items-center justify-center">
+      <div className="ie-wrap max-w-[520px] text-center">
         {isProcessing ? (
           <>
-            <div className="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-ellieBlue border-r-transparent"></div>
-            <p className="font-nunito text-[18px] text-ellieGray">Completing authentication...</p>
+            <div className="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-ie-blue border-r-transparent"></div>
+            <p className="ie-lede">Completing authentication...</p>
           </>
         ) : error ? (
           <>
-            <div className="mb-4 rounded-[12px] border border-red-200 bg-red-50 px-5 py-3 font-nunito text-[16px] text-red-600">
+            <div className="ie-error mb-4" role="alert">
               {error}
             </div>
-            <p className="font-nunito text-[16px] text-ellieGray">Redirecting to login...</p>
+            <p className="text-[0.95rem] text-ie-muted">Redirecting to login...</p>
           </>
         ) : null}
       </div>

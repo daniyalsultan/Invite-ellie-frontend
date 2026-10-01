@@ -517,26 +517,26 @@ export function ConfirmSignupPage(): JSX.Element {
 
   if (alreadyConfirmed) {
     return (
-      <div className="bg-white pb-[80px] pt-[40px] lg:pb-[120px] lg:pt-[60px]">
-        <div className="container-ellie">
-          <div className="mx-auto max-w-[600px] rounded-[24px] border border-[#7964A0]/20 bg-white px-8 py-12 shadow-sm">
+      <div className="ie-page relative pb-[80px] pt-[32px] lg:pb-[110px] lg:pt-[56px]">
+        <div className="ie-wrap">
+          <div className="ie-card mx-auto max-w-[600px] px-6 py-10 md:px-10 md:py-12">
             <div className="text-center">
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
-                <svg className="h-8 w-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-ie-tAqua">
+                <svg className="h-8 w-8 text-ie-green" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <h1 className="font-nunito text-[32px] font-extrabold text-ellieBlack lg:text-[40px]">
+              <h1 className="ie-title">
                 Email Confirmed
               </h1>
-              <p className="mt-3 font-nunito text-[18px] text-ellieGray">
+              <p className="ie-lede mt-4">
                 Your email has been verified successfully. You can now log in to your account.
               </p>
             </div>
             <div className="mt-8 flex justify-center">
               <Link
                 to="/login"
-                className="inline-flex items-center justify-center rounded-[12px] bg-ellieBlue px-8 py-3 font-nunito text-[18px] font-semibold text-white transition hover:opacity-90"
+                className="ie-btn-primary"
               >
                 Go to Login
               </Link>
@@ -548,44 +548,44 @@ export function ConfirmSignupPage(): JSX.Element {
   }
 
   return (
-    <div className="bg-white pb-[80px] pt-[40px] lg:pb-[120px] lg:pt-[60px]">
-      <div className="container-ellie">
-        <div className="mx-auto max-w-[600px] rounded-[24px] border border-[#7964A0]/20 bg-white px-8 py-12 shadow-sm">
+    <div className="ie-page relative pb-[80px] pt-[32px] lg:pb-[110px] lg:pt-[56px]">
+      <div className="ie-wrap">
+        <div className="ie-card mx-auto max-w-[600px] px-6 py-10 md:px-10 md:py-12">
           <div className="text-center">
-            <h1 className="font-nunito text-[32px] font-extrabold text-ellieBlack lg:text-[40px]">
+            <h1 className="ie-title">
               Confirming Your Account
             </h1>
-            <p className="mt-3 font-nunito text-[18px] text-ellieGray">
+            <p className="ie-lede mt-4">
               We’re finalizing your signup. This only takes a moment.
             </p>
           </div>
 
           <div className="mt-10">
             {confirmation.status === 'loading' && (
-              <div className="rounded-[16px] border border-[#7964A0]/30 bg-[#7964A0]/5 px-6 py-5 text-center font-nunito text-[16px] text-ellieGray">
+              <div className="rounded-[14px] bg-ie-bgAlt px-6 py-5 text-center text-[0.95rem] text-ie-muted ring-1 ring-inset ring-ie-line">
                 Verifying your email, please wait...
               </div>
             )}
 
             {confirmation.status === 'success' && (
               <div className="space-y-6 text-center">
-                <div className="rounded-[16px] border border-green-200 bg-green-50 px-6 py-5 font-nunito text-[16px] text-green-700">
+                <div className="ie-success px-6 py-5">
                   {confirmation.message}
                 </div>
-                <p className="font-nunito text-[16px] text-ellieGray">
+                <p className="text-[0.95rem] leading-[1.55] text-ie-muted">
                   You can now continue to the dashboard or head to the login page. We’ve saved your session tokens locally, so you’ll stay signed in on this device.
                 </p>
-                <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
+                <div className="flex flex-col gap-3 md:flex-row md:justify-center">
                   {/* <button
                     type="button"
                     onClick={handleGoToLogin}
-                    className="inline-flex items-center justify-center rounded-[12px] border border-ellieBlue px-6 py-3 font-nunito text-[16px] font-semibold text-ellieBlue transition hover:bg-ellieBlue/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ellieBlue"
+                    className="ie-btn-secondary"
                   >
                     Go to Login
                   </button> */}
                   <Link
                     to="/dashboard"
-                    className="inline-flex items-center justify-center rounded-[12px] bg-ellieBlue px-6 py-3 font-nunito text-[16px] font-semibold text-white transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ellieBlue"
+                    className="ie-btn-primary"
                   >
                     Open Dashboard
                   </Link>
@@ -595,12 +595,12 @@ export function ConfirmSignupPage(): JSX.Element {
 
             {confirmation.status === 'error' && (
               <div className="space-y-6 text-center">
-                <div className="rounded-[16px] border border-red-200 bg-red-50 px-6 py-5 font-nunito text-[16px] text-red-600">
+                <div className="ie-error px-6 py-5" role="alert">
                   {confirmation.message}
                 </div>
                 {!email && (
                   <div className="space-y-3">
-                    <label htmlFor="email-input" className="block text-left font-nunito text-[16px] font-semibold text-ellieBlack">
+                    <label htmlFor="email-input" className="ie-label text-left">
                       Email Address
                     </label>
                     <input
@@ -609,20 +609,20 @@ export function ConfirmSignupPage(): JSX.Element {
                       value={emailInput}
                       onChange={(e) => setEmailInput(e.target.value)}
                       placeholder="Enter your email address"
-                      className="w-full rounded-[12px] border border-[#7964A0] bg-white px-5 py-[14px] font-nunito text-[16px] text-ellieBlack placeholder-black/30 outline-none focus:border-ellieBlue focus:ring-2 focus:ring-ellieBlue/30"
+                      className="ie-input"
                     />
-                    <p className="text-left font-nunito text-[14px] text-ellieGray">
+                    <p className="text-left text-[0.88rem] text-ie-muted">
                       Please enter the email address you used to sign up.
                     </p>
                   </div>
                 )}
-                <div className="space-y-3 font-nunito text-[16px] text-ellieGray">
+                <div className="space-y-3 text-[0.95rem] leading-[1.55] text-ie-muted">
                   {shouldOfferResend ? (
                     <>
                       <p>Your confirmation link may be expired or invalid. Request a new one below.</p>
                       {(email || emailInput) && (
                         <p>
-                          We can resend it to <span className="font-semibold text-ellieBlack">{email || emailInput}</span>.
+                          We can resend it to <span className="font-semibold text-ie-text">{email || emailInput}</span>.
                         </p>
                       )}
                     </>
@@ -632,27 +632,24 @@ export function ConfirmSignupPage(): JSX.Element {
                 </div>
                 {resendStatus && (
                   <div
-                    className={`rounded-[12px] border px-5 py-3 font-nunito text-[15px] ${
-                      resendStatus.type === 'success'
-                        ? 'border-green-200 bg-green-50 text-green-700'
-                        : 'border-red-200 bg-red-50 text-red-600'
-                    }`}
+                    className={resendStatus.type === 'success' ? 'ie-success' : 'ie-error'}
+                    role={resendStatus.type === 'success' ? undefined : 'alert'}
                   >
                     {resendStatus.message}
                   </div>
                 )}
-                <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
+                <div className="flex flex-col gap-3 md:flex-row md:justify-center">
                   <button
                     type="button"
                     onClick={handleResendConfirmation}
                     disabled={isResending || (!email && !emailInput.trim())}
-                    className="inline-flex items-center justify-center rounded-[12px] bg-ellieBlue px-6 py-3 font-nunito text-[16px] font-semibold text-white transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ellieBlue disabled:cursor-not-allowed disabled:opacity-60"
+                    className="ie-btn-primary"
                   >
                     {isResending ? 'Sending...' : 'Resend Email'}
                   </button>
                   <Link
                     to="/signup"
-                    className="inline-flex items-center justify-center rounded-[12px] border border-ellieBlue px-6 py-3 font-nunito text-[16px] font-semibold text-ellieBlue transition hover:bg-ellieBlue/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ellieBlue"
+                    className="ie-btn-secondary"
                   >
                     Return to Signup
                   </Link>

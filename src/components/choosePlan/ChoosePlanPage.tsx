@@ -89,48 +89,49 @@ export function ChoosePlanPage(): JSX.Element {
   const selectedPlanData = PLANS.find((p) => p.id === selectedPlan);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-white px-4 py-[60px]">
-      <div className="w-full max-w-[900px]">
+    <div className="ie-page flex min-h-screen items-center justify-center py-[56px] lg:py-[72px]">
+      <div className="ie-wrap max-w-[1000px]">
         <div className="text-center">
-          <h1 className="font-nunito text-[32px] font-extrabold text-ellieBlack lg:text-[45px]">
+          <h1 className="ie-title">
             Choose Your Plan
           </h1>
-          <p className="mx-auto mt-3 max-w-[520px] font-nunito text-[18px] leading-[1.5] text-[#545454] lg:text-[22px]">
+          <p className="ie-lede mx-auto mt-4 max-w-[540px]">
             Select a plan to get started with Ellie and unlock your meeting superpowers.
           </p>
         </div>
 
-        <div className="mt-10 grid gap-6 md:grid-cols-3">
+        <div className="mt-10 grid gap-5 md:grid-cols-3">
           {PLANS.map((plan) => (
             <button
               key={plan.id}
               type="button"
               onClick={() => setSelectedPlan(selectedPlan === plan.id ? null : plan.id)}
               disabled={isSubmitting}
-              className={`flex flex-col rounded-[18px] border-2 p-6 text-left transition-all ${
+              aria-pressed={selectedPlan === plan.id}
+              className={`ie-card flex flex-col p-6 text-left transition-all focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-[3px] focus-visible:outline-ie-blue disabled:cursor-not-allowed disabled:opacity-60 lg:p-7 ${
                 selectedPlan === plan.id
-                  ? 'border-ellieBlue bg-ellieBlue/5 shadow-[0_15px_35px_rgba(50,122,173,0.2)]'
-                  : 'border-[#E5E7EB] bg-white hover:border-ellieBlue/40 hover:shadow-[0_8px_20px_rgba(0,0,0,0.06)]'
+                  ? 'bg-ie-tBlue/50 ring-2 ring-ie-blue'
+                  : 'hover:-translate-y-0.5 hover:bg-ie-bgAlt'
               }`}
             >
-              <div className="flex items-center justify-between">
-                <span className="font-nunito text-[20px] font-bold text-ellieBlack">{plan.name}</span>
-                <span className="font-spaceGrotesk text-[24px] font-bold text-ellieBlue">
-                  ${plan.price}<span className="text-[14px] font-normal text-[#7A86A1]">/mo</span>
+              <div className="flex items-center justify-between gap-3">
+                <span className="ie-subtitle">{plan.name}</span>
+                <span className="font-display text-[1.75rem] font-bold leading-none tracking-[-0.03em] text-ie-indigo">
+                  ${plan.price}<span className="font-dmSans text-[0.9rem] font-normal tracking-normal text-ie-muted">/mo</span>
                 </span>
               </div>
-              <p className="mt-2 font-nunito text-[15px] leading-snug text-[#545454]">{plan.description}</p>
-              <ul className="mt-4 space-y-2">
+              <p className="mt-3 text-[0.95rem] leading-[1.5] text-ie-muted">{plan.description}</p>
+              <ul className="mt-5 space-y-2.5">
                 {plan.features.map((feature) => (
-                  <li key={feature} className="flex items-start gap-2 font-nunito text-[14px] text-[#545454]">
-                    <span className="mt-0.5 text-ellieBlue">&#10003;</span>
+                  <li key={feature} className="flex items-start gap-2.5 text-[0.93rem] leading-[1.45] text-ie-text">
+                    <span className="font-bold text-ie-green">&#10003;</span>
                     {feature}
                   </li>
                 ))}
               </ul>
               {selectedPlan === plan.id && (
-                <div className="mt-4 flex items-center gap-2 font-nunito text-[14px] font-bold text-ellieBlue">
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-ellieBlue text-[12px] text-white">
+                <div className="mt-5 flex items-center gap-2 text-[0.93rem] font-semibold text-ie-blue">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-ie-blue text-[12px] text-white">
                     &#10003;
                   </span>
                   Selected
@@ -145,22 +146,18 @@ export function ChoosePlanPage(): JSX.Element {
             type="button"
             onClick={() => handleCheckout(false)}
             disabled={!selectedPlan || isSubmitting}
-            className="inline-flex w-full items-center justify-center rounded-[12px] bg-ellieBlue px-[40px] py-[16px] font-nunito text-[18px] font-extrabold text-white transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ellieBlue disabled:cursor-not-allowed disabled:opacity-40 lg:text-[20px]"
+            className="ie-btn-primary w-full py-[17px] text-[1.05rem] disabled:opacity-40"
           >
             {isSubmitting ? 'Redirecting to checkout...' : 'Continue to Payment'}
           </button>
 
-          <div className="relative my-5 flex items-center">
-            <div className="flex-1 border-t border-[#E5E7EB]" />
-            <span className="px-4 font-nunito text-[14px] text-[#7A86A1]">or</span>
-            <div className="flex-1 border-t border-[#E5E7EB]" />
-          </div>
+          <div className="ie-divider my-5">or</div>
 
           <button
             type="button"
             onClick={() => handleCheckout(true)}
             disabled={!selectedPlan || isSubmitting}
-            className="inline-flex w-full items-center justify-center rounded-[12px] border-2 border-ellieBlue bg-white px-[40px] py-[14px] font-nunito text-[17px] font-extrabold text-ellieBlue transition hover:bg-ellieBlue/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ellieBlue disabled:cursor-not-allowed disabled:opacity-40"
+            className="ie-btn-secondary w-full whitespace-normal py-[17px] text-center text-[1.05rem] leading-tight disabled:opacity-40"
           >
             {isSubmitting
               ? 'Redirecting...'
@@ -168,18 +165,18 @@ export function ChoosePlanPage(): JSX.Element {
                 ? `Start 14-Day Free Trial — ${selectedPlanData.name}`
                 : 'Start 14-Day Free Trial'}
           </button>
-          <p className="mt-2 text-center font-nunito text-[13px] text-[#7A86A1]">
+          <p className="mt-3 text-center text-[0.85rem] leading-[1.5] text-ie-muted">
             No charge for 14 days. You can cancel anytime before your trial ends to avoid being charged.
           </p>
 
           {errorMessage && (
-            <div className="mt-4 rounded-[12px] border border-red-200 bg-red-50 px-4 py-3 font-nunito text-[15px] text-red-600">
+            <div className="ie-error mt-4" role="alert">
               {errorMessage}
             </div>
           )}
 
           {isProfileLoading && (
-            <p className="mt-4 text-center font-nunito text-[15px] text-ellieGray">Loading...</p>
+            <p className="mt-4 text-center text-[0.95rem] text-ie-muted">Loading...</p>
           )}
         </div>
       </div>

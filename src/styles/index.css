@@ -17,6 +17,73 @@ body {
   @apply font-nunito text-ellieBlack bg-white antialiased;
 }
 
+/* Marketing-site look for the auth and onboarding pages. Mirrors the tokens
+   in src/components/landing/site/site.css: DM Sans body, Space Grotesk
+   display type, indigo pill buttons and soft line borders. */
+@layer components {
+  .ie-page {
+    @apply bg-white font-dmSans text-ie-text antialiased;
+  }
+  .ie-wrap {
+    @apply mx-auto w-full max-w-[1200px] px-5 md:px-7;
+  }
+  .ie-eyebrow {
+    @apply inline-flex items-center gap-2 rounded-full bg-ie-tBlue px-3 py-1.5 font-dmSans text-[0.85rem] font-medium text-ie-blue;
+  }
+  .ie-title {
+    @apply font-display text-[2.1rem] font-bold leading-[1.05] tracking-[-0.04em] text-ie-text md:text-[2.6rem] lg:text-[3rem];
+    text-wrap: balance;
+  }
+  .ie-subtitle {
+    @apply font-display text-[1.35rem] font-bold leading-[1.15] tracking-[-0.03em] text-ie-text;
+  }
+  .ie-lede {
+    @apply text-[1.06rem] leading-[1.55] text-ie-muted md:text-[1.12rem];
+    text-wrap: pretty;
+  }
+  .ie-btn {
+    @apply inline-flex items-center justify-center gap-2.5 whitespace-nowrap rounded-full px-[26px] py-[15px] font-dmSans text-base font-semibold leading-none no-underline transition duration-150 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-[3px] focus-visible:outline-ie-blue disabled:cursor-not-allowed disabled:opacity-60;
+  }
+  .ie-btn:not(:disabled):hover {
+    transform: translateY(-1px);
+  }
+  .ie-btn-primary {
+    @apply ie-btn bg-ie-indigo text-white hover:bg-ie-blue;
+  }
+  .ie-btn-secondary {
+    @apply ie-btn bg-white text-ie-text ring-1 ring-inset ring-ie-line hover:bg-ie-bgAlt;
+  }
+  .ie-btn-sm {
+    @apply px-[18px] py-[11px] text-[0.93rem];
+  }
+  .ie-input {
+    @apply w-full rounded-[14px] border border-[rgba(34,47,97,0.18)] bg-white px-[18px] py-[14px] font-dmSans text-base text-ie-text outline-none transition placeholder:text-ie-muted/70 focus:border-ie-blue focus:ring-4 focus:ring-ie-blue/15 disabled:bg-ie-bgAlt disabled:text-ie-muted;
+  }
+  .ie-label {
+    @apply mb-2 block font-dmSans text-[0.93rem] font-semibold text-ie-text;
+  }
+  .ie-link {
+    @apply font-semibold text-ie-blue underline decoration-transparent underline-offset-2 transition hover:decoration-current;
+  }
+  .ie-card {
+    @apply rounded-[24px] bg-white ring-1 ring-ie-line;
+    box-shadow: 0 24px 60px -36px rgba(27, 36, 72, 0.35);
+  }
+  .ie-divider {
+    @apply flex items-center gap-4 text-[0.93rem] text-ie-muted before:h-px before:flex-1 before:bg-ie-line before:content-[''] after:h-px after:flex-1 after:bg-ie-line after:content-[''];
+  }
+  .ie-error {
+    @apply rounded-[14px] bg-red-50 px-[18px] py-3 text-[0.95rem] text-red-700 ring-1 ring-inset ring-red-200;
+  }
+  .ie-success {
+    @apply rounded-[14px] bg-ie-tAqua px-[18px] py-3 text-[0.95rem] text-[#1D6B5A] ring-1 ring-inset ring-ie-green/30;
+  }
+  .ie-checkbox {
+    @apply h-5 w-5 cursor-pointer rounded-[6px] border-[rgba(34,47,97,0.3)];
+    accent-color: #222f61;
+  }
+}
+
 /* Utility wrappers for max-width similar to centered Figma content */
 .container-ellie {
   /* Desktop inner width observed ~1494px inside 1920 frame with side gutters */

@@ -25,14 +25,14 @@ export function GradientLoader({
           draggable={false}
         />
       )}
-      <div className={`relative w-64 overflow-hidden rounded-full bg-[#E4E8F2] ${trackHeight}`}>
+      <div className={`relative w-64 overflow-hidden rounded-full bg-ie-bgAlt ${trackHeight}`}>
         <div
-          className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-[#1F6FB5] via-[#7CFBF4] to-[#7C5CFF]"
+          className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-ie-blue via-ie-aqua to-ie-violet"
           style={{ animation: 'ellie-loader 2.6s ease-in-out infinite' }}
         />
       </div>
       {label && (
-        <p className="font-nunito text-sm font-semibold text-[#111928]">
+        <p className="font-dmSans text-sm font-semibold text-ie-text">
           {label}
         </p>
       )}
