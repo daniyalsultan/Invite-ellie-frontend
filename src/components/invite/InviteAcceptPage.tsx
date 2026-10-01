@@ -105,20 +105,22 @@ export function InviteAcceptPage(): JSX.Element {
 
   if (isLoading || isInitializing) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-ellieSurface">
+      <div className="ie-page flex min-h-screen items-center justify-center">
         <GradientLoader label="Loading your invitation..." />
       </div>
     );
   }
 
   const shell = (children: JSX.Element): JSX.Element => (
-    <div className="flex min-h-screen items-center justify-center bg-ellieSurface px-4 py-10">
-      <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white p-6 shadow-sm md:p-8">
-        <div className="mb-6 flex items-center gap-3">
-          <img src={logo} alt="Ellie" className="h-10 w-10" />
-          <span className="font-spaceGrotesk text-lg font-bold text-ellieBlue">Invite Ellie</span>
+    <div className="ie-page flex min-h-screen items-center justify-center py-10">
+      <div className="ie-wrap flex justify-center">
+        <div className="ie-card w-full max-w-[520px] p-8 md:p-10">
+          <div className="mb-6 flex items-center gap-3">
+            <img src={logo} alt="Ellie" className="h-10 w-10" />
+            <span className="font-display text-lg font-bold tracking-[-0.02em] text-ie-indigo">Invite Ellie</span>
+          </div>
+          {children}
         </div>
-        {children}
       </div>
     </div>
   );
@@ -126,12 +128,12 @@ export function InviteAcceptPage(): JSX.Element {
   const message = (title: string, body: string): JSX.Element =>
     shell(
       <>
-        <h1 className="font-nunito text-xl font-extrabold text-ellieBlack">{title}</h1>
-        <p className="mt-3 font-nunito text-sm text-ellieGray">{body}</p>
+        <h1 className="ie-subtitle md:text-[1.6rem]">{title}</h1>
+        <p className="ie-lede mt-3">{body}</p>
         <button
           type="button"
           onClick={() => navigate('/dashboard')}
-          className="mt-6 w-full rounded-lg bg-ellieBlue px-4 py-3 font-nunito text-sm font-semibold text-white transition-colors hover:bg-ellieBlue/90"
+          className="ie-btn-primary mt-6 w-full py-[17px] text-[1.05rem]"
         >
           Go to Invite Ellie
         </button>
@@ -157,18 +159,18 @@ export function InviteAcceptPage(): JSX.Element {
 
   return shell(
     <>
-      <h1 className="font-nunito text-xl font-extrabold text-ellieBlack">
+      <h1 className="ie-subtitle md:text-[1.6rem]">
         {invite.invited_by ? `${invite.invited_by} invited you` : 'You have been invited'}
       </h1>
-      <p className="mt-3 font-nunito text-sm text-ellieGray">
-        Join <span className="font-semibold text-ellieBlack">{invite.workspace_name}</span> as{' '}
+      <p className="ie-lede mt-3">
+        Join <span className="font-semibold text-ie-text">{invite.workspace_name}</span> as{' '}
         {invite.role === 'owner' ? 'an owner' : 'a member'}. You will see the meetings in this workspace, and
         can record your own into it.
       </p>
-      <p className="mt-2 font-nunito text-xs text-ellieGray">Invitation sent to {invite.email}</p>
+      <p className="mt-2 text-[0.88rem] text-ie-muted">Invitation sent to {invite.email}</p>
 
       {error && (
-        <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 font-nunito text-sm text-red-700">
+        <div className="ie-error mt-4" role="alert">
           {error}
         </div>
       )}
@@ -178,7 +180,7 @@ export function InviteAcceptPage(): JSX.Element {
           <button
             type="button"
             onClick={() => rememberAndGo('/login', { from: `/invite/${token}` })}
-            className="w-full rounded-lg bg-ellieBlue px-4 py-3 font-nunito text-sm font-semibold text-white transition-colors hover:bg-ellieBlue/90"
+            className="ie-btn-primary w-full py-[17px] text-[1.05rem]"
           >
             Sign in to accept
           </button>
@@ -187,18 +189,18 @@ export function InviteAcceptPage(): JSX.Element {
             onClick={() =>
               rememberAndGo(`/signup?invite=${encodeURIComponent(token)}&email=${encodeURIComponent(invite.email ?? '')}`)
             }
-            className="w-full rounded-lg border border-ellieBlue px-4 py-3 font-nunito text-sm font-semibold text-ellieBlue transition-colors hover:bg-ellieBlue/5"
+            className="ie-btn-secondary w-full py-[17px] text-[1.05rem]"
           >
             Create an account
           </button>
-          <p className="font-nunito text-xs text-ellieGray">
+          <p className="text-[0.88rem] text-ie-muted">
             Use {invite.email} — an invitation can only be accepted by the address it was sent to.
           </p>
         </div>
       )}
 
       {wrongAccount && (
-        <div className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-3 font-nunito text-sm text-amber-800">
+        <div className="mt-6 rounded-[14px] bg-amber-50 px-[18px] py-3 text-[0.95rem] text-amber-800 ring-1 ring-inset ring-amber-200">
           You are signed in as {profile?.email}. This invitation was sent to {invite.email}. Sign out and sign
           back in with that address to accept it.
         </div>
@@ -209,7 +211,7 @@ export function InviteAcceptPage(): JSX.Element {
           type="button"
           onClick={() => void accept()}
           disabled={isAccepting}
-          className="mt-6 w-full rounded-lg bg-ellieBlue px-4 py-3 font-nunito text-sm font-semibold text-white transition-colors hover:bg-ellieBlue/90 disabled:cursor-not-allowed disabled:opacity-60"
+          className="ie-btn-primary mt-6 w-full whitespace-normal py-[17px] text-center text-[1.05rem] leading-snug"
         >
           {isAccepting ? 'Joining...' : `Join ${invite.workspace_name}`}
         </button>

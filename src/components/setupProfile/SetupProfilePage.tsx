@@ -53,10 +53,11 @@ function ChoiceButton({
     <button
       type="button"
       onClick={onSelect}
-      className={`rounded-[12px] px-6 py-[18px] text-left font-nunito text-[18px] font-semibold transition-all ${
+      aria-pressed={selected}
+      className={`rounded-[16px] bg-white px-5 py-4 text-left font-dmSans text-[1rem] font-semibold text-ie-text transition-all focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-[3px] focus-visible:outline-ie-blue ${
         selected
-          ? 'bg-ellieBlue text-white shadow-[0_15px_35px_rgba(50,122,173,0.25)]'
-          : 'bg-[rgba(121,100,160,0.05)] text-ellieNavy hover:bg-ellieBlue/10'
+          ? 'bg-ie-tBlue/50 ring-2 ring-inset ring-ie-blue'
+          : 'ring-1 ring-inset ring-ie-line hover:bg-ie-bgAlt'
       }`}
     >
       {option.label}
@@ -353,27 +354,27 @@ export function SetupProfilePage(): JSX.Element {
   const disableAvatarButtons = isSubmitting || isSavingAvatar;
 
   return (
-    <div className="bg-white pb-[80px] pt-[40px] lg:pb-[120px] lg:pt-[60px]">
-      <div className="container-ellie flex flex-col gap-[40px] lg:gap-[60px]">
+    <div className="ie-page pb-[80px] pt-[32px] lg:pb-[110px] lg:pt-[56px]">
+      <div className="ie-wrap flex flex-col gap-10 lg:gap-[56px]">
         <div className="max-w-[760px]">
-          <h1 className="font-nunito text-[32px] font-extrabold text-ellieBlack lg:text-[45px]">
+          <h1 className="ie-title">
             Setup Profile & Preferences
           </h1>
-          <p className="mt-3 font-nunito text-[18px] leading-[1.5] text-[#545454] lg:text-[22px]">
+          <p className="ie-lede mt-4">
             Let’s get Ellie personalized for your best experience.
           </p>
         </div>
 
-        <div className="grid gap-[24px] lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)] lg:items-start">
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)] lg:items-start">
           {/* Profile Form */}
-          <section className="flex flex-col gap-6 rounded-[18px] bg-[#F4F8FB] p-6 shadow-[0_15px_45px_rgba(0,0,0,0.08)]">
+          <section className="ie-card flex flex-col gap-6 p-6 lg:p-7">
             <div className="relative mx-auto flex h-[184px] w-[184px] items-center justify-center">
               {avatarPreview ? (
                 <>
                   <img
                     src={avatarPreview}
                     alt="Profile avatar preview"
-                    className="h-full w-full rounded-[18px] object-cover shadow-[0_10px_30px_rgba(20,20,20,0.15)]"
+                    className="h-full w-full rounded-[20px] object-cover ring-1 ring-ie-line shadow-[0_16px_36px_-20px_rgba(27,36,72,0.45)]"
                   />
                   <button
                     type="button"
@@ -398,12 +399,12 @@ export function SetupProfilePage(): JSX.Element {
                 <button
                   type="button"
                   onClick={handleUploadClick}
-                  className="flex h-full w-full flex-col items-center justify-center gap-3 rounded-[18px] border-2 border-dashed border-[#A7B0C5] bg-white text-center font-nunito text-[16px] text-ellieNavy transition hover:border-ellieBlue hover:bg-ellieBlue/5"
+                  className="flex h-full w-full flex-col items-center justify-center gap-3 rounded-[20px] border-2 border-dashed border-[rgba(34,47,97,0.22)] bg-ie-bgAlt text-center text-[0.95rem] text-ie-text transition hover:border-ie-blue hover:bg-ie-tBlue/50 disabled:cursor-not-allowed disabled:opacity-60"
                   disabled={disableAvatarButtons}
                 >
                   <span className="text-[34px]">📁</span>
-                  <span className="font-extrabold">Upload profile photo</span>
-                  <span className="text-[14px] text-[#7A86A1]">PNG or JPG (max 5MB)</span>
+                  <span className="font-semibold">Upload profile photo</span>
+                  <span className="text-[0.85rem] text-ie-muted">PNG or JPG (max 5MB)</span>
                 </button>
               )}
               <input
@@ -415,14 +416,14 @@ export function SetupProfilePage(): JSX.Element {
               />
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-1">
               <input
                 type="text"
                 placeholder="First Name"
                 value={firstName}
                 onChange={(event) => setFirstName(event.target.value)}
                 disabled={disableInputs}
-                className="w-full rounded-[12px] border border-[#7964A0] bg-white px-5 py-[14px] font-nunito text-[18px] text-ellieBlack placeholder-black/30 outline-none focus:border-ellieBlue focus:ring-2 focus:ring-ellieBlue/30"
+                className="ie-input"
               />
               <input
                 type="text"
@@ -430,7 +431,7 @@ export function SetupProfilePage(): JSX.Element {
                 value={lastName}
                 onChange={(event) => setLastName(event.target.value)}
                 disabled={disableInputs}
-                className="w-full rounded-[12px] border border-[#7964A0] bg-white px-5 py-[14px] font-nunito text-[18px] text-ellieBlack placeholder-black/30 outline-none focus:border-ellieBlue focus:ring-2 focus:ring-ellieBlue/30"
+                className="ie-input"
               />
               <input
                 type="text"
@@ -438,7 +439,7 @@ export function SetupProfilePage(): JSX.Element {
                 value={companyName}
                 onChange={(event) => setCompanyName(event.target.value)}
                 disabled={disableInputs}
-                className="w-full rounded-[12px] border border-[#7964A0] bg-white px-5 py-[14px] font-nunito text-[18px] text-ellieBlack placeholder-black/30 outline-none focus:border-ellieBlue focus:ring-2 focus:ring-ellieBlue/30"
+                className="ie-input"
               />
               <input
                 type="text"
@@ -446,18 +447,18 @@ export function SetupProfilePage(): JSX.Element {
                 value={position}
                 onChange={(event) => setPosition(event.target.value)}
                 disabled={disableInputs}
-                className="w-full rounded-[12px] border border-[#7964A0] bg-white px-5 py-[14px] font-nunito text-[18px] text-ellieBlack placeholder-black/30 outline-none focus:border-ellieBlue focus:ring-2 focus:ring-ellieBlue/30"
+                className="ie-input"
               />
             </div>
           </section>
 
           {/* Preferences */}
           <section className="flex flex-col gap-6">
-            <div className="rounded-[18px] bg-[rgba(121,100,160,0.05)] p-6">
-              <h2 className="font-nunito text-[22px] font-bold text-ellieBlack lg:text-[25px]">
+            <div className="ie-card p-6 lg:p-7">
+              <h2 className="ie-subtitle">
                 Who are you setting Ellie up for?
               </h2>
-              <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              <div className="mt-5 grid gap-3 md:grid-cols-2">
                 {TEAM_OPTIONS.map((option) => (
                   <ChoiceButton
                     key={option.value}
@@ -472,11 +473,11 @@ export function SetupProfilePage(): JSX.Element {
               </div>
             </div>
 
-            <div className="rounded-[18px] bg-[rgba(121,100,160,0.05)] p-6">
-              <h2 className="font-nunito text-[22px] font-bold text-ellieBlack lg:text-[25px]">
+            <div className="ie-card p-6 lg:p-7">
+              <h2 className="ie-subtitle">
                 Where will Ellie help you the most?
               </h2>
-              <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              <div className="mt-5 grid gap-3 md:grid-cols-2">
                 {HELP_OPTIONS.map((option) => (
                   <ChoiceButton
                     key={option.value}
@@ -491,11 +492,11 @@ export function SetupProfilePage(): JSX.Element {
               </div>
             </div>
 
-            <div className="rounded-[18px] bg-[rgba(121,100,160,0.05)] p-6">
-              <h2 className="font-nunito text-[22px] font-bold text-ellieBlack lg:text-[25px]">
+            <div className="ie-card p-6 lg:p-7">
+              <h2 className="ie-subtitle">
                 What are your top goals with Ellie?
               </h2>
-              <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              <div className="mt-5 grid gap-3 md:grid-cols-2">
                 {GOAL_OPTIONS.map((option) => (
                   <ChoiceButton
                     key={option.value}
@@ -510,29 +511,26 @@ export function SetupProfilePage(): JSX.Element {
               </div>
             </div>
 
-            <div className="flex flex-col gap-4 rounded-[18px] bg-[rgba(121,100,160,0.05)] p-6">
+            <div className="ie-card flex flex-col gap-4 p-6 lg:p-7">
               <button
                 type="button"
                 onClick={() => submitProfile(true)}
                 disabled={isSubmitting}
-                className="inline-flex w-full items-center justify-center rounded-[12px] bg-ellieBlue px-[40px] py-[16px] font-nunito text-[18px] font-extrabold text-white transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ellieBlue disabled:cursor-not-allowed disabled:opacity-60 lg:text-[20px]"
+                className="ie-btn-primary w-full py-[17px] text-[1.05rem]"
               >
                 {isSubmitting ? 'Saving...' : 'Continue'}
               </button>
 
               {statusMessage && (
                 <div
-                  className={`rounded-[12px] border px-4 py-3 font-nunito text-[15px] ${
-                    statusMessage.type === 'error'
-                      ? 'border-red-200 bg-red-50 text-red-600'
-                      : 'border-green-200 bg-green-50 text-green-700'
-                  }`}
+                  className={statusMessage.type === 'error' ? 'ie-error' : 'ie-success'}
+                  role={statusMessage.type === 'error' ? 'alert' : 'status'}
                 >
                   {statusMessage.text}
                 </div>
               )}
               {isProfileLoading && !profile && (
-                <p className="font-nunito text-[15px] text-ellieGray">Loading your profile...</p>
+                <p className="text-[0.95rem] text-ie-muted">Loading your profile...</p>
               )}
             </div>
           </section>

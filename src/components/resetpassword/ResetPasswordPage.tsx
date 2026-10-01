@@ -84,25 +84,25 @@ export function ResetPasswordPage(): JSX.Element {
   };
 
   return (
-    <div className="bg-white pb-[80px] pt-[40px] lg:pb-[120px] lg:pt-[60px]">
-      <div className="container-ellie flex justify-center">
-        <div className="w-full max-w-[500px]">
+    <div className="ie-page relative pb-[80px] pt-[32px] lg:pb-[110px] lg:pt-[56px]">
+      <div className="ie-wrap flex justify-center">
+        <div className="ie-card w-full max-w-[520px] p-8 md:p-10">
           {/* Illustrative Graphic */}
           <div className="mb-8 flex justify-center">
             <img
               src={forgetPasswordImage}
               alt="Forgot password illustration"
-              className="h-auto w-full max-w-[250px] object-contain"
+              className="h-auto w-full max-w-[220px] object-contain"
             />
           </div>
 
           {/* Title */}
-          <h1 className="text-center font-nunito text-[32px] font-extrabold text-ellieBlack lg:text-[45px]">
+          <h1 className="ie-title text-center">
             Reset your password
           </h1>
 
           {/* Instructional Text */}
-          <p className="mt-3 text-center font-nunito text-[18px] leading-[1.5] text-ellieBlack lg:text-[22px]">
+          <p className="ie-lede mt-4 text-center">
             Enter your email to receive a secure reset link.
           </p>
 
@@ -115,17 +115,17 @@ export function ResetPasswordPage(): JSX.Element {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full rounded-[12px] border border-[#7964A0] bg-white px-5 py-[14px] font-nunito text-[18px] text-ellieBlack placeholder-black/30 outline-none focus:border-ellieBlue focus:ring-2 focus:ring-ellieBlue/30"
+                className="ie-input"
               />
             </div>
 
             {errorMessage && (
-              <div className="rounded-[12px] border border-red-200 bg-red-50 px-5 py-3 font-nunito text-[16px] text-red-600">
+              <div className="ie-error" role="alert">
                 {errorMessage}
               </div>
             )}
             {successMessage && (
-              <div className="rounded-[12px] border border-green-200 bg-green-50 px-5 py-3 font-nunito text-[16px] text-green-700">
+              <div className="ie-success" role="status">
                 {successMessage}
               </div>
             )}
@@ -133,7 +133,7 @@ export function ResetPasswordPage(): JSX.Element {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="mt-2 inline-flex w-full items-center justify-center rounded-[12px] bg-ellieBlue px-[40px] py-[16px] font-nunito text-[18px] font-extrabold text-white transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ellieBlue disabled:cursor-not-allowed disabled:opacity-60 lg:text-[20px]"
+              className="ie-btn-primary mt-2 w-full py-[17px] text-[1.05rem]"
             >
               {isSubmitting ? 'Sending reset link...' : 'Reset Password'}
             </button>

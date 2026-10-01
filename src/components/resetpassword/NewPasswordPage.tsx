@@ -144,30 +144,30 @@ export function NewPasswordPage(): JSX.Element {
   };
 
   return (
-    <div className="bg-white pb-[80px] pt-[40px] lg:pb-[120px] lg:pt-[60px]">
-      <div className="container-ellie flex justify-center">
-        <div className="w-full max-w-[500px]">
+    <div className="ie-page relative pb-[80px] pt-[32px] lg:pb-[110px] lg:pt-[56px]">
+      <div className="ie-wrap flex justify-center">
+        <div className="ie-card w-full max-w-[520px] p-8 md:p-10">
           {/* Illustrative Graphic */}
           <div className="mb-8 flex justify-center">
             <img
               src={frameImage}
               alt="Secure account illustration"
-              className="h-auto w-full max-w-[250px] object-contain"
+              className="h-auto w-full max-w-[220px] object-contain"
             />
           </div>
 
           {/* Title */}
-          <h1 className="text-center font-nunito text-[24px] font-extrabold text-ellieBlack lg:text-[32px]">
+          <h1 className="ie-title text-center">
             Let's secure your account
           </h1>
 
           {/* Instructional Text */}
-          <p className="mt-3 text-center font-nunito text-[16px] leading-[1.5] text-ellieBlack lg:text-[18px]">
+          <p className="ie-lede mt-4 text-center">
             Create a new password to regain access to your Ellie.
           </p>
 
           {showRecoveryNotice && (
-            <div className="mt-4 rounded-[12px] border border-[#7964A0]/30 bg-[#7964A0]/10 px-5 py-3 font-nunito text-[15px] text-ellieGray">
+            <div className="mt-5 rounded-[14px] bg-ie-tViolet px-[18px] py-3 text-[0.95rem] text-ie-muted ring-1 ring-inset ring-ie-violet/25">
               We opened this page from your recovery link. Set a new password below and we'll finish the process for you
               automatically.
             </div>
@@ -182,13 +182,13 @@ export function NewPasswordPage(): JSX.Element {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="w-full rounded-[12px] border border-[#7964A0] bg-white px-5 py-[14px] pr-12 font-nunito text-[18px] text-ellieBlack placeholder-black/30 outline-none focus:border-ellieBlue focus:ring-2 focus:ring-ellieBlue/30"
+                className="ie-input pr-12"
                 disabled={isSubmitting || !!successMessage}
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-ellieGray hover:text-ellieBlack"
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-ie-muted transition-colors hover:text-ie-text"
                 aria-label={showPassword ? 'Hide password' : 'Show password'}
                 disabled={isSubmitting}
               >
@@ -212,13 +212,13 @@ export function NewPasswordPage(): JSX.Element {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
-                className="w-full rounded-[12px] border border-[#7964A0] bg-white px-5 py-[14px] pr-12 font-nunito text-[18px] text-ellieBlack placeholder-black/30 outline-none focus:border-ellieBlue focus:ring-2 focus:ring-ellieBlue/30"
+                className="ie-input pr-12"
                 disabled={isSubmitting || !!successMessage}
               />
               <button
                 type="button"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-ellieGray hover:text-ellieBlack"
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-ie-muted transition-colors hover:text-ie-text"
                 aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
                 disabled={isSubmitting}
               >
@@ -236,18 +236,18 @@ export function NewPasswordPage(): JSX.Element {
             </div>
 
             {errorMessage && (
-              <div className="rounded-[12px] border border-red-200 bg-red-50 px-5 py-3 font-nunito text-[16px] text-red-600">
+              <div className="ie-error" role="alert">
                 {errorMessage}
               </div>
             )}
             {successMessage && (
               <div className="space-y-3">
-                <div className="rounded-[12px] border border-green-200 bg-green-50 px-5 py-3 font-nunito text-[16px] text-green-700">
+                <div className="ie-success" role="status">
                   {successMessage}
                 </div>
-                <p className="text-center font-nunito text-[15px] text-ellieGray">
+                <p className="text-center text-[0.95rem] text-ie-muted">
                   You will be redirected to the login page shortly. If nothing happens,{' '}
-                  <Link to="/login" className="font-semibold text-ellieBlue underline">
+                  <Link to="/login" className="ie-link">
                     click here
                   </Link>
                   .
@@ -258,15 +258,15 @@ export function NewPasswordPage(): JSX.Element {
             <button
               type="submit"
               disabled={isSubmitting || !!successMessage || !accessToken || !refreshToken}
-              className="mt-2 inline-flex w-full items-center justify-center rounded-[12px] bg-ellieBlue px-[40px] py-[16px] font-nunito text-[18px] font-extrabold text-white transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ellieBlue disabled:cursor-not-allowed disabled:opacity-60 lg:text-[20px]"
+              className="ie-btn-primary mt-2 w-full py-[17px] text-[1.05rem]"
             >
               {isSubmitting ? 'Updating password...' : 'Continue and Login'}
             </button>
           </form>
 
-          <p className="mt-6 text-center font-nunito text-[15px] text-ellieGray">
+          <p className="mt-6 text-center text-[0.95rem] text-ie-muted">
             Link expired or not working?{' '}
-            <Link to="/forgot-password" className="font-semibold text-ellieBlue underline">
+            <Link to="/forgot-password" className="ie-link">
               Request a new reset email
             </Link>
             .

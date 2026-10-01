@@ -129,7 +129,7 @@ export function LoginPage(): JSX.Element {
   const showLoadingOverlay = isSubmitting || isSSOLoading !== null;
 
   return (
-    <div className="relative bg-white pb-[80px] pt-[40px] lg:pb-[120px] lg:pt-[60px]">
+    <div className="ie-page relative pb-[80px] pt-[32px] lg:pb-[110px] lg:pt-[56px]">
       {showLoadingOverlay && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/80 backdrop-blur-sm">
           <GradientLoader
@@ -143,24 +143,24 @@ export function LoginPage(): JSX.Element {
           />
         </div>
       )}
-      <div className="container-ellie">
-        <div className="grid gap-8 lg:grid-cols-2 lg:items-center lg:gap-[60px]">
+      <div className="ie-wrap">
+        <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:items-center lg:gap-[64px]">
           {/* Left Side - Login Form */}
-          <div className="w-full">
-            <h1 className="font-nunito text-[32px] font-extrabold text-ellieBlack lg:text-[45px]">
+          <div className="mx-auto w-full max-w-[480px] lg:mx-0">
+            <h1 className="ie-title">
               Login
             </h1>
-            <p className="mt-3 font-nunito text-[18px] leading-[1.5] text-ellieGray lg:text-[22px]">
+            <p className="ie-lede mt-4">
               Pick up right where you left off. Ellie remembers your meetings, notes, and decisions.
             </p>
 
-            <div className="mt-8 flex flex-col gap-4 lg:flex-row">
+            <div className="mt-8 flex flex-col gap-3 md:flex-row">
               {/* Quick Login Buttons */}
               <button
                 type="button"
                 onClick={handleGoogleLogin}
                 disabled={isSSOLoading !== null || isSubmitting}
-                className="flex w-full lg:flex-1 items-center justify-center gap-3 rounded-[12px] border border-[#7964A0] bg-white px-5 py-[14px] font-nunito text-[18px] font-semibold text-ellieBlack transition hover:bg-[rgba(121,100,160,0.05)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ellieBlue disabled:cursor-not-allowed disabled:opacity-60"
+                className="ie-btn-secondary w-full md:flex-1"
               >
                 <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -175,7 +175,7 @@ export function LoginPage(): JSX.Element {
                 type="button"
                 onClick={handleMicrosoftLogin}
                 disabled={isSSOLoading !== null || isSubmitting}
-                className="flex w-full lg:flex-1 items-center justify-center gap-3 rounded-[12px] border border-[#7964A0] bg-white px-5 py-[14px] font-nunito text-[18px] font-semibold text-ellieBlack transition hover:bg-[rgba(121,100,160,0.05)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ellieBlue disabled:cursor-not-allowed disabled:opacity-60"
+                className="ie-btn-secondary w-full md:flex-1"
               >
                 <svg className="h-5 w-5" viewBox="0 0 23 23" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M0 0h10.556v10.556H0V0z" fill="#F25022"/>
@@ -188,11 +188,7 @@ export function LoginPage(): JSX.Element {
             </div>
 
             {/* Divider */}
-            <div className="my-6 flex items-center gap-4">
-              <div className="h-[1px] flex-1 bg-[#7964A0]/30"></div>
-              <span className="font-nunito text-[16px] text-ellieGray">or</span>
-              <div className="h-[1px] flex-1 bg-[#7964A0]/30"></div>
-            </div>
+            <div className="ie-divider my-6">or</div>
 
             {/* Login Form */}
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -203,7 +199,7 @@ export function LoginPage(): JSX.Element {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="w-full rounded-[12px] border border-[#7964A0] bg-white px-5 py-[14px] font-nunito text-[18px] text-ellieBlack placeholder-black/30 outline-none focus:border-ellieBlue focus:ring-2 focus:ring-ellieBlue/30"
+                  className="ie-input"
                 />
               </div>
 
@@ -214,12 +210,12 @@ export function LoginPage(): JSX.Element {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="w-full rounded-[12px] border border-[#7964A0] bg-white px-5 py-[14px] pr-12 font-nunito text-[18px] text-ellieBlack placeholder-black/30 outline-none focus:border-ellieBlue focus:ring-2 focus:ring-ellieBlue/30"
+                  className="ie-input pr-12"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-ellieGray hover:text-ellieBlack"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-ie-muted transition-colors hover:text-ie-text"
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
                   {showPassword ? (
@@ -236,28 +232,28 @@ export function LoginPage(): JSX.Element {
               </div>
 
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2.5">
                   <input
                     type="checkbox"
                     id="remember"
                     checked={rememberMe}
                     onChange={(e) => setRememberMe(e.target.checked)}
-                    className="h-5 w-5 rounded border-[#7964A0] text-ellieBlue focus:ring-2 focus:ring-ellieBlue/30"
+                    className="ie-checkbox"
                   />
-                  <label htmlFor="remember" className="font-nunito text-[16px] text-ellieGray">
+                  <label htmlFor="remember" className="cursor-pointer text-[0.95rem] text-ie-muted">
                     Remember me
                   </label>
                 </div>
                 <Link
                   to="/reset-password"
-                  className="font-nunito text-[16px] font-semibold text-ellieBlue underline decoration-transparent transition hover:decoration-current"
+                  className="ie-link text-[0.95rem]"
                 >
                   Forgot Password?
                 </Link>
               </div>
 
               {errorMessage && (
-                <div className="rounded-[12px] border border-red-200 bg-red-50 px-5 py-3 font-nunito text-[16px] text-red-600">
+                <div className="ie-error" role="alert">
                   {errorMessage}
                 </div>
               )}
@@ -265,26 +261,27 @@ export function LoginPage(): JSX.Element {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="mt-2 inline-flex w-full items-center justify-center rounded-[12px] bg-ellieBlue px-[40px] py-[16px] font-nunito text-[18px] font-extrabold text-white transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ellieBlue disabled:cursor-not-allowed disabled:opacity-60 lg:text-[20px]"
+                className="ie-btn-primary mt-2 w-full py-[17px] text-[1.05rem]"
               >
                 {isSubmitting ? 'Logging in...' : 'Login'}
               </button>
             </form>
 
-            <p className="mt-6 text-center font-nunito text-[16px] text-ellieGray">
+            <p className="mt-6 text-center text-[0.95rem] text-ie-muted">
               Don't have an account?{' '}
-              <Link to="/signup" className="font-semibold text-ellieBlue underline decoration-transparent transition hover:decoration-current">
+              <Link to="/signup" className="ie-link">
                 Sign up
               </Link>
             </p>
           </div>
 
           {/* Right Side - Image */}
-          <div className="hidden lg:flex lg:items-center lg:justify-center">
+          <div className="relative hidden overflow-hidden rounded-[28px] bg-ie-hero p-10 lg:flex lg:items-center lg:justify-center">
+            <div aria-hidden="true" className="pointer-events-none absolute -bottom-[340px] -right-[220px] h-[620px] w-[620px] rounded-full bg-ie-aqua/30" />
             <img
               src={groupImage}
               alt="Ellie dashboard preview"
-              className="w-full h-auto max-w-full object-contain"
+              className="relative h-auto w-full max-w-full object-contain drop-shadow-[0_24px_40px_rgba(10,16,40,0.35)]"
             />
           </div>
         </div>

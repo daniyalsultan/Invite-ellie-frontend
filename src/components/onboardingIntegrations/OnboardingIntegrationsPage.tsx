@@ -176,35 +176,35 @@ export function OnboardingIntegrationsPage(): JSX.Element {
     EXPORTS.filter((e) => isExportConnected(e.id)).length;
 
   return (
-    <div className="bg-white pb-[80px] pt-[40px] lg:pb-[120px] lg:pt-[60px]">
-      <div className="container-ellie">
-        <div className="max-w-[900px] mx-auto">
+    <div className="ie-page pb-[80px] pt-[32px] lg:pb-[110px] lg:pt-[56px]">
+      <div className="ie-wrap">
+        <div className="mx-auto max-w-[900px]">
           <div className="text-center">
-            <h1 className="font-nunito text-[32px] font-extrabold text-ellieBlack lg:text-[45px]">
+            <h1 className="ie-title">
               Connect Your Tools
             </h1>
-            <p className="mx-auto mt-3 max-w-[560px] font-nunito text-[18px] leading-[1.5] text-[#545454] lg:text-[22px]">
+            <p className="ie-lede mx-auto mt-4 max-w-[600px]">
               Connect your calendar so Ellie can join and record your meetings automatically. You can also link your favourite tools for exporting notes.
             </p>
           </div>
 
           {error && (
-            <div className="mt-6 rounded-[12px] border border-red-200 bg-red-50 px-5 py-3 font-nunito text-[15px] text-red-600">
+            <div className="ie-error mt-6" role="alert">
               {error}
             </div>
           )}
 
           {successMessage && (
-            <div className="mt-6 rounded-[12px] border border-green-200 bg-green-50 px-5 py-3 font-nunito text-[15px] text-green-700">
+            <div className="ie-success mt-6" role="status">
               {successMessage}
             </div>
           )}
 
           <div className="mt-10">
-            <h2 className="font-nunito text-[20px] font-bold text-ellieBlack lg:text-[24px]">
+            <h2 className="ie-subtitle">
               Calendar
             </h2>
-            <p className="mt-1 font-nunito text-[15px] text-[#7A86A1]">
+            <p className="mt-1.5 text-[0.95rem] text-ie-muted">
               Connect at least one calendar to let Ellie auto-join your meetings.
             </p>
             <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -213,21 +213,21 @@ export function OnboardingIntegrationsPage(): JSX.Element {
                 return (
                   <div
                     key={cal.id}
-                    className={`flex items-center gap-4 rounded-[16px] border-2 p-5 transition-all ${
+                    className={`flex items-center gap-4 rounded-[20px] p-5 transition-all ${
                       connected
-                        ? 'border-green-300 bg-green-50/50'
-                        : 'border-[#E5E7EB] bg-white hover:border-ellieBlue/40 hover:shadow-[0_4px_12px_rgba(0,0,0,0.06)]'
+                        ? 'bg-ie-tAqua/40 ring-2 ring-ie-green/50'
+                        : 'bg-white ring-1 ring-ie-line hover:bg-ie-bgAlt'
                     }`}
                   >
                     <img src={cal.icon} alt="" className="h-12 w-12 object-contain" />
                     <div className="flex-1 min-w-0">
-                      <p className="font-nunito text-[16px] font-bold text-ellieBlack">{cal.name}</p>
-                      <p className="mt-0.5 font-nunito text-[13px] leading-snug text-[#545454]">
+                      <p className="text-[1rem] font-semibold text-ie-text">{cal.name}</p>
+                      <p className="mt-1 text-[0.88rem] leading-[1.45] text-ie-muted">
                         {cal.description}
                       </p>
                     </div>
                     {connected ? (
-                      <span className="flex items-center gap-1.5 rounded-full bg-green-100 px-3 py-1.5 font-nunito text-[13px] font-semibold text-green-700">
+                      <span className="flex items-center gap-1.5 rounded-full bg-ie-tAqua px-3 py-1.5 text-[0.85rem] font-semibold text-[#1D6B5A] ring-1 ring-inset ring-ie-green/30">
                         <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                         </svg>
@@ -238,7 +238,7 @@ export function OnboardingIntegrationsPage(): JSX.Element {
                         type="button"
                         onClick={() => void connectCalendar(cal)}
                         disabled={connecting === cal.id}
-                        className="shrink-0 rounded-[10px] bg-ellieBlue px-5 py-2.5 font-nunito text-[14px] font-bold text-white transition hover:opacity-90 disabled:opacity-50"
+                        className="ie-btn-primary ie-btn-sm shrink-0"
                       >
                         {connecting === cal.id ? 'Connecting...' : 'Connect'}
                       </button>
@@ -250,10 +250,10 @@ export function OnboardingIntegrationsPage(): JSX.Element {
           </div>
 
           <div className="mt-10">
-            <h2 className="font-nunito text-[20px] font-bold text-ellieBlack lg:text-[24px]">
+            <h2 className="ie-subtitle">
               Export Integrations
             </h2>
-            <p className="mt-1 font-nunito text-[15px] text-[#7A86A1]">
+            <p className="mt-1.5 text-[0.95rem] text-ie-muted">
               Optionally connect tools where you'd like Ellie to export meeting notes.
             </p>
             <div className="mt-4 grid gap-4 md:grid-cols-3">
@@ -262,10 +262,10 @@ export function OnboardingIntegrationsPage(): JSX.Element {
                 return (
                   <div
                     key={exp.id}
-                    className={`flex flex-col items-center rounded-[16px] border-2 p-5 text-center transition-all ${
+                    className={`flex flex-col items-center rounded-[20px] p-5 text-center transition-all ${
                       connected
-                        ? 'border-green-300 bg-green-50/50'
-                        : 'border-[#E5E7EB] bg-white hover:border-ellieBlue/40 hover:shadow-[0_4px_12px_rgba(0,0,0,0.06)]'
+                        ? 'bg-ie-tAqua/40 ring-2 ring-ie-green/50'
+                        : 'bg-white ring-1 ring-ie-line hover:bg-ie-bgAlt'
                     }`}
                   >
                     <div className="flex h-12 items-center justify-center">
@@ -280,14 +280,14 @@ export function OnboardingIntegrationsPage(): JSX.Element {
                         </span>
                       )}
                     </div>
-                    <p className="mt-3 font-nunito text-[15px] font-bold text-ellieBlack">
+                    <p className="mt-3 text-[1rem] font-semibold text-ie-text">
                       {exp.name}
                     </p>
-                    <p className="mt-1 font-nunito text-[13px] leading-snug text-[#545454]">
+                    <p className="mt-1 text-[0.88rem] leading-[1.45] text-ie-muted">
                       {exp.description}
                     </p>
                     {connected ? (
-                      <span className="mt-4 flex items-center gap-1.5 rounded-full bg-green-100 px-3 py-1.5 font-nunito text-[13px] font-semibold text-green-700">
+                      <span className="mt-4 flex items-center gap-1.5 rounded-full bg-ie-tAqua px-3 py-1.5 text-[0.85rem] font-semibold text-[#1D6B5A] ring-1 ring-inset ring-ie-green/30">
                         <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                         </svg>
@@ -298,7 +298,7 @@ export function OnboardingIntegrationsPage(): JSX.Element {
                         type="button"
                         onClick={() => void connectExport(exp)}
                         disabled={connecting === exp.id}
-                        className="mt-4 rounded-[10px] bg-ellieBlue px-5 py-2.5 font-nunito text-[14px] font-bold text-white transition hover:opacity-90 disabled:opacity-50"
+                        className="ie-btn-primary ie-btn-sm mt-4"
                       >
                         {connecting === exp.id ? 'Connecting...' : 'Connect'}
                       </button>
@@ -313,12 +313,12 @@ export function OnboardingIntegrationsPage(): JSX.Element {
             <button
               type="button"
               onClick={() => navigate('/dashboard', { replace: true })}
-              className="inline-flex w-full items-center justify-center rounded-[12px] bg-ellieBlue px-[40px] py-[16px] font-nunito text-[18px] font-extrabold text-white transition hover:opacity-90 lg:text-[20px]"
+              className="ie-btn-primary w-full py-[17px] text-[1.05rem]"
             >
               {connectedCount > 0 ? 'Continue to Dashboard' : 'Continue to Dashboard'}
             </button>
             {connectedCount === 0 && (
-              <p className="mt-3 text-center font-nunito text-[14px] text-[#7A86A1]">
+              <p className="mt-3 text-center text-[0.93rem] text-ie-muted">
                 You can connect these later from the Integrations page.
               </p>
             )}
