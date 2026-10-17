@@ -379,3 +379,87 @@ export async function getFolderWorkspaceInsights(
   };
 }
 
+
+/** Structured records extracted from a meeting (recall-server `meeting_records`). */
+export type MeetingRecordType =
+  | 'commitment'
+  | 'decision'
+  | 'blocker'
+  | 'promise'
+  | 'risk'
+  | 'action_item';
+
+export type MeetingRecordStatus = 'open' | 'resolved' | 'dropped' | 'superseded';
+
+export type MeetingRecordHistoryEntry = {
+  id: string;
+  event_type: 'restated' | 'progressed' | 'resolved' | 'contradicted' | 'dropped';
+  excerpt?: string | null;
+  note?: string | null;
+  transcription_id?: string | null;
+  created_at?: string | null;
+};
+
+export type MeetingRecord = {
+  id: string;
+  record_type: MeetingRecordType;
+  text: string;
+  owner?: string | null;
+  /** As spoken ("end of the week"), deliberately not parsed into a date. */
+  deadline?: string | null;
+  status: MeetingRecordStatus;
+  /** Decisions only. */
+  rationale?: string | null;
+  evidence_excerpt?: string | null;
+  transcription_id: string;
+  meeting_title?: string | null;
+  meeting_start?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  history: MeetingRecordHistoryEntry[];
+};
+
+export type MeetingRecordsResponse = {
+  records: MeetingRecord[];
+  by_type: Record<string, MeetingRecord[]>;
+  counts: Record<string, number>;
+  total: number;
+};
+
+async function fetchRecords(path: string): Promise<MeetingRecordsResponse> {
+  const url = buildRecallaiUrl(path);
+  if (!url) {
+    throw new Error('Recallai backend URL is not configured.');
+  }
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+      'ngrok-skip-browser-warning': 'true',
+    },
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch records: ${await response.text()}`);
+  }
+  const data = await response.json();
+  return {
+    records: Array.isArray(data?.records) ? data.records : [],
+    by_type: data?.by_type && typeof data.by_type === 'object' ? data.by_type : {},
+    counts: data?.counts && typeof data.counts === 'object' ? data.counts : {},
+    total: typeof data?.total === 'number' ? data.total : 0,
+  };
+}
+
+/** Records for one meeting. */
+export async function getMeetingRecords(transcriptionId: string, userId: string): Promise<MeetingRecordsResponse> {
+  return fetchRecords(
+    `/api/transcriptions/${encodeURIComponent(transcriptionId)}/records?userId=${encodeURIComponent(userId)}`,
+  );
+}
+
+/** Records across every meeting in a workspace. */
+export async function getWorkspaceRecords(workspaceId: string, userId: string): Promise<MeetingRecordsResponse> {
+  return fetchRecords(
+    `/api/workspaces/${encodeURIComponent(workspaceId)}/records?userId=${encodeURIComponent(userId)}`,
+  );
+}

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { Transcription, ActionItem } from '../../services/transcriptionApi';
 import { normalizeStringArray, normalizeActionItems } from '../../services/transcriptionApi';
 import { isAbsentScalar } from '../../utils/meetingDisplay';
+import { MeetingRecordsPanel } from './MeetingRecordsPanel';
 
 type Props = {
   transcription: Transcription | null;
@@ -414,6 +415,8 @@ export function MeetingInsightsPanel({
           </p>
         )}
       </div>
+
+      <MeetingRecordsPanel transcriptionId={transcription.id} compact={compact} />
     </div>
   );
 }
