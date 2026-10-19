@@ -389,7 +389,13 @@ export type MeetingRecordType =
   | 'risk'
   | 'action_item';
 
-export type MeetingRecordStatus = 'open' | 'resolved' | 'dropped' | 'superseded';
+export type MeetingRecordStatus =
+  | 'open'
+  | 'resolved'
+  | 'dropped'
+  /** Never a real commitment — the extraction was wrong. */
+  | 'dismissed'
+  | 'superseded';
 
 export type MeetingRecordLastHeard = {
   event_type: 'restated' | 'progressed' | 'resolved' | 'contradicted' | 'dropped';
@@ -400,11 +406,23 @@ export type MeetingRecordLastHeard = {
 
 export type MeetingRecordHistoryEntry = {
   id: string;
-  event_type: 'restated' | 'progressed' | 'resolved' | 'contradicted' | 'dropped';
+  event_type:
+    | 'restated'
+    | 'progressed'
+    | 'resolved'
+    | 'contradicted'
+    | 'dropped'
+    | 'corrected'
+    | 'dismissed'
+    | 'closed_by_person'
+    | 'reopened';
   excerpt?: string | null;
   note?: string | null;
   transcription_id?: string | null;
   created_at?: string | null;
+  /** A person did this, rather than a later meeting showing it. */
+  by_person?: boolean;
+  changes?: Record<string, { from?: string | null; to?: string | null }>;
 };
 
 export type MeetingRecord = {
@@ -425,6 +443,8 @@ export type MeetingRecord = {
   updated_at?: string | null;
   /** 'person' once someone has ruled on it; the model then leaves it alone. */
   status_source?: 'model' | 'person';
+  /** True once someone has ruled on it; the model then leaves it alone. */
+  corrected?: boolean;
   /** Days since the meeting it was made in. Not "overdue": deadlines are
    *  kept as they were spoken and never parsed into dates. */
   age_days?: number | null;
@@ -492,4 +512,39 @@ export async function getWorkspaceUnresolved(
   return fetchRecords(
     `/api/workspaces/${encodeURIComponent(workspaceId)}/unresolved?userId=${encodeURIComponent(userId)}`,
   );
+}
+
+export type RecordCorrection = {
+  owner?: string | null;
+  deadline?: string | null;
+  status?: MeetingRecordStatus;
+  note?: string;
+  dismiss?: boolean;
+};
+
+/** Correct, close or dismiss one record. Any member of the workspace may. */
+export async function correctRecord(
+  recordId: string,
+  userId: string,
+  change: RecordCorrection,
+): Promise<{ changed: boolean; record: MeetingRecord }> {
+  const url = buildRecallaiUrl(
+    `/api/records/${encodeURIComponent(recordId)}/correct?userId=${encodeURIComponent(userId)}`,
+  );
+  if (!url) {
+    throw new Error('Recallai backend URL is not configured.');
+  }
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      'ngrok-skip-browser-warning': 'true',
+    },
+    body: JSON.stringify(change),
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to correct record: ${await response.text()}`);
+  }
+  return response.json();
 }

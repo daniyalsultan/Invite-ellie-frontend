@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { getMeetingRecords } from '../../services/transcriptionApi';
 import type { MeetingRecord, MeetingRecordType } from '../../services/transcriptionApi';
 import { loadSession } from '../../utils/authStorage';
+import { CorrectedMark, RecordActions } from './RecordActions';
 
 type Props = {
   transcriptionId: string | null | undefined;
@@ -38,7 +39,15 @@ const HISTORY_LABEL: Record<string, string> = {
   dropped: 'Dropped',
 };
 
-function RecordRow({ record }: { record: MeetingRecord }): JSX.Element {
+function RecordRow({
+  record,
+  userId,
+  onChanged,
+}: {
+  record: MeetingRecord;
+  userId: string | null;
+  onChanged: (updated: MeetingRecord) => void;
+}): JSX.Element {
   const [showEvidence, setShowEvidence] = useState(false);
   const hasEvidence = Boolean((record.evidence_excerpt || '').trim());
 
@@ -54,6 +63,7 @@ function RecordRow({ record }: { record: MeetingRecord }): JSX.Element {
         >
           {record.status}
         </span>
+        <CorrectedMark record={record} />
         {record.owner ? (
           <span className="inline-flex items-center rounded-full bg-[#F1F5F9] px-2.5 py-1 text-[#475569]">
             Owner: {record.owner}
@@ -110,12 +120,15 @@ function RecordRow({ record }: { record: MeetingRecord }): JSX.Element {
           ) : null}
         </div>
       ) : null}
+
+      <RecordActions record={record} userId={userId} onChanged={onChanged} />
     </li>
   );
 }
 
 export function MeetingRecordsPanel({ transcriptionId, compact = false }: Props): JSX.Element | null {
   const [records, setRecords] = useState<MeetingRecord[] | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
 
@@ -124,15 +137,16 @@ export function MeetingRecordsPanel({ transcriptionId, compact = false }: Props)
       setRecords(null);
       return;
     }
-    const userId = loadSession()?.userId;
-    if (!userId) {
+    const session = loadSession()?.userId ?? null;
+    setUserId(session);
+    if (!session) {
       setRecords(null);
       return;
     }
     let cancelled = false;
     setLoading(true);
     setFailed(false);
-    getMeetingRecords(transcriptionId, userId)
+    getMeetingRecords(transcriptionId, session)
       .then((payload) => {
         if (!cancelled) setRecords(payload.records);
       })
@@ -177,7 +191,9 @@ export function MeetingRecordsPanel({ transcriptionId, compact = false }: Props)
       ) : (
         <div className="space-y-4">
           {SECTIONS.map((section) => {
-            const rows = (records ?? []).filter((r) => r.record_type === section.type);
+            const rows = (records ?? []).filter(
+              (r) => r.record_type === section.type && r.status !== 'dismissed',
+            );
             if (rows.length === 0) return null;
             return (
               <div key={section.type}>
@@ -186,7 +202,16 @@ export function MeetingRecordsPanel({ transcriptionId, compact = false }: Props)
                 </div>
                 <ul className="space-y-3">
                   {rows.map((record) => (
-                    <RecordRow key={record.id} record={record} />
+                    <RecordRow
+                      key={record.id}
+                      record={record}
+                      userId={userId}
+                      onChanged={(updated) =>
+                        setRecords((current) =>
+                          (current ?? []).map((r) => (r.id === updated.id ? updated : r)),
+                        )
+                      }
+                    />
                   ))}
                 </ul>
               </div>

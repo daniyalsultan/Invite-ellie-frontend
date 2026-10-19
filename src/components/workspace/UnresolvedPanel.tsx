@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getWorkspaceUnresolved } from '../../services/transcriptionApi';
 import type { MeetingRecord, MeetingRecordsResponse } from '../../services/transcriptionApi';
+import { CorrectedMark, RecordActions } from '../meeting/RecordActions';
 
 type Props = {
   workspaceId: string | null | undefined;
@@ -33,7 +34,15 @@ function howLong(days: number | null | undefined): string {
   return `${Math.round(days / 30)} months`;
 }
 
-function Row({ record }: { record: MeetingRecord }): JSX.Element {
+function Row({
+  record,
+  userId,
+  onChanged,
+}: {
+  record: MeetingRecord;
+  userId: string | null | undefined;
+  onChanged: (updated: MeetingRecord) => void;
+}): JSX.Element {
   const heard = record.last_heard;
   return (
     <li className="rounded-2xl border border-gray-200 bg-white p-4">
@@ -54,6 +63,7 @@ function Row({ record }: { record: MeetingRecord }): JSX.Element {
             Said: {record.deadline}
           </span>
         ) : null}
+        <CorrectedMark record={record} />
       </div>
 
       <p className="font-nunito text-sm font-medium text-[#25324B]">{record.text}</p>
@@ -71,6 +81,8 @@ function Row({ record }: { record: MeetingRecord }): JSX.Element {
           <span className="italic">Not mentioned in any meeting since.</span>
         )}
       </div>
+
+      <RecordActions record={record} userId={userId} onChanged={onChanged} />
     </li>
   );
 }
@@ -118,7 +130,7 @@ export function UnresolvedPanel({ workspaceId, userId }: Props): JSX.Element | n
 
   if (!workspaceId) return null;
 
-  const records = data?.records ?? [];
+  const records = (data?.records ?? []).filter((r) => r.status === 'open');
   const visible = showAll ? records : records.slice(0, 5);
 
   return (
@@ -158,7 +170,23 @@ export function UnresolvedPanel({ workspaceId, userId }: Props): JSX.Element | n
 
           <ul className="space-y-3 max-h-96 overflow-y-auto">
             {visible.map((record) => (
-              <Row key={record.id} record={record} />
+              <Row
+                key={record.id}
+                record={record}
+                userId={userId}
+                onChanged={(updated) =>
+                  setData((current) =>
+                    current
+                      ? {
+                          ...current,
+                          records: current.records.map((r) =>
+                            r.id === updated.id ? updated : r,
+                          ),
+                        }
+                      : current,
+                  )
+                }
+              />
             ))}
           </ul>
 
