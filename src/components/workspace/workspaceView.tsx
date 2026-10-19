@@ -28,6 +28,7 @@ import {
   type FolderMeetingsOverviewActionItem,
 } from '../../services/transcriptionApi';
 import { MeetingInsightsPanel } from '../meeting/MeetingInsightsPanel';
+import { UnresolvedPanel } from './UnresolvedPanel';
 import { getSlackStatus, slackExport, getSlackChannels, type SlackChannel } from '../../services/slackApi';
 import { ExportConfirmDialog, type PendingExport } from '../exports';
 import { getNotionStatus, notionExport } from '../../services/notionApi';
@@ -923,6 +924,12 @@ export function WorkspaceViewPage(): JSX.Element {
                           )}
                         </article>
                       </section>
+
+                      {/* What the workspace is still waiting on. Above the
+                          aggregated action items on purpose: an open
+                          commitment with an owner and an age is more
+                          actionable than a restatement of everything. */}
+                      <UnresolvedPanel workspaceId={workspaceId} userId={profile?.id} />
 
                       {/* Action items */}
                       <section>

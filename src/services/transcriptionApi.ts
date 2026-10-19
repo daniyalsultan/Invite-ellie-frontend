@@ -391,6 +391,13 @@ export type MeetingRecordType =
 
 export type MeetingRecordStatus = 'open' | 'resolved' | 'dropped' | 'superseded';
 
+export type MeetingRecordLastHeard = {
+  event_type: 'restated' | 'progressed' | 'resolved' | 'contradicted' | 'dropped';
+  excerpt?: string | null;
+  transcription_id?: string | null;
+  created_at?: string | null;
+};
+
 export type MeetingRecordHistoryEntry = {
   id: string;
   event_type: 'restated' | 'progressed' | 'resolved' | 'contradicted' | 'dropped';
@@ -416,6 +423,13 @@ export type MeetingRecord = {
   meeting_start?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
+  /** 'person' once someone has ruled on it; the model then leaves it alone. */
+  status_source?: 'model' | 'person';
+  /** Days since the meeting it was made in. Not "overdue": deadlines are
+   *  kept as they were spoken and never parsed into dates. */
+  age_days?: number | null;
+  /** The most recent thing a later meeting said about it, if anything. */
+  last_heard?: MeetingRecordLastHeard | null;
   history: MeetingRecordHistoryEntry[];
 };
 
@@ -424,6 +438,9 @@ export type MeetingRecordsResponse = {
   by_type: Record<string, MeetingRecord[]>;
   counts: Record<string, number>;
   total: number;
+  /** Only on the unresolved view. */
+  unowned?: number;
+  never_mentioned_again?: number;
 };
 
 async function fetchRecords(path: string): Promise<MeetingRecordsResponse> {
@@ -447,6 +464,9 @@ async function fetchRecords(path: string): Promise<MeetingRecordsResponse> {
     by_type: data?.by_type && typeof data.by_type === 'object' ? data.by_type : {},
     counts: data?.counts && typeof data.counts === 'object' ? data.counts : {},
     total: typeof data?.total === 'number' ? data.total : 0,
+    unowned: typeof data?.unowned === 'number' ? data.unowned : undefined,
+    never_mentioned_again:
+      typeof data?.never_mentioned_again === 'number' ? data.never_mentioned_again : undefined,
   };
 }
 
@@ -461,5 +481,15 @@ export async function getMeetingRecords(transcriptionId: string, userId: string)
 export async function getWorkspaceRecords(workspaceId: string, userId: string): Promise<MeetingRecordsResponse> {
   return fetchRecords(
     `/api/workspaces/${encodeURIComponent(workspaceId)}/records?userId=${encodeURIComponent(userId)}`,
+  );
+}
+
+/** What is still outstanding across a workspace, oldest first. */
+export async function getWorkspaceUnresolved(
+  workspaceId: string,
+  userId: string,
+): Promise<MeetingRecordsResponse> {
+  return fetchRecords(
+    `/api/workspaces/${encodeURIComponent(workspaceId)}/unresolved?userId=${encodeURIComponent(userId)}`,
   );
 }
