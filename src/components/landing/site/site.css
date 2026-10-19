@@ -257,10 +257,12 @@ p{margin:0}
 .bc{background:#fff;border:1px solid #E6EAF1;border-radius:9px;padding:8px 9px;font-size:.78rem;line-height:1.35}
 .bc+.bc{margin-top:6px}
 .who{display:block;margin-top:5px;font-size:.68rem;color:#6B7189}
-@media(max-width:640px){.cols{grid-template-columns:1fr 1fr}}
-/* The workspace card lists members against meetings, so two columns
-   rather than the four the Project DNA board uses. */
+/* The workspace card lists members against meetings, so two columns rather
+   than the four the Project DNA board uses. Declared before the narrow-width
+   rule below so that rule still has the last word: otherwise a later change
+   stacking .cols on a phone would silently leave this one card two-up. */
 .cols-2{grid-template-columns:1fr 1fr}
+@media(max-width:640px){.cols{grid-template-columns:1fr 1fr}}
 /* Initials instead of an avatar: no image to load, and no face to be
    wrong about. */
 .ini{display:flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:#E8E3F2;color:#4A4066;font-size:.64rem;font-weight:700;letter-spacing:.02em;flex:none}
