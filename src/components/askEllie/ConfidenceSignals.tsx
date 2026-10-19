@@ -20,6 +20,29 @@ export interface GroundedSegment {
   timestamp: string;
   start_time: number;
   relevance_score?: number;
+  /** 'record' when the quote came from a structured record, which has no time. */
+  source?: 'record' | 'transcript';
+  record_type?: string | null;
+  /** The record's own statement, when the quote is its evidence line. */
+  statement?: string | null;
+}
+
+const RECORD_LABEL: Record<string, string> = {
+  commitment: 'Commitment',
+  decision: 'Decision',
+  blocker: 'Blocker',
+  promise: 'Promise',
+  risk: 'Risk',
+  action_item: 'Action item',
+};
+
+/** What to show where a timestamp would go. A record has no time, and
+ *  printing 0:00 for one would be a wrong answer rather than a missing one. */
+export function segmentOrigin(segment: GroundedSegment): string {
+  if (segment.source === 'record') {
+    return RECORD_LABEL[segment.record_type ?? ''] ?? 'Record';
+  }
+  return segment.timestamp;
 }
 
 export function ResponseStateBadge({ state }: { state?: ResponseState }): JSX.Element | null {
@@ -79,7 +102,7 @@ export function CitedAnswer({ citations, segments, fallback }: CitedAnswerProps)
                 type="button"
                 onClick={() => setOpen(open === i ? null : i)}
                 aria-expanded={open === i}
-                title={segments ? `${segments[i].speaker} at ${segments[i].timestamp}` : undefined}
+                title={segments ? `${segments[i].speaker} — ${segmentOrigin(segments[i])}` : undefined}
                 className="ml-0.5 align-super text-[10px] font-nunito font-semibold text-ellieBlue hover:underline"
               >
                 [{i + 1}]
@@ -88,7 +111,7 @@ export function CitedAnswer({ citations, segments, fallback }: CitedAnswerProps)
             {refs.includes(open ?? -1) && segments ? (
               <span className="mt-1 mb-1 block rounded bg-gray-50 p-2 text-xs font-nunito">
                 <span className="font-semibold text-ellieBlue">{segments[open as number].speaker}</span>
-                <span className="text-ellieGray"> • {segments[open as number].timestamp}</span>
+                <span className="text-ellieGray"> • {segmentOrigin(segments[open as number])}</span>
                 <span className="mt-1 block italic text-ellieBlack">
                   "{segments[open as number].text}"
                 </span>
@@ -149,7 +172,7 @@ export function TranscriptReferences({ segments, collapsible = false }: Transcri
                 <span className="font-semibold text-ellieBlue">[{idx + 1}]</span>
                 <span className="font-semibold text-ellieBlue">{segment.speaker}</span>
                 <span className="text-ellieGray">•</span>
-                <span className="text-ellieGray">{segment.timestamp}</span>
+                <span className="text-ellieGray">{segmentOrigin(segment)}</span>
               </div>
               <div className="text-ellieBlack italic">
                 "{segment.text}"
