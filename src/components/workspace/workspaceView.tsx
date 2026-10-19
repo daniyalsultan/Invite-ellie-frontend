@@ -34,6 +34,7 @@ import { ExportConfirmDialog, type PendingExport } from '../exports';
 import { getNotionStatus, notionExport } from '../../services/notionApi';
 import { getHubSpotStatus, hubspotExport } from '../../services/hubspotApi';
 import { splitOverviewSummaryToBullets } from '../../utils/overviewSummaryBullets';
+import { howLongAgo, isStale } from '../../utils/freshness';
 
 type StatusMessage = {
   type: 'success' | 'error';
@@ -156,7 +157,7 @@ export function WorkspaceViewPage(): JSX.Element {
   const [, setOverviewBackendActions] = useState<FolderMeetingsOverviewActionItem[]>([]);
   const [overviewLoading, setOverviewLoading] = useState(false);
   const [overviewError, setOverviewError] = useState<string | null>(null);
-  const [overviewCached, setOverviewCached] = useState(false);
+  const [overviewComputedAt, setOverviewComputedAt] = useState<string | null>(null);
 
   // Meeting detail modal
   const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false);
@@ -300,7 +301,7 @@ export function WorkspaceViewPage(): JSX.Element {
       setOverviewBackendActions([]);
       setOverviewLoading(false);
       setOverviewError(null);
-      setOverviewCached(false);
+      setOverviewComputedAt(null);
       return;
     }
     let cancelled = false;
@@ -311,14 +312,13 @@ export function WorkspaceViewPage(): JSX.Element {
         if (cancelled) return;
         setOverviewBackendSummary(typeof data.summary === 'string' ? data.summary : '');
         setOverviewBackendActions(Array.isArray(data.action_items) ? data.action_items : []);
-        setOverviewCached(Boolean(data.cached));
+        setOverviewComputedAt(data.computed_at ?? null);
       })
       .catch((err) => {
         if (cancelled) return;
         setOverviewError(err instanceof Error ? err.message : 'Overview request failed');
         setOverviewBackendSummary(null);
         setOverviewBackendActions([]);
-        setOverviewCached(false);
       })
       .finally(() => {
         if (!cancelled) setOverviewLoading(false);
@@ -792,9 +792,16 @@ export function WorkspaceViewPage(): JSX.Element {
                               {workspaceOverviewStats.totalActions} action item{workspaceOverviewStats.totalActions === 1 ? '' : 's'}
                             </span>
                           )}
-                          {overviewCached && (overviewBackendSummary || '').trim() && (
-                            <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 font-nunito text-xs font-semibold text-slate-600">
-                              AI overview cached
+                          {overviewComputedAt && (overviewBackendSummary || '').trim() && (
+                            <span
+                              title={new Date(overviewComputedAt).toLocaleString()}
+                              className={`inline-flex items-center rounded-full px-3 py-1 font-nunito text-xs font-semibold ${
+                                isStale(overviewComputedAt)
+                                  ? 'bg-amber-50 text-amber-900'
+                                  : 'bg-slate-100 text-slate-600'
+                              }`}
+                            >
+                              Written {howLongAgo(overviewComputedAt)}
                             </span>
                           )}
                         </div>

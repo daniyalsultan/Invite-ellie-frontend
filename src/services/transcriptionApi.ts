@@ -234,6 +234,8 @@ export type FolderMeetingsOverviewResponse = {
   meetings_count?: number;
   cached?: boolean;
   source_signature?: string;
+  /** When this overview was written — not when it was requested. */
+  computed_at?: string | null;
 };
 
 /**

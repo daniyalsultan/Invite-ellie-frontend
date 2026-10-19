@@ -3,6 +3,7 @@ import type { Transcription, ActionItem } from '../../services/transcriptionApi'
 import { normalizeStringArray, normalizeActionItems } from '../../services/transcriptionApi';
 import { isAbsentScalar } from '../../utils/meetingDisplay';
 import { MeetingRecordsPanel } from './MeetingRecordsPanel';
+import { howLongAgo, isStale } from '../../utils/freshness';
 
 type Props = {
   transcription: Transcription | null;
@@ -205,10 +206,23 @@ export function MeetingInsightsPanel({
       <div
         className={`${mb} ${pad} bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-200 relative overflow-visible`}
       >
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between gap-2 mb-3">
           <h3 className="font-nunito text-sm md:text-base font-bold text-[#25324B]">
             Key Outcomes &amp; Signals
           </h3>
+          {/* When this was written. A summary regenerated weeks ago looks
+              exactly like one written this morning, and people trust it
+              accordingly. */}
+          {!loading && hasAnyIntelligence && transcription.updated_at ? (
+            <span
+              title={new Date(transcription.updated_at).toLocaleString()}
+              className={`shrink-0 font-nunito text-xs ${
+                isStale(transcription.updated_at, 30) ? 'text-amber-700' : 'text-[#6B7A96]'
+              }`}
+            >
+              Written {howLongAgo(transcription.updated_at)}
+            </span>
+          ) : null}
         </div>
         {loading ? (
           <p className="font-nunito text-xs md:text-sm text-[#6B7A96] italic">
