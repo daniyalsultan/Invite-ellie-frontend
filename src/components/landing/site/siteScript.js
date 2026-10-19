@@ -81,8 +81,8 @@ export function initSite(){
     var W=mob?600:1200, H=mob?720:430, px=mob?40:48, top=mob?90:74, bot=H-(mob?96:78);
     svg.setAttribute('viewBox','0 0 '+W+' '+H); svg.innerHTML=''; gEls=[];
     var r=rng(11);
-    var L=mob?[['Kickoff call',.04,.62],['Scope change',.36,.18],['Mockup v3',.66,.72],['Renewal',.96,.3]]
-             :[['Kickoff call',.03,.58],['First feedback',.18,.2],['Scope change',.34,.74],['Budget decision',.5,.28],['Mockup v3',.66,.7],['New hire brief',.81,.16],['Renewal',.97,.54]];
+    var L=mob?[['Kickoff call',.04,.62],['Scope change',.36,.18],['Launch date set',.66,.72],['Renewal',.96,.3]]
+             :[['Kickoff call',.03,.58],['First feedback',.18,.2],['Scope change',.34,.74],['Budget decision',.5,.28],['Launch date set',.66,.7],['New hire brief',.81,.16],['Renewal',.97,.54]];
     function X(n){return px+n*(W-2*px);} function Y(n){return top+n*(bot-top);}
     var nodes=L.map(function(l){return{x:X(l[1]),y:Y(l[2]),lab:l[0],big:true};});
     var N=mob?58:92;
@@ -137,7 +137,7 @@ export function initSite(){
     {q:"I'm new on Cinderwood Brewing. What do I need to know first?",a:"Launch is set for April, tied to their financial year. The founder wants the copper accents kept. Priya owes three label concepts by Sep 4, and legal still has to clear the ABV claims before print.",s:["Kickoff call","Aug 14 review","Aug 21 follow-up"]},
     {q:"What was Sam handling on Lumora Health before he left?",a:"Sam owned the patient portal copy and the weekly check-in with their marketing lead. Two commitments are still open: the revised FAQ due Oct 2 and the accessibility summary.",s:["Portal kickoff","Sep 3 check-in","Sep 10 check-in"]},
     {q:"Why did we drop the video series for Northwind Trading?",a:"On Jun 12 the client cut their Q3 budget by a third. On the Jul 3 call they chose paid search over video, and they confirmed the change on the Jul 10 check-in.",s:["Jun 12 budget call","Jul 3 planning","Jul 10 check-in"]},
-    {q:"Where did we leave the New Jack Toy Corp packaging project?",a:"Paused in March after round two. The client picked concept B, asked for a softer yellow, and wanted retail shelf mockups before restarting. Nothing is open on our side.",s:["Mar 2 review","Mar 9 wrap-up"]},
+    {q:"Where did we leave the New Jack Toy Corp packaging project?",a:"Paused in March after round two. The client picked concept B, asked for a softer yellow, and wanted a retail shelf plan agreed before restarting. Nothing is open on our side.",s:["Mar 2 review","Mar 9 wrap-up"]},
     {q:"I'm covering Marlowe &amp; Finch this week. What's live?",a:"One open item: they need the on-premise pricing summary before Friday. Their IT team is running a network test first. Don't promise a rollout date, since April is their hard stop for new contracts.",s:["Aug 13 discovery call","Aug 21 follow-up"]}
   ];
   var tabs=[].slice.call(document.querySelectorAll('.m-tab')), panel=document.getElementById('m-panel'), list=document.querySelector('.m-list'), body=panel.querySelector('.md-body'), cur=0, auto=!RM;
