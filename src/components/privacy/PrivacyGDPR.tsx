@@ -169,11 +169,11 @@ export function PrivacyGDPR(): JSX.Element {
             
             <div className="space-y-4 ml-4">
               <div>
-                <h4 className="font-display font-bold leading-[1.2] tracking-[-0.02em] mb-2 text-[1.1rem]">OpenAI (United States)</h4>
+                <h4 className="font-display font-bold leading-[1.2] tracking-[-0.02em] mb-2 text-[1.1rem]">Anthropic (United States)</h4>
                 <ul className="list-disc list-inside space-y-2 ml-4 text-[16px] lg:text-[18px]">
-                  <li>Purpose: Natural language processing, summarization generation</li>
+                  <li>Purpose: Summarization, record extraction, answering questions about meetings</li>
                   <li>Data Transferred: Meeting transcripts, user prompts</li>
-                  <li>Safeguards: Standard Contractual Clauses (SCCs), 30-day retention for abuse monitoring</li>
+                  <li>Safeguards: Standard Contractual Clauses (SCCs)</li>
                   <li>Legal Basis for Transfer: SCCs approved by European Commission</li>
                 </ul>
               </div>

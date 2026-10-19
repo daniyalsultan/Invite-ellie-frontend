@@ -29,7 +29,7 @@ export function PrivacyMinimal(): JSX.Element {
         <ul className="list-disc list-inside space-y-2 ml-4 text-[16px] lg:text-[18px]">
           <li>We don't use your meetings to train AI models</li>
           <li>We don't sell your data</li>
-          <li>We don't share with anyone except our secure AI partners (OpenAI, Recall.ai)</li>
+          <li>We don't share with anyone except our secure AI partners (Anthropic, Recall.ai)</li>
         </ul>
       </div>
 
@@ -56,7 +56,7 @@ export function PrivacyMinimal(): JSX.Element {
       <div>
         <h3 className="font-display font-bold leading-[1.2] tracking-[-0.02em] mb-3 text-[1.15rem] lg:text-[1.3rem]">AI Partners:</h3>
         <ul className="list-disc list-inside space-y-2 ml-4 text-[16px] lg:text-[18px]">
-          <li>OpenAI: Creates summaries (30-day retention for abuse monitoring)</li>
+          <li>Anthropic (Claude): Creates summaries and answers your questions</li>
           <li>Recall.ai: Captures meetings (retention configured by us based on your settings)</li>
           <li>Both are GDPR-compliant with Data Processing Agreements</li>
         </ul>

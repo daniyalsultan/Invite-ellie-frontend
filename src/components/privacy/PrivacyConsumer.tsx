@@ -76,10 +76,10 @@ export function PrivacyConsumer(): JSX.Element {
 
         <div className="space-y-6">
           <div>
-            <h3 className="font-display font-bold leading-[1.2] tracking-[-0.02em] mb-3 text-[1.2rem] lg:text-[1.4rem]">OpenAI (GPT Models):</h3>
+            <h3 className="font-display font-bold leading-[1.2] tracking-[-0.02em] mb-3 text-[1.2rem] lg:text-[1.4rem]">Anthropic (Claude):</h3>
             <ul className="list-disc list-inside space-y-2 ml-4 text-[16px] lg:text-[18px]">
-              <li><strong>Used for:</strong> Generating meeting summaries and action items</li>
-              <li><strong>Security:</strong> OpenAI Business tier retains data for 30 days for abuse and misuse monitoring only, then permanently deletes it. Your meeting data is never used to train AI models.</li>
+              <li><strong>Used for:</strong> Generating meeting summaries, action items and structured records, and answering your questions about your meetings</li>
+              <li><strong>Security:</strong> Processed under Anthropic's commercial terms. Your meeting data is not used to train AI models.</li>
               <li><strong>Compliance:</strong> SOC 2 Type II certified, GDPR-compliant</li>
               <li><strong>Location:</strong> Data processed in secure U.S. data centers</li>
             </ul>

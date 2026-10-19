@@ -146,7 +146,7 @@ export function TermsOfServicePage(): JSX.Element {
 
             <ul className="list-disc list-inside space-y-3 ml-4 text-[16px] lg:text-[18px]">
               <li>
-                <strong>AI-generated content may contain errors, omissions, or inaccuracies.</strong> AI systems, including those provided by OpenAI, may occasionally produce incorrect information, misinterpret spoken content, omit important details, or generate summaries that do not accurately reflect what was discussed in a meeting (commonly referred to as "hallucinations"). AI technology is inherently imperfect and continues to evolve.
+                <strong>AI-generated content may contain errors, omissions, or inaccuracies.</strong> AI systems, including those provided by Anthropic, may occasionally produce incorrect information, misinterpret spoken content, omit important details, or generate summaries that do not accurately reflect what was discussed in a meeting (commonly referred to as "hallucinations"). AI technology is inherently imperfect and continues to evolve.
               </li>
               <li>
                 <strong>You are solely responsible for verifying all AI-generated content before relying on it or taking any action based on it.</strong> This includes, without limitation, any deal terms, pricing, commitments, action items, deadlines, names, dates, figures, contractual obligations, or other business-critical information contained in AI-generated summaries. You must independently verify all information before relying on it.

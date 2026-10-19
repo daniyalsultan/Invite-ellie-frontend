@@ -137,11 +137,11 @@ export function PrivacyBusiness(): JSX.Element {
             
             <div className="ml-4 space-y-4">
               <div>
-                <h4 className="font-display font-bold leading-[1.2] tracking-[-0.02em] mb-2 text-[1.1rem]">OpenAI (GPT-4)</h4>
+                <h4 className="font-display font-bold leading-[1.2] tracking-[-0.02em] mb-2 text-[1.1rem]">Anthropic (Claude)</h4>
                 <ul className="list-disc list-inside space-y-2 ml-4 text-[16px] lg:text-[18px]">
-                  <li><strong>Purpose:</strong> Natural language processing, summarization, action item extraction</li>
+                  <li><strong>Purpose:</strong> Summarization, action item and record extraction, and answering questions about meetings</li>
                   <li><strong>Data Processed:</strong> Meeting transcripts, user prompts</li>
-                  <li><strong>Retention:</strong> 30 days for abuse and misuse monitoring only. Data never used for model training (OpenAI Business tier)</li>
+                  <li><strong>Retention:</strong> Per Anthropic's commercial terms. Data never used for model training</li>
                   <li><strong>Compliance:</strong> SOC 2 Type II, ISO 27001, GDPR DPA executed</li>
                   <li><strong>Location:</strong> United States (primary), EU-available upon request</li>
                 </ul>
