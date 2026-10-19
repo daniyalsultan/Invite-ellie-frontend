@@ -258,6 +258,17 @@ p{margin:0}
 .bc+.bc{margin-top:6px}
 .who{display:block;margin-top:5px;font-size:.68rem;color:#6B7189}
 @media(max-width:640px){.cols{grid-template-columns:1fr 1fr}}
+/* The workspace card lists members against meetings, so two columns
+   rather than the four the Project DNA board uses. */
+.cols-2{grid-template-columns:1fr 1fr}
+/* Initials instead of an avatar: no image to load, and no face to be
+   wrong about. */
+.ini{display:flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:#E8E3F2;color:#4A4066;font-size:.64rem;font-weight:700;letter-spacing:.02em;flex:none}
+/* Keep the initials beside the name rather than letting a long name wrap
+   underneath them, which it does in the two-column layout on a phone. */
+.bc-m{display:flex;align-items:center;flex-wrap:wrap;gap:7px}
+.bc-m .nm{min-width:0}
+.bc-m .who{flex-basis:100%;margin-top:0}
 .chatmini{padding:14px}
 .ask{display:flex;align-items:center;gap:8px;border:1.5px solid #BFD3E8;border-radius:12px;padding:11px 12px;font-size:.86rem;font-weight:500}
 .ask svg{width:15px;height:15px;color:#327AAD;flex:none}
@@ -268,32 +279,6 @@ p{margin:0}
 .srcs span{font-size:.72rem;background:#EAF1F9;color:#245F8A;padding:4px 9px;border-radius:999px}
 .srcs .srcs-l{background:none;color:#6B7189;padding:4px 2px 4px 0}
 .chatmini .srcs{margin-left:34px}
-.vr{padding:16px}
-.thumbs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
-.th{position:relative;aspect-ratio:4/3;border-radius:8px;background:#fff;border:1px solid #E1E5ED;overflow:hidden}
-.th>i{position:absolute;display:block}
-.th.on{outline:3px solid #7964A0;outline-offset:2px}
-.th-deck{background:#7964A0;border-color:#7964A0}
-.th-deck>i{left:12%;height:9%;background:rgba(255,255,255,.9);border-radius:3px}
-.th-deck>i:nth-child(1){top:22%;width:62%}
-.th-deck>i:nth-child(2){top:42%;width:46%;opacity:.6}
-.th-deck>i:nth-child(3){top:60%;width:54%;opacity:.6}
-.th-web>i:nth-child(1){top:0;left:0;right:0;height:14%;background:#222F61}
-.th-web>i:nth-child(2){top:22%;left:10%;right:10%;height:36%;background:linear-gradient(120deg,#8FEFDE,#327AAD);border-radius:4px}
-.th-web>i:nth-child(3){top:66%;left:10%;width:37%;height:22%;background:#E3EDF8;border-radius:3px}
-.th-web>i:nth-child(4){top:66%;right:10%;width:37%;height:22%;background:#E3EDF8;border-radius:3px}
-.th-sheet{background-color:#fff;background-image:linear-gradient(#DDE3EC 1px,transparent 1px),linear-gradient(90deg,#DDE3EC 1px,transparent 1px);background-size:100% 18%,25% 100%}
-.th-sheet>i{top:0;left:0;right:0;height:18%;background:rgba(67,161,139,.35)}
-.th-can{background:#F6F0DC}
-.th-can>i{left:37%;width:26%;top:13%;bottom:13%;border-radius:9px/6px;background:linear-gradient(90deg,#2B2F3A,#505667 45%,#2B2F3A);overflow:hidden}
-.th-can>i::after{content:"";position:absolute;left:0;right:0;top:40%;height:18%;background:#B87333}
-.rail{position:relative;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));margin:14px 0 12px}
-.rail::before{content:"";position:absolute;left:12.5%;right:12.5%;top:50%;height:2px;margin-top:-1px;background:#D9D1EC}
-.rail span{position:relative;justify-self:center;width:12px;height:12px;border-radius:50%;background:#fff;border:2px solid #B8ABD6}
-.rail span.on{background:#7964A0;border-color:#7964A0;box-shadow:0 0 0 4px rgba(121,100,160,.2)}
-.vr-cap{background:#F3F0FA;border-radius:10px;padding:11px 13px;font-size:.84rem;line-height:1.4}
-.vr-t{display:block;font-weight:600}
-.vr-s{display:block;color:#5A6180;margin-top:2px}
 .doc-stack{position:relative;padding:6px 10px 10px}
 .doc-stack::before{content:"";position:absolute;left:26px;right:18px;top:16px;bottom:0;background:#fff;border-radius:12px;transform:rotate(2.4deg);box-shadow:0 20px 40px -26px rgba(20,28,64,.45)}
 .doc{position:relative;background:#fff;color:#1B2448;border-radius:12px;padding:18px 20px;box-shadow:0 26px 50px -28px rgba(20,28,64,.55),0 0 0 1px rgba(34,47,97,.06)}

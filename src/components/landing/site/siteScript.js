@@ -81,8 +81,8 @@ export function initSite(){
     var W=mob?600:1200, H=mob?720:430, px=mob?40:48, top=mob?90:74, bot=H-(mob?96:78);
     svg.setAttribute('viewBox','0 0 '+W+' '+H); svg.innerHTML=''; gEls=[];
     var r=rng(11);
-    var L=mob?[['Kickoff call',.04,.62],['Scope change',.36,.18],['Mockup v3',.66,.72],['Renewal',.96,.3]]
-             :[['Kickoff call',.03,.58],['First feedback',.18,.2],['Scope change',.34,.74],['Budget decision',.5,.28],['Mockup v3',.66,.7],['New hire brief',.81,.16],['Renewal',.97,.54]];
+    var L=mob?[['Kickoff call',.04,.62],['Scope change',.36,.18],['Launch date set',.66,.72],['Renewal',.96,.3]]
+             :[['Kickoff call',.03,.58],['First feedback',.18,.2],['Scope change',.34,.74],['Budget decision',.5,.28],['Launch date set',.66,.7],['New hire brief',.81,.16],['Renewal',.97,.54]];
     function X(n){return px+n*(W-2*px);} function Y(n){return top+n*(bot-top);}
     var nodes=L.map(function(l){return{x:X(l[1]),y:Y(l[2]),lab:l[0],big:true};});
     var N=mob?58:92;
