@@ -6,6 +6,14 @@ import { useState } from 'react';
 
 export type ResponseState = 'confident' | 'tentative' | 'no_answer';
 
+/** Which retrieved segments a single sentence of the answer drew on. */
+export interface SentenceCitation {
+  sentence: string;
+  /** Indexes into the grounded segments array. Empty when unmarked. */
+  segments: number[];
+  is_claim?: boolean;
+}
+
 export interface GroundedSegment {
   text: string;
   speaker: string;
@@ -30,6 +38,67 @@ export function ResponseStateBadge({ state }: { state?: ResponseState }): JSX.El
     );
   }
   return null;
+}
+
+interface CitedAnswerProps {
+  citations?: SentenceCitation[];
+  segments?: GroundedSegment[];
+  /** The plain answer, shown as-is when nothing was cited. */
+  fallback: string;
+}
+
+/**
+ * The answer with each sentence carrying the segment it came from.
+ *
+ * A sentence the model did not mark is shown plainly rather than flagged:
+ * plenty of sentences legitimately make no claim about the transcript, and
+ * marking those would train people to ignore the markers. When nothing at
+ * all is cited — an older server, or a model that ignored the instruction —
+ * this renders the answer exactly as before.
+ */
+export function CitedAnswer({ citations, segments, fallback }: CitedAnswerProps): JSX.Element {
+  const [open, setOpen] = useState<number | null>(null);
+  const cited = (citations ?? []).filter((c) => c.segments && c.segments.length > 0);
+
+  if (cited.length === 0) {
+    return <>{fallback}</>;
+  }
+
+  return (
+    <>
+      {(citations ?? []).map((citation, idx) => {
+        const refs = (citation.segments ?? []).filter(
+          (i) => segments && i >= 0 && i < segments.length,
+        );
+        return (
+          <span key={idx}>
+            {citation.sentence}
+            {refs.map((i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => setOpen(open === i ? null : i)}
+                aria-expanded={open === i}
+                title={segments ? `${segments[i].speaker} at ${segments[i].timestamp}` : undefined}
+                className="ml-0.5 align-super text-[10px] font-nunito font-semibold text-ellieBlue hover:underline"
+              >
+                [{i + 1}]
+              </button>
+            ))}{' '}
+            {refs.includes(open ?? -1) && segments ? (
+              <span className="mt-1 mb-1 block rounded bg-gray-50 p-2 text-xs font-nunito">
+                <span className="font-semibold text-ellieBlue">{segments[open as number].speaker}</span>
+                <span className="text-ellieGray"> • {segments[open as number].timestamp}</span>
+                <span className="mt-1 block italic text-ellieBlack">
+                  "{segments[open as number].text}"
+                </span>
+              </span>
+            ) : null}
+          </span>
+        );
+      })}
+    </>
+  );
 }
 
 interface TranscriptReferencesProps {
@@ -77,6 +146,7 @@ export function TranscriptReferences({ segments, collapsible = false }: Transcri
           {segments.map((segment, idx) => (
             <div key={idx} className="bg-gray-50 rounded p-2 text-xs font-nunito">
               <div className="flex items-center gap-2 mb-1">
+                <span className="font-semibold text-ellieBlue">[{idx + 1}]</span>
                 <span className="font-semibold text-ellieBlue">{segment.speaker}</span>
                 <span className="text-ellieGray">•</span>
                 <span className="text-ellieGray">{segment.timestamp}</span>

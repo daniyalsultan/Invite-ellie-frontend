@@ -7,7 +7,7 @@ import { listWorkspaces, type WorkspaceRecord } from '../workspace/workspaceApi'
 import { getUserWorkspaceByEmail } from '../../utils/workspaceAutoCreate';
 import { buildRecallaiUrl } from '../../services/transcriptionApi';
 import logo from '../../assets/logo.svg';
-import { ResponseStateBadge, TranscriptReferences, type GroundedSegment, type ResponseState } from './ConfidenceSignals';
+import { CitedAnswer, ResponseStateBadge, TranscriptReferences, type GroundedSegment, type ResponseState, type SentenceCitation } from './ConfidenceSignals';
 
 interface Message {
   id: number;
@@ -16,6 +16,7 @@ interface Message {
   responseState?: ResponseState;
   confidenceScore?: number;
   groundedSegments?: GroundedSegment[];
+  sentenceCitations?: SentenceCitation[];
   hasSufficientContext?: boolean;
 }
 
@@ -452,6 +453,7 @@ export function AskElliePage(): JSX.Element {
         responseState: data.response_state || 'confident',
         confidenceScore: data.confidence_score,
         groundedSegments: data.grounded_segments || [],
+        sentenceCitations: data.sentence_citations || [],
         hasSufficientContext: data.has_sufficient_context,
       };
 
@@ -557,7 +559,15 @@ export function AskElliePage(): JSX.Element {
                           className={`font-nunito text-sm md:text-base leading-relaxed ${message.sender === 'user' ? 'text-white' : 'text-ellieBlack'
                             }`}
                         >
-                          {formatMessageText(message.text)}
+                          {message.sender === 'ellie' && (message.sentenceCitations?.length ?? 0) > 0 ? (
+                            <CitedAnswer
+                              citations={message.sentenceCitations}
+                              segments={message.groundedSegments}
+                              fallback={message.text}
+                            />
+                          ) : (
+                            formatMessageText(message.text)
+                          )}
                         </div>
                         
                         {message.sender === 'ellie' && (

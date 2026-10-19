@@ -4,10 +4,12 @@ import { buildRecallaiUrl } from '../../services/transcriptionApi';
 import logo from '../../assets/logo.svg';
 import {
   ResponseStateBadge,
+  CitedAnswer,
   TranscriptReferences,
   type GroundedSegment,
   type ResponseState,
 } from '../askEllie/ConfidenceSignals';
+import type { SentenceCitation } from '../askEllie/ConfidenceSignals';
 
 interface Message {
   id: number;
@@ -15,6 +17,7 @@ interface Message {
   sender: 'user' | 'ellie';
   responseState?: ResponseState;
   groundedSegments?: GroundedSegment[];
+  sentenceCitations?: SentenceCitation[];
 }
 
 export function ChatBot(): JSX.Element {
@@ -134,6 +137,7 @@ export function ChatBot(): JSX.Element {
         sender: 'ellie',
         responseState: data.response_state || 'confident',
         groundedSegments: data.grounded_segments || [],
+        sentenceCitations: data.sentence_citations || [],
       };
 
       setMessages((prev) => [...prev, ellieResponse]);
@@ -250,7 +254,15 @@ export function ChatBot(): JSX.Element {
                       <div className={`font-nunito text-sm leading-relaxed ${
                         message.sender === 'user' ? 'text-white' : 'text-ellieBlack'
                       }`}>
-                        {formatMessageText(message.text)}
+                        {message.sender === 'ellie' && (message.sentenceCitations?.length ?? 0) > 0 ? (
+                          <CitedAnswer
+                            citations={message.sentenceCitations}
+                            segments={message.groundedSegments}
+                            fallback={message.text}
+                          />
+                        ) : (
+                          formatMessageText(message.text)
+                        )}
                       </div>
                       {/* The widget is too small for up to five full quotes, so
                           references start collapsed behind a toggle. */}
