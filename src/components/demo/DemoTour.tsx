@@ -4,6 +4,7 @@ import demo1 from '../../assets/demo-1.png';
 import demo2 from '../../assets/demo-2.png';
 import demo3 from '../../assets/demo-3.png';
 import demo4 from '../../assets/demo-4.png';
+import demo5Placeholder from '../../assets/demo-5-placeholder.svg';
 import logo from '../../assets/logo.svg';
 
 interface TourStep {
@@ -13,6 +14,19 @@ interface TourStep {
   image: string;
   badge?: string;
 }
+
+/**
+ * The fifth step is written but not shown yet.
+ *
+ * The tour pairs every step with a screenshot of the real product, and the
+ * screenshot of the outstanding-items panel has not been taken. Showing the
+ * step with a placeholder would put "screenshot needed" in front of people
+ * on their first run, which is worse than a tour that is one step short.
+ *
+ * To turn it on: save the screenshot as src/assets/demo-5.png, import it in
+ * place of the placeholder, and set this to true.
+ */
+const SHOW_OUTSTANDING_STEP = false;
 
 interface DemoTourProps {
   defaultOpen?: boolean;
@@ -59,6 +73,20 @@ export function DemoTour({
         image: demo4,
         badge: '4',
       },
+      // The part of Ellie that is not a filing cabinet: what was promised,
+      // by whom, and what nobody has come back to.
+      ...(SHOW_OUTSTANDING_STEP
+        ? [
+            {
+              id: 5,
+              title: 'See what is still outstanding',
+              description:
+                'Ellie reads every meeting for what was committed, decided and blocked, and keeps following it. A workspace shows what is still open, who owns it, how long it has been waiting, and what was last said about it — and when Ellie reads something wrong, you can put it right.',
+              image: demo5Placeholder,
+              badge: '5',
+            },
+          ]
+        : []),
     ],
     [],
   );
