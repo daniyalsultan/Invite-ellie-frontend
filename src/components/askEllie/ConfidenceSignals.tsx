@@ -124,14 +124,41 @@ export function CitedAnswer({ citations, segments, fallback }: CitedAnswerProps)
   );
 }
 
+/** Whether anything in the transcripts actually backs the answer up. */
+export type EvidenceState = 'supported' | 'none';
+
 interface TranscriptReferencesProps {
   segments?: GroundedSegment[];
   // Collapsed behind a toggle, for surfaces too small to show every quote.
   collapsible?: boolean;
+  /** 'none' when the answer stands on nothing that was retrieved. */
+  evidenceState?: EvidenceState;
+  /** How many segments the server weighed before withholding them. */
+  segmentsConsidered?: number;
 }
 
-export function TranscriptReferences({ segments, collapsible = false }: TranscriptReferencesProps): JSX.Element | null {
+export function TranscriptReferences({
+  segments,
+  collapsible = false,
+  evidenceState,
+  segmentsConsidered = 0,
+}: TranscriptReferencesProps): JSX.Element | null {
   const [isExpanded, setIsExpanded] = useState(!collapsible);
+
+  // Material was retrieved and none of it holds the answer up. Saying so is
+  // the point of the panel; before this, the same case rendered nothing and
+  // read as though the question had simply never touched the transcripts.
+  // A question that retrieved nothing at all (a greeting, say) gets no line:
+  // there is no misleading quote to correct.
+  if (evidenceState === 'none' && segmentsConsidered > 0) {
+    return (
+      <div className="mt-3 pt-3 border-t border-gray-200">
+        <span className="text-xs font-nunito text-ellieGray">
+          No transcript evidence supports this answer.
+        </span>
+      </div>
+    );
+  }
 
   if (!segments || segments.length === 0) {
     return null;

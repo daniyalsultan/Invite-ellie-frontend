@@ -7,7 +7,7 @@ import { listWorkspaces, type WorkspaceRecord } from '../workspace/workspaceApi'
 import { getUserWorkspaceByEmail } from '../../utils/workspaceAutoCreate';
 import { buildRecallaiUrl } from '../../services/transcriptionApi';
 import logo from '../../assets/logo.svg';
-import { CitedAnswer, ResponseStateBadge, TranscriptReferences, type GroundedSegment, type ResponseState, type SentenceCitation } from './ConfidenceSignals';
+import { CitedAnswer, ResponseStateBadge, TranscriptReferences, type EvidenceState, type GroundedSegment, type ResponseState, type SentenceCitation } from './ConfidenceSignals';
 
 interface Message {
   id: number;
@@ -18,6 +18,8 @@ interface Message {
   groundedSegments?: GroundedSegment[];
   sentenceCitations?: SentenceCitation[];
   hasSufficientContext?: boolean;
+  evidenceState?: EvidenceState;
+  segmentsConsidered?: number;
 }
 
 type TabType = 'assistant' | 'nudges';
@@ -455,6 +457,8 @@ export function AskElliePage(): JSX.Element {
         groundedSegments: data.grounded_segments || [],
         sentenceCitations: data.sentence_citations || [],
         hasSufficientContext: data.has_sufficient_context,
+        evidenceState: data.evidence_state,
+        segmentsConsidered: data.segments_considered,
       };
 
       setMessages((prev) => [...prev, ellieResponse]);
@@ -571,7 +575,11 @@ export function AskElliePage(): JSX.Element {
                         </div>
                         
                         {message.sender === 'ellie' && (
-                          <TranscriptReferences segments={message.groundedSegments} />
+                          <TranscriptReferences
+                            segments={message.groundedSegments}
+                            evidenceState={message.evidenceState}
+                            segmentsConsidered={message.segmentsConsidered}
+                          />
                         )}
                       </div>
                     </div>

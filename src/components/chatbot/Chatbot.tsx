@@ -6,6 +6,7 @@ import {
   ResponseStateBadge,
   CitedAnswer,
   TranscriptReferences,
+  type EvidenceState,
   type GroundedSegment,
   type ResponseState,
 } from '../askEllie/ConfidenceSignals';
@@ -18,6 +19,8 @@ interface Message {
   responseState?: ResponseState;
   groundedSegments?: GroundedSegment[];
   sentenceCitations?: SentenceCitation[];
+  evidenceState?: EvidenceState;
+  segmentsConsidered?: number;
 }
 
 export function ChatBot(): JSX.Element {
@@ -138,6 +141,8 @@ export function ChatBot(): JSX.Element {
         responseState: data.response_state || 'confident',
         groundedSegments: data.grounded_segments || [],
         sentenceCitations: data.sentence_citations || [],
+        evidenceState: data.evidence_state,
+        segmentsConsidered: data.segments_considered,
       };
 
       setMessages((prev) => [...prev, ellieResponse]);
@@ -267,7 +272,12 @@ export function ChatBot(): JSX.Element {
                       {/* The widget is too small for up to five full quotes, so
                           references start collapsed behind a toggle. */}
                       {message.sender === 'ellie' && (
-                        <TranscriptReferences segments={message.groundedSegments} collapsible />
+                        <TranscriptReferences
+                          segments={message.groundedSegments}
+                          evidenceState={message.evidenceState}
+                          segmentsConsidered={message.segmentsConsidered}
+                          collapsible
+                        />
                       )}
                     </div>
                   </div>
