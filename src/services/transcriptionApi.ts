@@ -463,6 +463,22 @@ export type MeetingRecordsResponse = {
   /** Only on the unresolved view. */
   unowned?: number;
   never_mentioned_again?: number;
+  /** The few overdue commitments worth showing without being asked. */
+  outstanding?: OutstandingItem[];
+};
+
+/** An overdue commitment, chosen by the server: deadline resolved to a real
+ *  date that has passed, duplicates removed, list capped. */
+export type OutstandingItem = {
+  id: string;
+  type: string;
+  text: string;
+  owner: string | null;
+  deadline: string | null;
+  /** ISO date the deadline resolved to. */
+  due_on: string;
+  days_overdue: number;
+  meeting_id: string | null;
 };
 
 async function fetchRecords(path: string): Promise<MeetingRecordsResponse> {

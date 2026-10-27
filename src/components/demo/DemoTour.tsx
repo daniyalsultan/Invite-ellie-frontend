@@ -43,9 +43,14 @@ export function DemoTour({
     () => [
       {
         id: 1,
-        title: 'Search for something',
+        // Was: "Use the search bar at the top to quickly find any meeting,
+        // transcript, or note." The global search bar at the top of every
+        // page leads to SearchResultsPage, which renders a hardcoded list
+        // containing a Figma link — it searches nothing. The searches that
+        // do work are the two below, so those are what this now describes.
+        title: 'Find what was said',
         description:
-          "Use the search bar at the top to quickly find any meeting, transcript, or note. Ellie keeps everything organized, so your past conversations are always easy to locate.",
+          'Open a workspace to filter its meetings by name, or open a meeting and search inside the transcript to jump to the moment something was said.',
         image: demo1,
         badge: '1',
       },
@@ -68,8 +73,11 @@ export function DemoTour({
       {
         id: 4,
         title: 'Organize in workspaces',
+        // Was: "Everything stays searchable and shareable." Shareable is
+        // true — workspaces take members. Searchable was claiming the global
+        // search above, which does not work.
         description:
-          'Create workspaces to organize your meetings. Everything stays searchable and shareable.',
+          'Create workspaces to organize your meetings, and invite the people who should see them.',
         image: demo4,
         badge: '4',
       },

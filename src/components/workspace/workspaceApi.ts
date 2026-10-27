@@ -49,6 +49,9 @@ export interface WorkspaceRecord {
   owner_email?: string;
   member_count?: number;
   my_role?: 'owner' | 'member' | null;
+  /** How long this workspace keeps recordings. null = inherit each
+   *  recorder's own profile setting, which is every workspace by default. */
+  recording_retention_days?: number | null;
 }
 
 /** "Shared by Ada Lovelace" / "Shared with 3 people", or nothing for a workspace of one. */
@@ -82,6 +85,8 @@ export interface ListWorkspaceParams {
 export interface WorkspaceMutationPayload {
   name: string;
   category?: WorkspaceCategory | null;
+  /** Owners only; the API refuses it from a member. */
+  recording_retention_days?: number | null;
 }
 
 function ensureApiBaseUrl(): string {

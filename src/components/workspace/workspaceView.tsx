@@ -29,6 +29,8 @@ import {
 } from '../../services/transcriptionApi';
 import { MeetingInsightsPanel } from '../meeting/MeetingInsightsPanel';
 import { UnresolvedPanel } from './UnresolvedPanel';
+import { RetentionPanel } from './RetentionPanel';
+import { OutstandingBanner } from './OutstandingBanner';
 import { getSlackStatus, slackExport, getSlackChannels, type SlackChannel } from '../../services/slackApi';
 import { ExportConfirmDialog, type PendingExport } from '../exports';
 import { getNotionStatus, notionExport } from '../../services/notionApi';
@@ -771,7 +773,14 @@ export function WorkspaceViewPage(): JSX.Element {
                   {/* Who is in this workspace, and who has been invited. */}
                   <WorkspaceMembersPanel workspaceId={workspace.id} workspaceName={workspace.name} />
 
+                  {/* How long recordings in this workspace are kept. Owners only. */}
+                  <RetentionPanel workspace={workspace} />
+
                   <div className="rounded-[12px] bg-white p-4 shadow-[0px_18px_30px_rgba(15,23,42,0.05)] md:rounded-[18px] md:p-6 lg:p-8">
+                    {/* Overdue commitments, in the summary itself: the
+                        unresolved panel below is the thing nobody opens. */}
+                    <OutstandingBanner workspaceId={workspaceId} userId={profile?.id} />
+
                     <div className="mb-4">
                       <h3 className="font-nunito text-xl font-bold text-[#25324B]">Workspace Intelligence</h3>
                       <p className="font-nunito text-sm text-[#6B7A96] mt-1">
