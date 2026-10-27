@@ -164,10 +164,12 @@ interface TranscriptReferencesProps {
   segments?: GroundedSegment[];
   // Collapsed behind a toggle, for surfaces too small to show every quote.
   collapsible?: boolean;
-  /** 'none' when the answer stands on nothing that was retrieved. */
+  /** 'none' when the answer is not linked to any retrieved quote. */
   evidenceState?: EvidenceState;
   /** How many segments the server weighed before withholding them. */
   segmentsConsidered?: number;
+  /** Lets us tell "it answered, uncited" from "it had nothing to answer with". */
+  responseState?: ResponseState;
 }
 
 export function TranscriptReferences({
@@ -175,19 +177,31 @@ export function TranscriptReferences({
   collapsible = false,
   evidenceState,
   segmentsConsidered = 0,
+  responseState,
 }: TranscriptReferencesProps): JSX.Element | null {
   const [isExpanded, setIsExpanded] = useState(!collapsible);
 
-  // Material was retrieved and none of it holds the answer up. Saying so is
-  // the point of the panel; before this, the same case rendered nothing and
-  // read as though the question had simply never touched the transcripts.
-  // A question that retrieved nothing at all (a greeting, say) gets no line:
-  // there is no misleading quote to correct.
+  // Material was retrieved and the answer cited none of it, so there is
+  // nothing we can honestly attach to it. Which of two different things that
+  // means depends on whether an answer was given at all:
+  //
+  //   no_answer  the assistant said it had nothing. Then there genuinely is
+  //              no evidence, and that is worth stating.
+  //   otherwise  it answered but cited nothing. The answer may be perfectly
+  //              well grounded -- measured in production, a real answer about
+  //              a client's data-residency concerns cited nothing on four
+  //              calls in five. Telling that reader "no evidence supports
+  //              this" is a false statement about a true answer, so the line
+  //              says what is actually known: it is not linked to quotes.
+  //
+  // A question that retrieved nothing at all (a greeting) gets no line.
   if (evidenceState === 'none' && segmentsConsidered > 0) {
     return (
       <div className="mt-3 pt-3 border-t border-gray-200">
         <span className="text-xs font-nunito text-ellieGray">
-          No transcript evidence supports this answer.
+          {responseState === 'no_answer'
+            ? 'No transcript evidence supports this answer.'
+            : 'This answer is not linked to specific transcript quotes.'}
         </span>
       </div>
     );

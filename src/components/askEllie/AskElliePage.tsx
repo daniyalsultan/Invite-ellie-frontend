@@ -579,6 +579,7 @@ export function AskElliePage(): JSX.Element {
                             segments={message.groundedSegments}
                             evidenceState={message.evidenceState}
                             segmentsConsidered={message.segmentsConsidered}
+                            responseState={message.responseState}
                           />
                         )}
                       </div>
