@@ -25,6 +25,11 @@ export interface GroundedSegment {
   record_type?: string | null;
   /** The record's own statement, when the quote is its evidence line. */
   statement?: string | null;
+  /** Which meeting the quote is from. A timestamp alone says 0:00 of what? */
+  meeting_id?: string | null;
+  meeting_name?: string | null;
+  /** ISO date (YYYY-MM-DD) of the meeting. */
+  meeting_date?: string | null;
 }
 
 const RECORD_LABEL: Record<string, string> = {
@@ -43,6 +48,26 @@ export function segmentOrigin(segment: GroundedSegment): string {
     return RECORD_LABEL[segment.record_type ?? ''] ?? 'Record';
   }
   return segment.timestamp;
+}
+
+/** "Kestrel Rollout · 14 Aug 2026", or whichever half we actually know.
+ *  A meeting with no calendar event has no title, and inventing one would be
+ *  worse than showing the date alone. */
+export function segmentMeeting(segment: GroundedSegment): string | null {
+  const name = segment.meeting_name?.trim() || null;
+  let date: string | null = null;
+  if (segment.meeting_date) {
+    const parsed = new Date(segment.meeting_date);
+    if (!Number.isNaN(parsed.getTime())) {
+      date = parsed.toLocaleDateString('en-GB', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      });
+    }
+  }
+  if (name && date) return `${name} · ${date}`;
+  return name ?? date;
 }
 
 export function ResponseStateBadge({ state }: { state?: ResponseState }): JSX.Element | null {
@@ -102,7 +127,10 @@ export function CitedAnswer({ citations, segments, fallback }: CitedAnswerProps)
                 type="button"
                 onClick={() => setOpen(open === i ? null : i)}
                 aria-expanded={open === i}
-                title={segments ? `${segments[i].speaker} — ${segmentOrigin(segments[i])}` : undefined}
+                title={segments
+                  ? [segments[i].speaker, segmentOrigin(segments[i]), segmentMeeting(segments[i])]
+                      .filter(Boolean).join(' — ')
+                  : undefined}
                 className="ml-0.5 align-super text-[10px] font-nunito font-semibold text-ellieBlue hover:underline"
               >
                 [{i + 1}]
@@ -112,6 +140,11 @@ export function CitedAnswer({ citations, segments, fallback }: CitedAnswerProps)
               <span className="mt-1 mb-1 block rounded bg-gray-50 p-2 text-xs font-nunito">
                 <span className="font-semibold text-ellieBlue">{segments[open as number].speaker}</span>
                 <span className="text-ellieGray"> • {segmentOrigin(segments[open as number])}</span>
+                {segmentMeeting(segments[open as number]) ? (
+                  <span className="mt-0.5 block text-ellieGray">
+                    {segmentMeeting(segments[open as number])}
+                  </span>
+                ) : null}
                 <span className="mt-1 block italic text-ellieBlack">
                   "{segments[open as number].text}"
                 </span>
@@ -195,12 +228,15 @@ export function TranscriptReferences({
         <div className="space-y-2">
           {segments.map((segment, idx) => (
             <div key={idx} className="bg-gray-50 rounded p-2 text-xs font-nunito">
-              <div className="flex items-center gap-2 mb-1">
+              <div className="flex flex-wrap items-center gap-x-2 mb-1">
                 <span className="font-semibold text-ellieBlue">[{idx + 1}]</span>
                 <span className="font-semibold text-ellieBlue">{segment.speaker}</span>
                 <span className="text-ellieGray">•</span>
                 <span className="text-ellieGray">{segmentOrigin(segment)}</span>
               </div>
+              {segmentMeeting(segment) ? (
+                <div className="mb-1 text-ellieGray">{segmentMeeting(segment)}</div>
+              ) : null}
               <div className="text-ellieBlack italic">
                 "{segment.text}"
               </div>
