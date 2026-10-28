@@ -5,6 +5,7 @@ import logo from '../../assets/logo.svg';
 import {
   ResponseStateBadge,
   CitedAnswer,
+  QuotingSummary,
   TranscriptReferences,
   type EvidenceState,
   type GroundedSegment,
@@ -269,6 +270,9 @@ export function ChatBot(): JSX.Element {
                           formatMessageText(message.text)
                         )}
                       </div>
+                      {message.sender === 'ellie' && (
+                        <QuotingSummary citations={message.sentenceCitations} />
+                      )}
                       {/* The widget is too small for up to five full quotes, so
                           references start collapsed behind a toggle. */}
                       {message.sender === 'ellie' && (

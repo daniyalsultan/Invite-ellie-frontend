@@ -157,6 +157,72 @@ export function CitedAnswer({ citations, segments, fallback }: CitedAnswerProps)
   );
 }
 
+/**
+ * How much of an answer is quoted, and how much is Ellie's own reading.
+ *
+ * A marked sentence is quoting; an unmarked one is concluding. That
+ * distinction was already in the payload and visible only to someone who
+ * knew that a missing [1] meant "my own words" rather than "we failed to
+ * find the quote". Stating it once, in a sentence, is what makes it a
+ * signal rather than a convention.
+ *
+ * Only sentences that claim something about the meetings are counted.
+ * "Let me know if you want the detail" is neither quoting nor concluding,
+ * and counting it would make every answer look badly sourced.
+ *
+ * Returns null when there is nothing honest to say: no claims, or nothing
+ * quoted (the evidence notice covers that case). A server old enough not to
+ * send `is_claim` reports no claims and so says nothing, which is the right
+ * answer rather than a guess.
+ */
+export function quotingBreakdown(
+  citations?: SentenceCitation[],
+): { quoted: number; claims: number } | null {
+  const claims = (citations ?? []).filter((c) => c.is_claim);
+  const quoted = claims.filter((c) => c.segments && c.segments.length > 0).length;
+  // Nothing quoted, nothing to say. This covers the empty cases too: no
+  // claims at all, and a server old enough not to send `is_claim`, both of
+  // which quote nothing and so get silence rather than a guess.
+  if (quoted === 0) {
+    return null;
+  }
+  return { quoted, claims: claims.length };
+}
+
+interface QuotingSummaryProps {
+  citations?: SentenceCitation[];
+}
+
+/** One line saying which parts of the answer came from a transcript. */
+export function QuotingSummary({ citations }: QuotingSummaryProps): JSX.Element | null {
+  const breakdown = quotingBreakdown(citations);
+  if (!breakdown) {
+    return null;
+  }
+  const { quoted, claims } = breakdown;
+  const statement = claims === 1 ? 'statement' : 'statements';
+  return (
+    <p className="mt-2 font-nunito text-xs text-ellieGray">
+      {quoted === claims ? (
+        <>
+          {/* "Every" takes the singular however many there are. */}
+          Every statement above is linked to a transcript quote — open a{' '}
+          <span className="align-super text-[10px] font-semibold text-ellieBlue">[1]</span>{' '}
+          to read it.
+        </>
+      ) : (
+        <>
+          {quoted} of {claims} {statement} above {claims === 1 ? 'is' : 'are'} linked to a
+          transcript quote — open a{' '}
+          <span className="align-super text-[10px] font-semibold text-ellieBlue">[1]</span>{' '}
+          to read it. The rest {claims - quoted === 1 ? 'is' : 'are'} Ellie&rsquo;s own reading
+          of the meetings.
+        </>
+      )}
+    </p>
+  );
+}
+
 /** Whether anything in the transcripts actually backs the answer up. */
 export type EvidenceState = 'supported' | 'none';
 

@@ -7,7 +7,7 @@ import { listWorkspaces, type WorkspaceRecord } from '../workspace/workspaceApi'
 import { getUserWorkspaceByEmail } from '../../utils/workspaceAutoCreate';
 import { buildRecallaiUrl } from '../../services/transcriptionApi';
 import logo from '../../assets/logo.svg';
-import { CitedAnswer, ResponseStateBadge, TranscriptReferences, type EvidenceState, type GroundedSegment, type ResponseState, type SentenceCitation } from './ConfidenceSignals';
+import { CitedAnswer, QuotingSummary, ResponseStateBadge, TranscriptReferences, type EvidenceState, type GroundedSegment, type ResponseState, type SentenceCitation } from './ConfidenceSignals';
 
 interface Message {
   id: number;
@@ -573,7 +573,11 @@ export function AskElliePage(): JSX.Element {
                             formatMessageText(message.text)
                           )}
                         </div>
-                        
+
+                        {message.sender === 'ellie' && (
+                          <QuotingSummary citations={message.sentenceCitations} />
+                        )}
+
                         {message.sender === 'ellie' && (
                           <TranscriptReferences
                             segments={message.groundedSegments}
