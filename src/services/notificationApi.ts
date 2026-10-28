@@ -4,6 +4,8 @@ export interface Notification {
   id: string;
   type: string;
   meeting_id: string | null;
+  /** Set when the notification is about a bot rather than a stored meeting. */
+  bot_id?: string | null;
   meeting_title: string;
   message: string;
   read: boolean;

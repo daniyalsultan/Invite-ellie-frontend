@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { targetFor, type NotificationTarget } from './notificationTarget';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../../context/NotificationContext';
 import notificationsIcon from '../../assets/noti.png';
@@ -26,15 +27,14 @@ export function NotificationBell(): JSX.Element {
     };
   }, [isOpen]);
 
-  const handleNotificationClick = (notification: { id: string; meeting_id: string | null; read: boolean }) => {
+  const handleNotificationClick = (notification: NotificationTarget) => {
     if (!notification.read) {
       void markAsRead(notification.id);
     }
     setIsOpen(false);
-    if (notification.meeting_id) {
-      navigate(`/unresolved-meetings?meeting=${notification.meeting_id}`);
-    } else {
-      navigate('/unresolved-meetings');
+    const target = targetFor(notification);
+    if (target) {
+      navigate(target);
     }
   };
 

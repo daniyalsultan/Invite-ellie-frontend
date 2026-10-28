@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { targetFor, type NotificationTarget } from './notificationTarget';
 import { DashboardLayout } from '../sidebar';
 import { useNotifications } from '../../context/NotificationContext';
 
@@ -6,14 +7,13 @@ export function NotificationsPage(): JSX.Element {
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
   const navigate = useNavigate();
 
-  const handleNotificationClick = (notification: { id: string; meeting_id: string | null; read: boolean }) => {
+  const handleNotificationClick = (notification: NotificationTarget) => {
     if (!notification.read) {
       void markAsRead(notification.id);
     }
-    if (notification.meeting_id) {
-      navigate(`/unresolved-meetings?meeting=${notification.meeting_id}`);
-    } else {
-      navigate('/unresolved-meetings');
+    const target = targetFor(notification);
+    if (target) {
+      navigate(target);
     }
   };
 
