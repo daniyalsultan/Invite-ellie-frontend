@@ -8,7 +8,7 @@ import { patchWorkspace, type WorkspaceRecord } from './workspaceApi';
 // "recordings" everywhere and never "data".
 
 const CHOICES: { label: string; value: number | null }[] = [
-  { label: 'Use each member’s own setting', value: null },
+  { label: 'Keep for the life of the workspace', value: null },
   { label: '7 days', value: 7 },
   { label: '30 days', value: 30 },
   { label: '90 days', value: 90 },
@@ -74,6 +74,11 @@ export function RetentionPanel({ workspace, onSaved }: RetentionPanelProps): JSX
           </option>
         ))}
       </select>
+
+      <p className="mt-2 font-nunito text-xs text-[#6B7A96]">
+        Unset, nothing expires: a recording is kept for the life of the workspace
+        unless the person who recorded it has set their own period.
+      </p>
 
       {!isOwner && (
         <p className="mt-2 font-nunito text-xs text-[#6B7A96]">
