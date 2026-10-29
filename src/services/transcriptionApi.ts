@@ -236,6 +236,16 @@ export type FolderMeetingsOverviewResponse = {
   source_signature?: string;
   /** When this overview was written — not when it was requested. */
   computed_at?: string | null;
+  /** The meetings whose summaries this was written from. */
+  source_meetings?: OverviewMeeting[];
+  /** Recorded but not yet summarised, so not in the text above. */
+  pending_meetings?: OverviewMeeting[];
+};
+
+export type OverviewMeeting = {
+  meeting_id: string;
+  meeting_name?: string | null;
+  meeting_date?: string | null;
 };
 
 /**

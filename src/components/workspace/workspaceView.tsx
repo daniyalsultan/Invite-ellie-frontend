@@ -31,6 +31,7 @@ import { MeetingInsightsPanel } from '../meeting/MeetingInsightsPanel';
 import { UnresolvedPanel } from './UnresolvedPanel';
 import { RetentionPanel } from './RetentionPanel';
 import { OutstandingBanner } from './OutstandingBanner';
+import type { OverviewMeeting } from '../../services/transcriptionApi';
 import { getSlackStatus, slackExport, getSlackChannels, type SlackChannel } from '../../services/slackApi';
 import { ExportConfirmDialog, type PendingExport } from '../exports';
 import { getNotionStatus, notionExport } from '../../services/notionApi';
@@ -160,6 +161,11 @@ export function WorkspaceViewPage(): JSX.Element {
   const [overviewLoading, setOverviewLoading] = useState(false);
   const [overviewError, setOverviewError] = useState<string | null>(null);
   const [overviewComputedAt, setOverviewComputedAt] = useState<string | null>(null);
+  // The other two facts a reader needs about a summary: which meetings it was
+  // written from, and whether anything recorded since is still unprocessed.
+  // A count alone could not tell those apart.
+  const [overviewSources, setOverviewSources] = useState<OverviewMeeting[]>([]);
+  const [overviewPending, setOverviewPending] = useState<OverviewMeeting[]>([]);
 
   // Meeting detail modal
   const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false);
@@ -315,6 +321,8 @@ export function WorkspaceViewPage(): JSX.Element {
         setOverviewBackendSummary(typeof data.summary === 'string' ? data.summary : '');
         setOverviewBackendActions(Array.isArray(data.action_items) ? data.action_items : []);
         setOverviewComputedAt(data.computed_at ?? null);
+        setOverviewSources(data.source_meetings ?? []);
+        setOverviewPending(data.pending_meetings ?? []);
       })
       .catch((err) => {
         if (cancelled) return;
@@ -816,6 +824,30 @@ export function WorkspaceViewPage(): JSX.Element {
                         </div>
                       )}
                     </div>
+                    {(overviewSources.length > 0 || overviewPending.length > 0) && (
+                      <div className="mb-4 font-nunito text-xs text-[#6B7A96]">
+                        {overviewSources.length > 0 && (
+                          <p>
+                            Written from {overviewSources.length}{' '}
+                            {overviewSources.length === 1 ? 'meeting' : 'meetings'}:{' '}
+                            {overviewSources
+                              .map((m) => m.meeting_name || 'Untitled meeting')
+                              .join(', ')}
+                          </p>
+                        )}
+                        {overviewPending.length > 0 && (
+                          <p className="mt-1 font-semibold text-amber-900">
+                            {overviewPending.length}{' '}
+                            {overviewPending.length === 1 ? 'meeting is' : 'meetings are'} recorded
+                            but not yet summarised, so {overviewPending.length === 1 ? 'it is' : 'they are'}{' '}
+                            not reflected above:{' '}
+                            {overviewPending
+                              .map((m) => m.meeting_name || 'Untitled meeting')
+                              .join(', ')}
+                          </p>
+                        )}
+                      </div>
+                    )}
                     <div className="space-y-6">
                       {/* Overview Summary */}
                       <section>
