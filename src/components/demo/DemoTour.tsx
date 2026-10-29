@@ -26,6 +26,11 @@ interface TourStep {
  * To turn it on: save the screenshot as src/assets/demo-5.png, import it in
  * place of the placeholder, and set this to true.
  */
+// Waiting on one thing: src/assets/demo-5.png, a real capture of the
+// unresolved panel at 1701x958 to match demo-1..4. Every claim in the step
+// is supported by the product as built -- the opening used to say a
+// workspace *shows* what is open, which stopped being true when unprompted
+// surfacing was switched off, so it now says to open the workspace.
 const SHOW_OUTSTANDING_STEP = false;
 
 interface DemoTourProps {
@@ -89,7 +94,7 @@ export function DemoTour({
               id: 5,
               title: 'See what is still outstanding',
               description:
-                'Ellie reads every meeting for what was committed, decided and blocked, and keeps following it. A workspace shows what is still open, who owns it, how long it has been waiting, and what was last said about it — and when Ellie reads something wrong, you can put it right.',
+                'Ellie reads every meeting for what was committed, decided and blocked, and keeps following it. Open a workspace to see what is still outstanding: who owns it, how long it has been waiting, and what was last said about it — and when Ellie reads something wrong, you can put it right.',
               image: demo5Placeholder,
               badge: '5',
             },
