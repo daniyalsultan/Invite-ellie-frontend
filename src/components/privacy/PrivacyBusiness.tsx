@@ -88,8 +88,8 @@ export function PrivacyBusiness(): JSX.Element {
           <ul className="list-disc list-inside space-y-2 ml-4 text-[16px] lg:text-[18px]">
             <li>Audio recordings: customer-configurable retention period, set per workspace. If not configured, recordings are retained for the life of the workspace</li>
             <li>Transcripts and summaries: retained for the life of the workspace. Not subject to scheduled expiry; removed when the meeting or the account is deleted</li>
-            <li>Meeting metadata: Retained for subscription duration + 90 days</li>
-            <li>Account data: Retained for subscription duration + 365 days (compliance requirements)</li>
+            <li>Meeting metadata: retained until the meeting or the account is deleted. It is not removed on a schedule</li>
+            <li>Account data: retained until you request deletion. Deletion runs after a 7-day grace period, during which it can be cancelled</li>
             <li>Retention controls: Available via dashboard and API for programmatic configuration</li>
           </ul>
         </div>
@@ -97,9 +97,9 @@ export function PrivacyBusiness(): JSX.Element {
         <div className="mt-6">
           <h3 className="font-display font-bold leading-[1.2] tracking-[-0.02em] mb-3 text-[1.2rem] lg:text-[1.4rem]">Automated Deletion:</h3>
           <ul className="list-disc list-inside space-y-2 ml-4 text-[16px] lg:text-[18px]">
-            <li>Scheduled deletion jobs run daily at 00:00 UTC</li>
-            <li>Hard deletion (no soft delete/archival for meeting content)</li>
-            <li>Cryptographic erasure for encrypted data stores</li>
+            <li>The scheduled deletion job runs daily at 03:00 UTC</li>
+            <li>Meeting content is hard-deleted. Account records are anonymised rather than dropped, so a deletion remains auditable</li>
+            <li>Deletion is performed by removing the records, not by discarding keys</li>
             <li>Deletion confirmation logs maintained for audit purposes</li>
           </ul>
         </div>
@@ -119,7 +119,7 @@ export function PrivacyBusiness(): JSX.Element {
           <ul className="list-disc list-inside space-y-2 ml-4 text-[16px] lg:text-[18px]">
             <li>Immediate deletion from production systems: Within 24 hours</li>
             <li>Backup purge: Within 30 days (backup retention cycle)</li>
-            <li>Deletion verification: Available via API or dashboard</li>
+            <li>Deletion is recorded in an audit log; a confirmation email is sent when it completes</li>
             <li>Compliance: GDPR Article 17 (Right to Erasure), CCPA deletion rights</li>
           </ul>
         </div>
@@ -254,8 +254,8 @@ export function PrivacyBusiness(): JSX.Element {
           <div>
             <h3 className="font-display font-bold leading-[1.2] tracking-[-0.02em] mb-2 text-[1.2rem] lg:text-[1.4rem]">Right of Access (GDPR Article 15, CCPA § 1798.110):</h3>
             <ul className="list-disc list-inside space-y-2 ml-4 text-[16px] lg:text-[18px]">
-              <li>Self-service data export: JSON format via dashboard</li>
-              <li>API endpoint: Programmatic data access for enterprise customers</li>
+              <li>Self-service data export: JSON, from the dashboard</li>
+              <li>Export is self-service from the dashboard. There is no customer-facing API yet</li>
               <li>Response timeline: Within 30 days (GDPR), 45 days (CCPA)</li>
               <li>Data categories: All personal data processed, including metadata</li>
             </ul>
@@ -273,10 +273,10 @@ export function PrivacyBusiness(): JSX.Element {
           <div>
             <h3 className="font-display font-bold leading-[1.2] tracking-[-0.02em] mb-2 text-[1.2rem] lg:text-[1.4rem]">Right to Erasure (GDPR Article 17, CCPA § 1798.105):</h3>
             <ul className="list-disc list-inside space-y-2 ml-4 text-[16px] lg:text-[18px]">
-              <li>User-initiated deletion: Meeting-level or account-level</li>
+              <li>User-initiated deletion: a single meeting, or the whole account</li>
               <li>Deletion timeline: 24 hours (production), 30 days (backups)</li>
               <li>Exceptions documented: Legal obligations, legitimate interests</li>
-              <li>Confirmation provided: Deletion receipt available on request</li>
+              <li>Confirmation provided: an email when deletion completes, and an audit log entry</li>
             </ul>
           </div>
 
@@ -327,7 +327,7 @@ export function PrivacyBusiness(): JSX.Element {
               <li>Authentication: Multi-factor authentication (MFA) required</li>
               <li>Authorization: Role-based access control (RBAC) with principle of least privilege</li>
               <li>Session management: Token-based authentication with expiration</li>
-              <li>Audit logging: Comprehensive access logs retained for 90 days</li>
+              <li>Audit logging: deletions are recorded in an audit log, retained indefinitely. There is no 90-day access-log retention policy in place</li>
             </ul>
           </div>
 
