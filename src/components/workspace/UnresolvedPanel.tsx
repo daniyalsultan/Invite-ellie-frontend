@@ -100,6 +100,7 @@ export function UnresolvedPanel({ workspaceId, userId }: Props): JSX.Element | n
   const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
   const [showAll, setShowAll] = useState(false);
+  const [showMovedOn, setShowMovedOn] = useState(false);
 
   useEffect(() => {
     if (!workspaceId || !userId) {
@@ -130,14 +131,51 @@ export function UnresolvedPanel({ workspaceId, userId }: Props): JSX.Element | n
 
   if (!workspaceId) return null;
 
-  const records = (data?.records ?? []).filter((r) => r.status === 'open');
-  const visible = showAll ? records : records.slice(0, 5);
+  const open = (data?.records ?? []).filter((r) => r.status === 'open');
+
+  // What a later meeting said about each one decides which list it is in.
+  //
+  // `progressed` and `restated` leave a record open on purpose -- somebody
+  // mentioned it again, or moved it along without finishing it. Those are
+  // exactly the records the follow-up model and a reader are most likely to
+  // disagree about, so they are not what this panel leads with. The default
+  // is the ones nothing has been heard about since, which is the case where
+  // "still outstanding" is least arguable.
+  const MOVED_ON = ['progressed', 'restated'];
+  const records = open.filter((r) => !r.last_heard || !MOVED_ON.includes(r.last_heard.event_type));
+  const movedOn = open.filter((r) => r.last_heard && MOVED_ON.includes(r.last_heard.event_type));
+  const shown = showMovedOn ? movedOn : records;
+  const visible = showAll ? shown : shown.slice(0, 5);
 
   return (
     <section>
       <h4 className="font-nunito text-sm font-bold uppercase tracking-wide text-[#6B7A96] mb-3">
-        Still outstanding{records.length > 0 ? ` (${records.length})` : ''}
+        {showMovedOn ? 'Moved on since' : 'Still outstanding'}
+        {shown.length > 0 ? ` (${shown.length})` : ''}
       </h4>
+
+      {movedOn.length > 0 ? (
+        <div className="mb-3 flex gap-2 font-nunito text-xs">
+          <button
+            type="button"
+            onClick={() => { setShowMovedOn(false); setShowAll(false); }}
+            className={`rounded-full px-3 py-1 font-semibold ${
+              showMovedOn ? 'bg-[#F1F5F9] text-[#475569]' : 'bg-[#327AAD] text-white'
+            }`}
+          >
+            Not raised again ({records.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => { setShowMovedOn(true); setShowAll(false); }}
+            className={`rounded-full px-3 py-1 font-semibold ${
+              showMovedOn ? 'bg-[#327AAD] text-white' : 'bg-[#F1F5F9] text-[#475569]'
+            }`}
+          >
+            Mentioned since ({movedOn.length})
+          </button>
+        </div>
+      ) : null}
 
       {loading ? (
         <p className="font-nunito text-sm text-[#6B7A96] rounded-2xl border border-gray-200 bg-white p-5">
@@ -147,9 +185,11 @@ export function UnresolvedPanel({ workspaceId, userId }: Props): JSX.Element | n
         <p className="font-nunito text-sm text-[#B91C1C] rounded-2xl border border-gray-200 bg-white p-5">
           Couldn’t load what’s outstanding.
         </p>
-      ) : records.length === 0 ? (
+      ) : shown.length === 0 ? (
         <p className="font-nunito text-sm text-[#94A3C1] italic rounded-2xl border border-dashed border-gray-200 bg-white p-6 text-center">
-          Nothing outstanding — every commitment from these meetings has been closed.
+          {showMovedOn
+            ? 'Nothing here — no open record has been mentioned in a later meeting.'
+            : 'Nothing outstanding — every commitment from these meetings has been closed.'}
         </p>
       ) : (
         <div className="space-y-3">
@@ -198,13 +238,13 @@ export function UnresolvedPanel({ workspaceId, userId }: Props): JSX.Element | n
             ))}
           </ul>
 
-          {records.length > 5 ? (
+          {shown.length > 5 ? (
             <button
               type="button"
               onClick={() => setShowAll((v) => !v)}
               className="font-nunito text-sm font-semibold text-ellieBlue hover:underline"
             >
-              {showAll ? 'Show fewer' : `Show all ${records.length}`}
+              {showAll ? 'Show fewer' : `Show all ${shown.length}`}
             </button>
           ) : null}
         </div>
