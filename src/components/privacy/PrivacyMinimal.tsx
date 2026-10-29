@@ -10,8 +10,8 @@ export function PrivacyMinimal(): JSX.Element {
         <ul className="list-disc list-inside space-y-2 ml-4 text-[16px] lg:text-[18px]">
           <li>Record and transcribe when you ask us to</li>
           <li>Generate summaries and action items</li>
-          <li>Store for time periods you control (defaults: 30 days audio / 90 days transcripts)</li>
-          <li>Delete automatically or when you request</li>
+          <li>Keep for the life of your workspace, unless an owner sets a retention period for recordings</li>
+          <li>Delete when you ask. Recordings also delete automatically where a retention period is set; transcripts and summaries never expire on a schedule</li>
         </ul>
       </div>
 
@@ -45,7 +45,7 @@ export function PrivacyMinimal(): JSX.Element {
       <div>
         <h3 className="font-display font-bold leading-[1.2] tracking-[-0.02em] mb-3 text-[1.15rem] lg:text-[1.3rem]">Your Controls:</h3>
         <ul className="list-disc list-inside space-y-2 ml-4 text-[16px] lg:text-[18px]">
-          <li>Set how long we keep your data (audio and transcripts)</li>
+          <li>Set how long recordings are kept, in any workspace you own</li>
           <li>Download your data anytime (JSON export)</li>
           <li>Delete anytime (gone in 24 hours from production, 30 days from backups)</li>
           <li>Edit transcripts</li>
