@@ -991,7 +991,7 @@ export function WorkspaceViewPage(): JSX.Element {
                             No action items extracted yet.
                           </p>
                         ) : (
-                          <div className="space-y-4 max-h-96 overflow-y-auto rounded-2xl border border-gray-200 bg-white p-4">
+                          <div className="space-y-4 rounded-2xl border border-gray-200 bg-white p-4">
                             {workspaceActionItemGroups.attention.length > 0 && (
                               <div className="space-y-3">
                                 <div className="rounded-2xl bg-[#FFF5F5] border border-[#F3C6C6] px-3 py-2 text-sm font-semibold text-[#B12D2D]">

@@ -140,7 +140,7 @@ export function DemoTour({
                 Welcome to Invite Ellie
               </h2>
               <p className="font-nunito text-xs text-[#545454] md:text-base">
-                Let’s walk you trough Invite Ellie and it’s features!
+                Let’s walk you through Invite Ellie and its features!
               </p>
             </div>
           </div>
