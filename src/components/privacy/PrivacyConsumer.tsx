@@ -47,9 +47,9 @@ export function PrivacyConsumer(): JSX.Element {
         
         <h3 className="font-display font-bold leading-[1.2] tracking-[-0.02em] mb-3 mt-6 text-[1.2rem] lg:text-[1.4rem]">Data Retention:</h3>
         <ul className="list-disc list-inside space-y-2 ml-4 text-[16px] lg:text-[18px]">
-          <li>Audio recordings: You control retention periods through your account settings</li>
-          <li>Transcripts and summaries: You control retention periods through your account settings</li>
-          <li>Default retention if not configured: Audio for 30 days, transcripts for 90 days</li>
+          <li>Audio recordings: a workspace owner can set how long recordings are kept in that workspace</li>
+          <li>Transcripts and summaries: kept for the life of the workspace. They are not deleted on a schedule</li>
+          <li>If no retention period is set, nothing expires automatically — recordings are kept for the life of the workspace too</li>
           <li>You can delete your data anytime from your dashboard</li>
         </ul>
 
@@ -155,9 +155,9 @@ export function PrivacyConsumer(): JSX.Element {
           <div>
             <h3 className="font-display font-bold leading-[1.2] tracking-[-0.02em] mb-2 text-[1.2rem] lg:text-[1.4rem]">Control Retention:</h3>
             <ul className="list-disc list-inside space-y-2 ml-4 text-[16px] lg:text-[18px]">
-              <li>Configure how long we keep your audio and transcripts</li>
-              <li>Set different retention for different types of meetings</li>
-              <li>Override retention for specific important meetings</li>
+              <li>Set how long recordings are kept, in any workspace you own</li>
+              <li>Set a different period for each workspace</li>
+              <li>Delete any single meeting, with its recording, transcript and summary</li>
             </ul>
           </div>
 

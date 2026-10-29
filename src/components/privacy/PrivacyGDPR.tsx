@@ -281,10 +281,10 @@ export function PrivacyGDPR(): JSX.Element {
         <div>
           <h3 className="font-display font-bold leading-[1.2] tracking-[-0.02em] mb-3 text-[1.2rem] lg:text-[1.4rem]">Meeting Content Data:</h3>
           <ul className="list-disc list-inside space-y-2 ml-4 text-[16px] lg:text-[18px]">
-            <li>Audio recordings: Customer-configurable (default: 30 days if not specified by meeting host)</li>
-            <li>Transcripts and summaries: Customer-configurable (default: 90 days if not specified by meeting host)</li>
-            <li>Retention controls: Meeting hosts can configure retention periods via account settings or API</li>
-            <li>Rationale: Flexible retention allows users to keep important meetings longer while automatically deleting routine content for data minimization</li>
+            <li>Audio recordings: configurable per workspace by a workspace owner. Where no period is set, recordings are retained for the life of the workspace</li>
+            <li>Transcripts and summaries: retained for the life of the workspace, and not subject to scheduled expiry</li>
+            <li>Retention controls: a workspace owner sets the recording retention period in that workspace’s settings</li>
+            <li>Rationale: retention is set per workspace so a customer can shorten it for data minimisation. Where no period is set, nothing is deleted automatically</li>
           </ul>
         </div>
 
@@ -315,7 +315,7 @@ export function PrivacyGDPR(): JSX.Element {
         <div className="mt-6">
           <h3 className="font-display font-bold leading-[1.2] tracking-[-0.02em] mb-3 text-[1.2rem] lg:text-[1.4rem]">Automated Deletion:</h3>
           <p className="text-[16px] lg:text-[18px]">
-            All data is automatically deleted at the end of its configured or default retention period. Users may request earlier deletion (Right to Erasure - Article 17).
+            Where a workspace sets a recording retention period, recordings are deleted automatically at the end of it. Transcripts and summaries are not deleted on a schedule. Users may request deletion at any time (Right to Erasure - Article 17).
           </p>
         </div>
 

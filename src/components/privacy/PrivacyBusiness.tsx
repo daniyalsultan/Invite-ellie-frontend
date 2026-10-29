@@ -86,8 +86,8 @@ export function PrivacyBusiness(): JSX.Element {
         <div>
           <h3 className="font-display font-bold leading-[1.2] tracking-[-0.02em] mb-3 text-[1.2rem] lg:text-[1.4rem]">Production Data Retention:</h3>
           <ul className="list-disc list-inside space-y-2 ml-4 text-[16px] lg:text-[18px]">
-            <li>Audio recordings: Customer-configurable retention period (default: 30 days if not specified)</li>
-            <li>Transcripts and summaries: Customer-configurable retention period (default: 90 days if not specified)</li>
+            <li>Audio recordings: customer-configurable retention period, set per workspace. If not configured, recordings are retained for the life of the workspace</li>
+            <li>Transcripts and summaries: retained for the life of the workspace. Not subject to scheduled expiry; removed when the meeting or the account is deleted</li>
             <li>Meeting metadata: Retained for subscription duration + 90 days</li>
             <li>Account data: Retained for subscription duration + 365 days (compliance requirements)</li>
             <li>Retention controls: Available via dashboard and API for programmatic configuration</li>
