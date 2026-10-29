@@ -168,7 +168,15 @@ export function UnresolvedPanel({ workspaceId, userId }: Props): JSX.Element | n
             </div>
           ) : null}
 
-          <ul className="space-y-3 max-h-96 overflow-y-auto">
+          {/* No inner scroller. The list already has a disclosure control
+              below it -- five records, then "Show all N" -- and a capped
+              scroll area duplicates that badly: 384px against 4,292px of
+              content showed two cards and clipped the third mid-sentence.
+              A taller cap only moves where it clips, because card height
+              follows the excerpt and the cap cannot see it. Collapsed, five
+              cards fit whole; expanded, the page grows, which is what
+              "Show all" means. */}
+          <ul className="space-y-3">
             {visible.map((record) => (
               <Row
                 key={record.id}
