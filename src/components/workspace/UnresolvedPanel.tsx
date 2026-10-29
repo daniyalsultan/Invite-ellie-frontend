@@ -100,7 +100,7 @@ export function UnresolvedPanel({ workspaceId, userId }: Props): JSX.Element | n
   const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
   const [showAll, setShowAll] = useState(false);
-  const [showMovedOn, setShowMovedOn] = useState(false);
+  const [tab, setTab] = useState<'open' | 'moved' | 'conditions'>('open');
 
   useEffect(() => {
     if (!workspaceId || !userId) {
@@ -142,38 +142,48 @@ export function UnresolvedPanel({ workspaceId, userId }: Props): JSX.Element | n
   // is the ones nothing has been heard about since, which is the case where
   // "still outstanding" is least arguable.
   const MOVED_ON = ['progressed', 'restated'];
-  const records = open.filter((r) => !r.last_heard || !MOVED_ON.includes(r.last_heard.event_type));
-  const movedOn = open.filter((r) => r.last_heard && MOVED_ON.includes(r.last_heard.event_type));
-  const shown = showMovedOn ? movedOn : records;
+  // What someone owes. The scope of work describes this view as surfacing
+  // commitments, and the data agrees: 44 of the 54 owed records in the
+  // default list name an owner, against 8 of the 36 risks and blockers.
+  // A risk is a standing condition, not a debt, so it does not belong in a
+  // list of what is outstanding -- but it is still worth reading, and the
+  // Status and Gaps panels are built from the summary JSON rather than
+  // these rows, so dropping them here would lose the owner, the age, what
+  // was last heard, and the controls for correcting Ellie. Hence a tab,
+  // not a deletion.
+  const OWED = ['commitment', 'action_item', 'promise'];
+  const owed = open.filter((r) => OWED.includes(r.record_type));
+  const conditions = open.filter((r) => !OWED.includes(r.record_type));
+  const records = owed.filter((r) => !r.last_heard || !MOVED_ON.includes(r.last_heard.event_type));
+  const movedOn = owed.filter((r) => r.last_heard && MOVED_ON.includes(r.last_heard.event_type));
+  const shown = tab === 'moved' ? movedOn : tab === 'conditions' ? conditions : records;
   const visible = showAll ? shown : shown.slice(0, 5);
 
   return (
     <section>
       <h4 className="font-nunito text-sm font-bold uppercase tracking-wide text-[#6B7A96] mb-3">
-        {showMovedOn ? 'Moved on since' : 'Still outstanding'}
+        {tab === 'moved' ? 'Moved on since' : tab === 'conditions' ? 'Risks and blockers' : 'Still outstanding'}
         {shown.length > 0 ? ` (${shown.length})` : ''}
       </h4>
 
-      {movedOn.length > 0 ? (
-        <div className="mb-3 flex gap-2 font-nunito text-xs">
-          <button
-            type="button"
-            onClick={() => { setShowMovedOn(false); setShowAll(false); }}
-            className={`rounded-full px-3 py-1 font-semibold ${
-              showMovedOn ? 'bg-[#F1F5F9] text-[#475569]' : 'bg-[#327AAD] text-white'
-            }`}
-          >
-            Not raised again ({records.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => { setShowMovedOn(true); setShowAll(false); }}
-            className={`rounded-full px-3 py-1 font-semibold ${
-              showMovedOn ? 'bg-[#327AAD] text-white' : 'bg-[#F1F5F9] text-[#475569]'
-            }`}
-          >
-            Mentioned since ({movedOn.length})
-          </button>
+      {(movedOn.length > 0 || conditions.length > 0) ? (
+        <div className="mb-3 flex flex-wrap gap-2 font-nunito text-xs">
+          {([
+            ['open', `Not raised again (${records.length})`],
+            ['moved', `Mentioned since (${movedOn.length})`],
+            ['conditions', `Risks and blockers (${conditions.length})`],
+          ] as const).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => { setTab(key); setShowAll(false); }}
+              className={`rounded-full px-3 py-1 font-semibold ${
+                tab === key ? 'bg-[#327AAD] text-white' : 'bg-[#F1F5F9] text-[#475569]'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
       ) : null}
 
@@ -187,9 +197,11 @@ export function UnresolvedPanel({ workspaceId, userId }: Props): JSX.Element | n
         </p>
       ) : shown.length === 0 ? (
         <p className="font-nunito text-sm text-[#94A3C1] italic rounded-2xl border border-dashed border-gray-200 bg-white p-6 text-center">
-          {showMovedOn
-            ? 'Nothing here — no open record has been mentioned in a later meeting.'
-            : 'Nothing outstanding — every commitment from these meetings has been closed.'}
+          {tab === 'moved'
+            ? 'Nothing here — no open commitment has been mentioned in a later meeting.'
+            : tab === 'conditions'
+              ? 'No open risks or blockers across these meetings.'
+              : 'Nothing outstanding — every commitment from these meetings has been closed.'}
         </p>
       ) : (
         <div className="space-y-3">
